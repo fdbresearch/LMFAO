@@ -1,0 +1,306 @@
+//--------------------------------------------------------------------
+//
+// TreeDecomposition.cpp
+//
+// Created on: 12/09/2017
+// Author: Max
+//
+//--------------------------------------------------------------------
+
+#include <fstream>
+#include <sstream>
+
+#include <Logging.hpp>
+#include <TreeDecomposition.h>
+
+#define BUF_SIZE 1024
+
+static const char NAME_SEPARATOR_CHAR = ':';
+static const char ATTRIBUTE_SEPARATOR_CHAR = ',';
+static const char COMMENT_CHAR = '#';
+static const char PARAMETER_SEPARATOR_CHAR = ' ';
+static const char EDGE_SEPARATOR_CHAR = '-';
+
+TreeDecomposition::TreeDecomposition(std::string filename)
+{
+    buildFromFile(filename);
+}
+
+TreeDecomposition::~TreeDecomposition()
+{
+    /* TODO: Determine what needs to be deleted. */
+}
+
+size_t TreeDecomposition::numberOfAttributes()
+{
+    return _numOfAttributes;
+}
+
+size_t TreeDecomposition::numberOfRelations()
+{
+    return _numOfRelations;
+}
+
+TDNode* TreeDecomposition::getRelation(int relationID)
+{
+    return _relations[relationID];
+}
+
+Attribute* TreeDecomposition::getAttribute(int attID)
+{
+    return _attributes[attID];
+}
+
+size_t TreeDecomposition::getIndexByName(std::string name)
+{
+    auto it = _attributeMap.find(name);
+    if (it != _attributeMap.end())
+        return it->second;
+
+    return -1;
+}
+
+void TreeDecomposition::buildFromFile(std::string fileName)
+{
+    /* Load the DTree config file into an input stream. */
+    std::ifstream input(fileName);
+
+    if (!input)
+    {
+        ERROR(fileName+" does not exist. \n");
+        exit(1);
+    }
+
+    std::cout << "Building the TD from file: " << fileName << "\n";
+   
+    /* Number of attributes and tables. */
+    size_t n, m, e;
+
+    /* String and associated stream to receive lines from the file. */
+    std::string line;
+    std::stringstream ssLine;
+
+    /* String to receive the attributes from the relation. */
+    std::string attribute;
+
+    /* Read all the attributes - name and value - and parent and key. */
+    std::string name;
+    std::string type;
+    std::string attrs;
+    std::string index;
+    
+    /* Skmaip any comments at the top */
+    while (getline(input, line))
+    {
+        if (line[0] == COMMENT_CHAR || line == "")
+            continue;
+    
+        break;
+    }
+
+    /* Extract number of attributes and tables. */
+    ssLine << line;
+
+    std::string nString, mString, eString;
+    getline(ssLine, nString, PARAMETER_SEPARATOR_CHAR);
+    getline(ssLine, mString, PARAMETER_SEPARATOR_CHAR);
+    getline(ssLine, eString, PARAMETER_SEPARATOR_CHAR);
+   
+    ssLine.clear();
+
+    /* Convert the strings to integers. */
+    n = stoul(nString);
+    m = stoul(mString);
+    e = stoul(eString);
+
+    /* Set numOfAttributes and _numOfRelations. */
+    this->_numOfAttributes = n;
+    this->_numOfRelations = m;
+    this->_numOfEdges = e;
+
+    this->_relations.resize(m);
+    this->_attributesInRelation.resize(m);
+    this->_attributes.resize(n);
+   
+    std::cout << _numOfAttributes << " " << _numOfRelations << "\n";
+
+    for (size_t i = 0; i < n; ++i)
+    {
+        /* Extract node information for each attribute. */
+        while (getline(input, line))
+        {
+            if (line[0] == COMMENT_CHAR || line == "")
+                continue;
+
+            break;
+        }
+
+        ssLine << line;
+
+        /* Get the six parameters specified for each attribute. */
+        getline(ssLine, index, PARAMETER_SEPARATOR_CHAR);
+        getline(ssLine, name, PARAMETER_SEPARATOR_CHAR);
+        getline(ssLine, type, PARAMETER_SEPARATOR_CHAR);
+
+        /* Clear string stream. */
+        ssLine.clear();
+
+        if (i != stoul(index))
+            ERROR("Inconsistent index specified in your DTree config file.\n");
+
+        Type t;
+        if (type.compare("int")==0) t = Type::Integer;
+        if (type.compare("double")==0) t = Type::Double;
+        if (type.compare("short")==0) t = Type::Short;
+        if (type.compare("uint")==0) t = Type::U_Integer;
+        
+        this->_attributes[i] = new Attribute(name, i, t);
+        this->_attributeMap[name] = i;
+    }
+  
+    /* Read all the node names, their parents and attributes. */
+    for (size_t i = 0; i < m; ++i)
+    {
+        /* Extract node information for each relation. */
+        while (getline(input, line))
+        {
+           if (line[0] == COMMENT_CHAR || line == "")
+              continue;
+
+           break;
+        }
+
+        ssLine << line;
+
+        /* Get the three parameters specified for each relation. */
+        // getline(ssLine, name, PARAMETER_SEPARATOR_CHAR);
+        // getline(ssLine, parent, PARAMETER_SEPARATOR_CHAR);
+
+        getline(ssLine, index, PARAMETER_SEPARATOR_CHAR);
+        getline(ssLine, name, NAME_SEPARATOR_CHAR);
+        getline(ssLine, attrs, PARAMETER_SEPARATOR_CHAR);
+
+        if (i != stoul(index))
+            ERROR("Inconsistent index specified in your DTree config file.\n");
+        
+        std::cout << index << " " << name << " " << attrs << "\n";
+
+        this->_relations[i] = new TDNode(name, i);
+        this->_relationsMap[name] = i;
+
+        /* Clear string stream. */
+        ssLine.clear();
+
+        ssLine << attrs;
+
+        while (getline(ssLine, attribute, ATTRIBUTE_SEPARATOR_CHAR))
+            this->_relations[i]->_bag.set(_attributeMap[attribute]);
+        
+        /* Clear string stream. */
+        ssLine.clear();
+    }
+
+    std::string node1, node2;
+    
+    /* Read all the node names, their parents and attributes. */
+    for (size_t i = 0; i < e; ++i)
+    {
+        /* Extract node information for each relation. */
+        while (getline(input, line))
+        {
+           if (line[0] == COMMENT_CHAR || line == "")
+              continue;
+
+           break;
+        }
+
+        ssLine << line;
+
+        getline(ssLine, node1, EDGE_SEPARATOR_CHAR);
+        getline(ssLine, node2, PARAMETER_SEPARATOR_CHAR);
+
+        std::cout << node1 << " - " << node2 << "\n";
+
+        int n1 = _relationsMap[node1];
+        int n2 = _relationsMap[node2];
+
+        _relations[n1]->_neighbors.push_back(n2);
+        _relations[n2]->_neighbors.push_back(n1);
+
+        ssLine.clear();
+    }
+
+    for (size_t i = 0; i < _numOfRelations; i++)
+    {
+        _relations[i]->_numOfNeighbors = _relations[i]->_neighbors.size();
+        _relations[i]->_neighborSchema = new var_bitset[_relations[i]->_numOfNeighbors];
+        
+        if (_relations[i]->_numOfNeighbors == 1)
+            _leafNodes.push_back(_relations[i]->_id);    
+    }
+
+    
+    DINFO("Computing schema \n");
+
+    this->_root = _relations[0];
+    var_bitset rootSchemaBitset = _root->_bag;
+    
+    /* neighborsSchema as bitset! */
+    for (size_t n = 0; n < _root->_numOfNeighbors; n++)
+    {
+        neighborSchema(getRelation(_root->_neighbors[n]), _root->_id,
+                       _root->_neighborSchema[n]);
+
+        rootSchemaBitset |= _root->_neighborSchema[n];
+    }
+
+    for (size_t n = 0; n < _root->_numOfNeighbors; n++)
+    {
+        parentNeighborSchema(
+            getRelation(_root->_neighbors[n]), _root->_id,
+            (rootSchemaBitset & ~_root->_neighborSchema[n]) | _root->_bag);
+    }
+ 
+    for (size_t i = 0; i < _numOfRelations; i++)
+    {
+        printf("node: %s : ", getRelation(i)->_name.c_str());
+        std::cout << getRelation(i)->_bag << "\n";
+        for (size_t c = 0; c < getRelation(i)->_numOfNeighbors; c++)
+            std::cout <<getRelation(i)->_neighborSchema[c] << " | ";
+        std::cout << "\n";
+    }
+        
+    printf("We computed the schema! \n");
+}
+
+
+void TreeDecomposition::neighborSchema(TDNode* node, size_t originID,
+                                       var_bitset& schema) 
+{
+    schema |= node->_bag;
+    
+    for (size_t c = 0; c < node->_numOfNeighbors; c++)
+    {
+        if (node->_neighbors[c] != originID)
+        {
+             
+            neighborSchema(getRelation(node->_neighbors[c]), node->_id,
+                           node->_neighborSchema[c]);
+
+            schema |= node->_neighborSchema[c];
+        }
+    }
+}
+
+void TreeDecomposition::parentNeighborSchema(TDNode* node, size_t originID,
+                                             var_bitset schema)
+{
+    for (size_t c = 0; c < node->_numOfNeighbors; c++)
+    {
+        if (node->_neighbors[c] == originID)
+            node->_neighborSchema[c] = schema;
+        else
+            parentNeighborSchema(getRelation(node->_neighbors[c]), node->_id,
+                                 schema | node->_bag);
+    }
+}

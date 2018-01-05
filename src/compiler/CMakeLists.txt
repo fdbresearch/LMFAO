@@ -1,0 +1,1 @@
+add_library(compiler QueryCompiler.cpp)

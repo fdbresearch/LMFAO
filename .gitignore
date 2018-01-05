@@ -1,0 +1,43 @@
+# Compiled Object files
+*.slo
+*.lo
+*.o
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+
+# bin directory
+bin
+bin/*
+
+
+# Cmake files
+CMakeCache.txt
+CMakeFiles/
+*.cmake
+Makefile
+
+# ignore vim swap files
+*.swp
+.*.swp
+
+# data directory
+data
+data/*
+
+# Doxygen generated files
+html
+html/*
+
+# Other
+dfdb
+core.*
+.DS_Store
+
+todo.md
