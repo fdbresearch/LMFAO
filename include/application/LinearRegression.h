@@ -51,6 +51,8 @@ private:
     var_bitset _features;
 
     var_bitset _categoricalFeatures;
+
+    size_t* rootIndex = nullptr;
     
     void modelToQueries();
 

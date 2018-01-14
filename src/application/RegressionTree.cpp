@@ -45,16 +45,26 @@ void RegressionTree::run()
 
     loadFeatures();
 
+    cout << "Loaded Feautres \n";
+
     computeCandidates();
-    
+
+    cout << "Computed Candidates \n";
+
     /* Create EmptyNode? */
     RegTreeNode* root = new RegTreeNode();
     root->_conditions.set(5);
     root->_conditions.set(9);
     root->_conditions.set(15);
     
+    cout << "here \n";
+
     splitNodeQueries(root);
     _compiler->compile();
+
+
+    cout << "here \n";
+    
 
     // 1. define queries for new splits
     // 2. compile views for these queries
@@ -83,13 +93,11 @@ void RegressionTree::run()
 
 void RegressionTree::computeCandidates()
 {
-    //TODO: Hardcode Thresholds.
+    //TODO: Hardcode Thresholds.    
+    DINFO(_pathToFiles + "\n");
+    DINFO(_features << "\n");
 
-    cout << _pathToFiles << endl;
-    cout << _features << endl;
-    
-
-    if (_pathToFiles.compare("data/example") == 0) 
+    if (_pathToFiles.compare("data/example") == 0 || _pathToFiles.compare("data/example/") == 0) 
     {
        _thresholds =
             {
@@ -116,14 +124,17 @@ void RegressionTree::computeCandidates()
      /* CANDIDATES ARE FUNCTIONS --- so we define the functions for all
       * candidates and set them accordingly  */
 
-    // Push them on the functionList in the order they are accessed 
+     // Push them on the functionList in the order they are accessed 
     size_t idx = 2;
     for (size_t var=0; var < NUM_OF_VARIABLES; ++var)
     {
+        cout << _pathToFiles + "\n";
+        cout << _features[var] << " " << var << "here \n";
+                
         if (_features[var])
         {
             for (size_t t = 0; t < _thresholds[var].size(); ++t)
-            {
+            {                
                 double* parameter = &_thresholds[var][t]; 
             
                 /* Create function and add to functionList */
@@ -286,7 +297,7 @@ void RegressionTree::loadFeatures()
         exit(1);
     }    
 
-    _labelID = _td->getIndexByName(labelName);
+    _labelID = _td->getAttributeIndex(labelName);
 
     /* Clear string stream. */
     ssLine.clear();
@@ -311,7 +322,7 @@ void RegressionTree::loadFeatures()
         /* Extract the dimension of the current attribute. */
         getline(ssLine, typeOfFeature);
 
-        int attributeID = _td->getIndexByName(attrName);
+        int attributeID = _td->getAttributeIndex(attrName);
         bool categorical = stoi(typeOfFeature);
 
         if (attributeID == -1)

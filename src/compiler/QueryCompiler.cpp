@@ -77,8 +77,6 @@ void QueryCompiler::compile()
         printf("\n");
     }
 /* Printout */
-
-    compileSQLQueryBitset();
 }
 
 void QueryCompiler::addFunction(Function* f)
@@ -434,169 +432,168 @@ pair<size_t,size_t> QueryCompiler::compileViews(TDNode* node, size_t targetID,
 }
 
 
-void QueryCompiler::compileSQLQueryBitset() 
-{
-    cout << "\nStarting SQL - Compiler \n\n";
+// void QueryCompiler::compileSQLQueryBitset() 
+// {
+//     cout << "\nStarting SQL - Compiler \n\n";
     
-    int viewIdx = 0;
-    for (View* v : _viewList)
-    {
-        string fvars = "", fromClause = "";
+//     int viewIdx = 0;
+//     for (View* v : _viewList)
+//     {
+//         string fvars = "", fromClause = "";
         
-        for (size_t i = 0; i < NUM_OF_VARIABLES; ++i)
-            if (v->_fVars.test(i))
-                fvars +=  _td->getAttribute(i)->_name + ",";
-        fvars.pop_back();
+//         for (size_t i = 0; i < NUM_OF_VARIABLES; ++i)
+//             if (v->_fVars.test(i))
+//                 fvars +=  _td->getAttribute(i)->_name + ",";
+//         fvars.pop_back();
 
-        TDNode* node = _td->getRelation(v->_origin);
-        int numberIncomingViews =
-            (v->_origin == v->_destination ? node->_numOfNeighbors :
-             node->_numOfNeighbors - 1);
+//         TDNode* node = _td->getRelation(v->_origin);
+//         int numberIncomingViews =
+//             (v->_origin == v->_destination ? node->_numOfNeighbors :
+//              node->_numOfNeighbors - 1);
 
-        vector<bool> viewBitset(_viewList.size());
+//         vector<bool> viewBitset(_viewList.size());
         
-        string aggregateString = "";
-        for (size_t aggNo = 0; aggNo < v->_aggregates.size(); ++aggNo)
-        {
-            string agg = "";
+//         string aggregateString = "";
+//         for (size_t aggNo = 0; aggNo < v->_aggregates.size(); ++aggNo)
+//         {
+//             string agg = "";
             
-            Aggregate* aggregate = v->_aggregates[aggNo];
+//             Aggregate* aggregate = v->_aggregates[aggNo];
                 
-            size_t aggIdx = 0, incomingCounter = 0;
+//             size_t aggIdx = 0, incomingCounter = 0;
 
-            for (size_t i = 0; i < aggregate->_n; ++i)
-            {
-                string localAgg = "";
+//             for (size_t i = 0; i < aggregate->_n; ++i)
+//             {
+//                 string localAgg = "";
 
-                while (aggIdx < aggregate->_m[i])
-                {
-                    const prod_bitset& p = aggregate->_agg[aggIdx];
+//                 while (aggIdx < aggregate->_m[i])
+//                 {
+//                     const prod_bitset& p = aggregate->_agg[aggIdx];
 
-                    for (size_t f = 0; f < NUM_OF_FUNCTIONS; ++f)
-                    {  
-                        if (p.test(f))
-                            localAgg += getFunctionString(f)+"*";
+//                     for (size_t f = 0; f < NUM_OF_FUNCTIONS; ++f)
+//                     {  
+//                         if (p.test(f))
+//                             localAgg += getFunctionString(f)+"*";
                         
-                        // "function_"+ to_string(f)+"*";
-                        // TODO: change this to actual function expression
-                    }
+//                         // "function_"+ to_string(f)+"*";
+//                         // TODO: change this to actual function expression
+//                     }
 
-                    localAgg.pop_back();
-                    localAgg += "+";
-                    ++aggIdx;
-                }
+//                     localAgg.pop_back();
+//                     localAgg += "+";
+//                     ++aggIdx;
+//                 }
 
-                localAgg.pop_back();
+//                 localAgg.pop_back();
 
-                string viewAgg = "";
-                while(incomingCounter < aggregate->_o[i])
-                {
-                    for (int n = 0; n < numberIncomingViews; ++n)
-                    {
-                        size_t viewID = aggregate->_incoming[incomingCounter];
-                        size_t aggID = aggregate->_incoming[incomingCounter]; 
+//                 string viewAgg = "";
+//                 while(incomingCounter < aggregate->_o[i])
+//                 {
+//                     for (int n = 0; n < numberIncomingViews; ++n)
+//                     {
+//                         size_t viewID = aggregate->_incoming[incomingCounter];
+//                         size_t aggID = aggregate->_incoming[incomingCounter+1]; 
                     
-                        viewAgg += "agg_"+to_string(viewID)+"_"+to_string(aggID)+"*";
-                        viewBitset[viewID] = 1;                    
-                        fromClause += "NATURAL JOIN view_"+to_string(viewID)+" ";
-                        incomingCounter += 2;
-                    }
+//                         viewAgg += "agg_"+to_string(viewID)+"_"+to_string(aggID)+"*";
+//                         viewBitset[viewID] = 1;                    
+//                         fromClause += "NATURAL JOIN view_"+to_string(viewID)+" ";
+//                         incomingCounter += 2;
+//                     }
                 
-                    viewAgg.pop_back();
-                    viewAgg += "+";
-                } 
-                viewAgg.pop_back();
+//                     viewAgg.pop_back();
+//                     viewAgg += "+";
+//                 } 
+//                 viewAgg.pop_back();
            
-                if (viewAgg.size() > 0)
-                {                
-                    if (localAgg.size() > 0)
-                        agg += "("+localAgg+")*("+viewAgg+")+";
-                    else
-                        agg += viewAgg+"+";
-                }
-                else   
-                    agg += localAgg+"+";
-            }
-            agg.pop_back();
+//                 if (viewAgg.size() > 0)
+//                 {                
+//                     if (localAgg.size() > 0)
+//                         agg += "("+localAgg+")*("+viewAgg+")+";
+//                     else
+//                         agg += viewAgg+"+";
+//                 }
+//                 else   
+//                     agg += localAgg+"+";
+//             }
+//             agg.pop_back();
 
-            if (agg.size() == 0) agg = "1";
+//             if (agg.size() == 0) agg = "1";
 
-            aggregateString += "\nSUM("+agg+") AS agg_"+to_string(viewIdx)+
-                "_"+to_string(aggNo)+",";
-        }
+//             aggregateString += "\nSUM("+agg+") AS agg_"+to_string(viewIdx)+
+//                 "_"+to_string(aggNo)+",";
+//         }
 
-        aggregateString.pop_back();
+//         aggregateString.pop_back();
 
-        if (fvars.size() > 0)
-        {
-            printf("CREATE VIEW view_%d AS\nSELECT %s,%s\nFROM %s ",
-                   viewIdx, fvars.c_str(), aggregateString.c_str(),
-                   _td->getRelation(v->_origin)->_name.c_str());
-            for (size_t id = 0; id < _viewList.size(); ++id)
-                if (viewBitset[id])
-                    printf("NATURAL JOIN view_%lu ",id);
-            printf("\nGROUP BY %s;\n\n", fvars.c_str());
-        }
-        else
-        {
-            printf("CREATE VIEW view_%d AS \nSELECT %s\nFROM %s ",
-                   viewIdx, aggregateString.c_str(),
-                   _td->getRelation(v->_origin)->_name.c_str());
-            for (size_t id = 0; id < _viewList.size(); ++id)
-                if (viewBitset[id])
-                    printf("NATURAL JOIN view_%lu ", id);     
-            printf(";\n\n");
-        }
-        ++viewIdx;
-    }
-}
+//         if (fvars.size() > 0)
+//         {
+//             printf("CREATE VIEW view_%d AS\nSELECT %s,%s\nFROM %s ",
+//                    viewIdx, fvars.c_str(), aggregateString.c_str(),
+//                    _td->getRelation(v->_origin)->_name.c_str());
+//             for (size_t id = 0; id < _viewList.size(); ++id)
+//                 if (viewBitset[id])
+//                     printf("NATURAL JOIN view_%lu ",id);
+//             printf("\nGROUP BY %s;\n\n", fvars.c_str());
+//         }
+//         else
+//         {
+//             printf("CREATE VIEW view_%d AS \nSELECT %s\nFROM %s ",
+//                    viewIdx, aggregateString.c_str(),
+//                    _td->getRelation(v->_origin)->_name.c_str());
+//             for (size_t id = 0; id < _viewList.size(); ++id)
+//                 if (viewBitset[id])
+//                     printf("NATURAL JOIN view_%lu ", id);     
+//             printf(";\n\n");
+//         }
+//         ++viewIdx;
+//     }
+// }
 
 
 //* Perhaps we should inline this with the function ? *//
 
-string QueryCompiler::getFunctionString(size_t fid)
-{
-    Function* f = _functionList[fid];
+// string QueryCompiler::getFunctionString(size_t fid)
+// {
+//     Function* f = _functionList[fid];
 
-    string fvars = "";
+//     string fvars = "";
         
-    for (size_t i = 0; i < NUM_OF_VARIABLES; ++i)
-        if (f->_fVars.test(i))
-            fvars +=  _td->getAttribute(i)->_name + ",";
-    fvars.pop_back();
+//     for (size_t i = 0; i < NUM_OF_VARIABLES; ++i)
+//         if (f->_fVars.test(i))
+//             fvars +=  _td->getAttribute(i)->_name + ",";
+//     fvars.pop_back();
 
-    switch (f->_operation)
-    {
-    case Operation::count :
-        return "f_"+to_string(fid);
-    case Operation::sum :
-        return fvars;  
-    case Operation::linear_sum :
-        return fvars;
-    case Operation::quadratic_sum :
-        return fvars+"*"+fvars;
-    case Operation::prod :
-        return "f_"+to_string(fid);
-    case Operation::indicator_eq :
-        return "f_"+to_string(fid);
-    case Operation::indicator_neq :
-        return "f_"+to_string(fid);
-    case Operation::indicator_lt :
-        return "f_"+to_string(fid);
-    case Operation::indicator_gt :
-        return "f_"+to_string(fid);
-    case Operation::exponential :
-        return "f_"+to_string(fid);
-    case Operation::lr_cont_parameter :
-        return "("+fvars+"_param*"+fvars+")";
-    case Operation::lr_cat_parameter :
-        return "("+fvars+"_param)";
-    default : return "f_"+to_string(fid);
-    }
+//     switch (f->_operation)
+//     {
+//     case Operation::count :
+//         return "f_"+to_string(fid);
+//     case Operation::sum :
+//         return fvars;  
+//     case Operation::linear_sum :
+//         return fvars;
+//     case Operation::quadratic_sum :
+//         return fvars+"*"+fvars;
+//     case Operation::prod :
+//         return "f_"+to_string(fid);
+//     case Operation::indicator_eq :
+//         return "f_"+to_string(fid);
+//     case Operation::indicator_neq :
+//         return "f_"+to_string(fid);
+//     case Operation::indicator_lt :
+//         return "f_"+to_string(fid);
+//     case Operation::indicator_gt :
+//         return "f_"+to_string(fid);
+//     case Operation::exponential :
+//         return "f_"+to_string(fid);
+//     case Operation::lr_cont_parameter :
+//         return "("+fvars+"_param*"+fvars+")";
+//     case Operation::lr_cat_parameter :
+//         return "("+fvars+"_param)";
+//     default : return "f_"+to_string(fid);
+//     }
 
-    return " ";        
-};
-
+//     return " ";        
+// };
 
 
 
@@ -713,7 +710,6 @@ void QueryCompiler::test()
 
         printf("%s\n", aggString.c_str());
     }
-    compileSQLQueryBitset();
 }
 
 

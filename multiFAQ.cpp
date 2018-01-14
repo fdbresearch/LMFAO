@@ -13,17 +13,12 @@
 #include <fstream>
 #include <memory>
 #include <thread>
-#include<typeinfo>
+#include <typeinfo>
 
 #include <Launcher.h>
-// #include <LinearRegression.h>
 #include <Logging.hpp>
-// #include <TreeDecomposition.h>
-// #include <QueryCompiler.h>
 
-#include <CppGenerator.hpp>
-//#include <ExampleTemplate.hpp>
-#include "test.hpp"
+// #include <CppGenerator.hpp>
 
 int main(int argc, char *argv[])
 {
@@ -42,18 +37,22 @@ int main(int argc, char *argv[])
       ("model",
        boost::program_options::value<std::string>()->default_value("reg"),
        "operation to be computed: reg (default), or regtree")
-      /* Option for number of threads used for F cofactor calculation; default
-       * set to number of hardware thread contexts. */
-      ("threads",
-       boost::program_options::value<unsigned int>()->default_value(
-          std::thread::hardware_concurrency()),
-       "set number of threads; select 1 for single-threading; automatic multi-threading avail.")
-      /* Option for number of partitions used for F cofactor calculation. */
-      ("partitions", boost::program_options::value<unsigned int>(),
-       "set number of partitions for cofactor calculation; default is one partition per thread.")
-      /* Option for IP address to current node. */
-      ("ip", boost::program_options::value<std::string>()->default_value(""),
-       "set IP of the current node; do not set for automatic resolution of address.");
+       /* Option for code generator. */
+      ("codegen",
+       boost::program_options::value<std::string>()->default_value("mem"),
+       "operation to be computed: mem (default), or sql");
+      // /* Option for number of threads used for F cofactor calculation; default
+      //  * set to number of hardware thread contexts. */
+      // ("threads",
+      //  boost::program_options::value<unsigned int>()->default_value(
+      //     std::thread::hardware_concurrency()),
+      //  "set number of threads; select 1 for single-threading; automatic multi-threading avail.")
+      // /* Option for number of partitions used for F cofactor calculation. */
+      // ("partitions", boost::program_options::value<unsigned int>(),
+      //  "set number of partitions for cofactor calculation; default is one partition per thread.")
+      // /* Option for IP address to current node. */
+      // ("ip", boost::program_options::value<std::string>()->default_value(""),
+      //  "set IP of the current node; do not set for automatic resolution of address.");
 
 
    /* Register previous options and do command line parsing. */
@@ -119,8 +118,8 @@ int main(int argc, char *argv[])
 #endif
 
    /* Launch program. */
-   int result = launcher->launch(vm["model"].as<std::string>());
-    
+   int result = launcher->launch(vm["model"].as<std::string>(), vm["codegen"].as<std::string>());
+   
 #ifdef BENCH
    int64_t end = std::chrono::duration_cast<std::chrono::milliseconds>(
        std::chrono::system_clock::now().time_since_epoch()).count() - start;
@@ -129,24 +128,6 @@ int main(int argc, char *argv[])
    BINFO("MAIN - overall time: " + std::to_string(end) + "ms.\n");
    
    DINFO("Completed execution \n");
-   
-   // CppGenerator* cppGenerator = new CppGenerator(pathString, launcher);
-   // cppGenerator->generateCppCode();
-   
-   multifaq::loadRelations();
-   multifaq::computeView0();
-   multifaq::computeView1();
-   multifaq::computeView2();
-   std::cout << "here \n";
-   multifaq::computeView3();
-   std::cout << "here \n";
-   
-   for (multifaq::V0_tuple v : multifaq::V0)
-       std::cout << v.A << "," << v.B << "\n";
-   for (multifaq::V1_tuple v : multifaq::V1)
-       std::cout << v.E << std::endl;
-   for (multifaq::V2_tuple v : multifaq::V2)
-       std::cout << v.A << std::endl;
    
    return result;
 };

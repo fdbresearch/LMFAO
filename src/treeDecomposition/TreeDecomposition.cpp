@@ -51,10 +51,19 @@ Attribute* TreeDecomposition::getAttribute(int attID)
     return _attributes[attID];
 }
 
-size_t TreeDecomposition::getIndexByName(std::string name)
+size_t TreeDecomposition::getAttributeIndex(const std::string& name)
 {
     auto it = _attributeMap.find(name);
     if (it != _attributeMap.end())
+        return it->second;
+
+    return -1;
+}
+
+size_t TreeDecomposition::getRelationIndex(const std::string& name)
+{
+    auto it = _relationsMap.find(name);
+    if (it != _relationsMap.end())
         return it->second;
 
     return -1;

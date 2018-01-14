@@ -13,6 +13,7 @@
 //#include <DataHandler.hpp>
 
 #include <Application.hpp>
+#include <CodeGenerator.hpp>
 #include <LinearRegression.h>
 #include <Logging.hpp>
 #include <QueryCompiler.h>
@@ -43,7 +44,7 @@ public:
     /**
      * Launches the database operations.
      */
-    int launch(std::string model);
+    int launch(const std::string& model, const std::string& codeGenerator);
 
     // /**
     //  * Returns a pointer to the DataHandler module.
@@ -78,6 +79,9 @@ private:
 
     //! Engine module of the database.
     std::shared_ptr<TreeDecomposition> _treeDecomposition;
+
+    //! Engine module of the database.
+    std::shared_ptr<CodeGenerator> _codeGenerator;
     
     //! Path to the files used by the database.
     std::string _pathToFiles;

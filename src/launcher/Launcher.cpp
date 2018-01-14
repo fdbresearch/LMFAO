@@ -8,6 +8,8 @@
 //--------------------------------------------------------------------
 
 #include <Launcher.h>
+#include <CppGenerator.h>
+#include <SqlGenerator.h>
 
 #include <bitset>
 #include <fstream>
@@ -42,7 +44,7 @@ shared_ptr<Application> Launcher::getModel()
     return _model;
 }
 
-int Launcher::launch(string model)
+int Launcher::launch(const string& model, const string& codeGenerator)
 {
 #ifdef BENCH
     int64_t start = duration_cast<milliseconds>(
@@ -80,16 +82,19 @@ int Launcher::launch(string model)
             new RegressionTree(_pathToFiles, shared_from_this()));
     
     _model->run();
-
     
 #ifdef BENCH
     int64_t startLoading = duration_cast<milliseconds>(
         system_clock::now().time_since_epoch()).count();
 #endif
-
-    // _dataHandler.reset(new DataHandlerCSV(_pathToFiles));
-
-    // _dataHandler->loadAllTables();
+    
+    if (codeGenerator.compare("mem") == 0)
+        _codeGenerator.reset(
+            new CppGenerator(_pathToFiles, shared_from_this()));
+    if (codeGenerator.compare("sql") == 0)
+        _codeGenerator.reset(
+            new SqlGenerator(_pathToFiles, shared_from_this()));
+    _codeGenerator->generateCode();
     
 #ifdef BENCH
     int64_t endLoading = duration_cast<milliseconds>(

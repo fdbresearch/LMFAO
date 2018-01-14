@@ -85,7 +85,9 @@ public:
 
     Attribute* getAttribute(int attID);
 
-    size_t getIndexByName(std::string name);
+    size_t getAttributeIndex(const std::string& name);
+
+    size_t getRelationIndex(const std::string& name);
     
 private:
 

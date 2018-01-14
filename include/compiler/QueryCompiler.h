@@ -122,6 +122,13 @@ struct Function
     {
         for (int i : v) _fVars.set(i);
     }
+
+    ~Function()
+    {
+        if (_parameter != nullptr)
+            delete[] _parameter;
+    }
+    
 };
 
 struct Aggregate
@@ -133,9 +140,8 @@ struct Aggregate
     // Each aggregate is a sum of products of functions
     std::vector<prod_bitset> _agg;
 
-    // Each produc can have potentially different incoming Views 
+    // Each product can have potentially different incoming Views 
     std::vector<size_t> _incoming;
-    // TODO: TODO: TODO: TODO: remove the pair - just use ints! 
     
     Aggregate(size_t n) : _n(n)
     {
@@ -192,7 +198,7 @@ public:
 
     void compile();
 
-    void compileSQLQueryBitset();
+    // void compileSQLQueryBitset();
 
     void addFunction(Function* f);
 
@@ -230,7 +236,7 @@ private:
     
     std::unordered_map<view_tuple, int> _viewCache;
 
-    std::string getFunctionString(size_t fid);
+    //  std::string getFunctionString(size_t fid);
     
     void test(); // TODO: this should be removed - but helpful for testing
 };

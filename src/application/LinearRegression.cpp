@@ -39,6 +39,7 @@ LinearRegression::LinearRegression(const string& pathToFiles,
 
 LinearRegression::~LinearRegression()
 {
+    delete[] rootIndex;
 }
 
 void LinearRegression::run()
@@ -64,7 +65,6 @@ void LinearRegression::modelToQueries()
                 // TODO: TODO: TODO: Need to set the parameter here correctly!
                 double* parameter = new double[1];
                 parameter[0] = 0.0;
-            
                 _compiler->addFunction(
                     new Function({var}, Operation::lr_cat_parameter, parameter));
             }
@@ -117,8 +117,19 @@ void LinearRegression::modelToQueries()
 
             Query* query = new Query();
             query->_aggregates.push_back(agg);
-            query->_rootID = _td->_root->_id;
-            // TODO: SET ROOT OF QUERY - should be any node that contains the var.
+            // TODO: SET ROOT OF QUERY - should be any node that contains the
+            // var.
+
+            if (_categoricalFeatures[var])
+            {
+                query->_fVars.set(var);
+                query->_rootID = rootIndex[var];
+            }
+            else
+            {    
+                query->_rootID = _td->_root->_id;
+            }
+            
            
             _compiler->addQuery(query);
         }
@@ -128,6 +139,8 @@ void LinearRegression::modelToQueries()
 
 void LinearRegression::loadFeatures()
 {
+    rootIndex = new size_t[NUM_OF_VARIABLES]();
+    
     /* Load the two-pass variables config file into an input stream. */
     ifstream input(_pathToFiles + FEATURE_CONF);
 
@@ -170,8 +183,8 @@ void LinearRegression::loadFeatures()
 
     assert(parsingSuccess && "The parsing of the features file has failed.");
     
-    std::vector<int> linearContinuousFeatures;
-    std::vector<int> linearCategoricalFeatures;
+    // std::vector<int> linearContinuousFeatures;
+    // std::vector<int> linearCategoricalFeatures;
 
     /* Read in the features. */
     for (int featureNo = 0; featureNo < numOfFeatures; ++featureNo)
@@ -191,14 +204,25 @@ void LinearRegression::loadFeatures()
 
         string typeOfFeature;
         /* Extract the dimension of the current attribute. */
-        getline(ssLine, typeOfFeature);
+        getline(ssLine, typeOfFeature, ATTRIBUTE_NAME_CHAR);
 
-        int attributeID = _td->getIndexByName(attrName);
+        string rootName;
+        /* Extract the dimension of the current attribute. */
+        getline(ssLine, rootName, ATTRIBUTE_NAME_CHAR);
+
+        int attributeID = _td->getAttributeIndex(attrName);
         int categorical = stoi(typeOfFeature); 
+        int rootID = _td->getRelationIndex(rootName);
 
         if (attributeID == -1)
         {
             ERROR("Attribute |"+attrName+"| does not exist.");
+            exit(1);
+        }
+
+        if (rootID == -1)
+        {
+            ERROR("Relation |"+rootName+"| does not exist.");
             exit(1);
         }
 
@@ -211,9 +235,9 @@ void LinearRegression::loadFeatures()
         _features.set(attributeID);
 
         if (categorical)
-        {
             _categoricalFeatures.set(attributeID);
-        }
+
+        rootIndex[attributeID] = rootID;
         
         /* Clear string stream. */
         ssLine.clear();

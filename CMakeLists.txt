@@ -19,11 +19,12 @@ include_directories(include/compiler include/treeDecomposition include/applicati
 
 add_subdirectory(src/treeDecomposition)
 add_subdirectory(src/compiler)
+add_subdirectory(src/codegen)
 add_subdirectory(src/application)
 add_subdirectory(src/launcher)
 
 add_executable (multifaq multiFAQ.cpp)
-target_link_libraries (multifaq launcher application compiler treeDecomposition)
+target_link_libraries (multifaq launcher application codegen compiler treeDecomposition)
 
 # Take care of Boost libraries.
 set(Boost_USE_STATIC_LIBS OFF)
