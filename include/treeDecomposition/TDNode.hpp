@@ -10,8 +10,8 @@
 #ifndef INCLUDE_TDNODE_HPP_
 #define INCLUDE_TDNODE_HPP_
 
+#include <bitset>
 #include <string>
-#include <set>
 #include <vector>
 
 #include <GlobalParams.hpp>
