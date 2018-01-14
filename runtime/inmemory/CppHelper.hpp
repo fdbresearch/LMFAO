@@ -92,7 +92,7 @@ namespace lmfao
         std::ifstream input(path);
     
         if (!input) {
-            ERROR (path + " does is not exist. \n");
+            std::cerr << path + " does is not exist. \n";
             exit(1);
         }
         
