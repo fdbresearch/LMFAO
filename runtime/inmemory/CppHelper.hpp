@@ -15,7 +15,7 @@
 #include <sstream>
 
 #include "CompilerUtils.hpp"
-#include "Logging.hpp"
+//#include "Logging.hpp"
 
 namespace lmfao
 {

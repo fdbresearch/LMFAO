@@ -99,7 +99,7 @@ void CppGenerator::generateCode()
 
     std::cout << genCaseIdentifiers() << std::endl;
     ofs << genCaseIdentifiers() << std::endl;
-        
+
     for (size_t view = 0; view < _qc->numberOfViews(); ++view)
     {
         std::string s = genComputeViewFunction(view);
@@ -272,6 +272,7 @@ std::string CppGenerator::genHeader()
 {   
     return "#ifndef INCLUDE_TEMPLATE_"+_datasetName+"_HPP_\n"+
         "#define INCLUDE_TEMPLATE_"+_datasetName+"_HPP_\n\n"+
+        "#include <algorithm>\n" +
         "#include <iostream>\n" +
         "#include <vector>\n\n" +
         "#include \"CppHelper.hpp\"\n\n" +
@@ -922,7 +923,14 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
                                 }
                             }
 
-                            freeVarString.pop_back();
+                            if (freeVarString.size() == 0)
+                            {
+                                ERROR("we have a problem \n");
+                                exit(1);
+                            }
+
+                            if (freeVarString.size() != 0)
+                                freeVarString.pop_back();
                                 
                             // This is just one function that we want to
                             // multiply with other functions and 
@@ -930,7 +938,9 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
                             localAgg += getFunctionString(function,freeVarString)+"*";
                         }
                     }
-                    localAgg.pop_back();
+
+                    if (localAgg.size() != 0)
+                         localAgg.pop_back();
                     localAgg += "+";
                     ++aggIdx;
                 }
@@ -972,7 +982,8 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
                     viewAgg.pop_back();
                     viewAgg += "+";
                 }
-                viewAgg.pop_back();
+                if (viewAgg.size() != 0)
+                    viewAgg.pop_back();
                     
                 std::string aggregateString = offset(3+depth+numLoopFactors)+
                     "agg_"+std::to_string(aggID)+" += ";
