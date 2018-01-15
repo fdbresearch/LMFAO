@@ -273,6 +273,7 @@ std::string CppGenerator::genHeader()
     return "#ifndef INCLUDE_TEMPLATE_"+_datasetName+"_HPP_\n"+
         "#define INCLUDE_TEMPLATE_"+_datasetName+"_HPP_\n\n"+
         "#include <algorithm>\n" +
+        "#include <chrono>\n" +
         "#include <iostream>\n" +
         "#include <vector>\n\n" +
         "#include \"CppHelper.hpp\"\n\n" +
