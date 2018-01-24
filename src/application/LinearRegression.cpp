@@ -49,6 +49,19 @@ void LinearRegression::run()
     _compiler->compile();
 }
 
+// var_bitset LinearRegression::getFeatures()
+// {
+//     cout << _features << endl;
+    
+//     return _features;
+// }
+
+var_bitset LinearRegression::getCategoricalFeatures()
+{
+    return _categoricalFeatures;
+}
+
+
 void LinearRegression::modelToQueries()
 {
 
@@ -100,6 +113,7 @@ void LinearRegression::modelToQueries()
         if (_features.test(var))
         {   
             Aggregate* agg = new Aggregate(1);
+            agg->_m[0] = 0;
             
             for (size_t otherVar = 0; otherVar < NUM_OF_VARIABLES; ++otherVar)
             {
@@ -112,13 +126,14 @@ void LinearRegression::modelToQueries()
                         product.set(secondaryFeatureToFunction[var]);
                     
                     agg->_agg.push_back(product);
+
+                    // TODO: Make sure this is correct!?!
+                    ++agg->_m[0];
                 }
             }
-
+            
             Query* query = new Query();
             query->_aggregates.push_back(agg);
-            // TODO: SET ROOT OF QUERY - should be any node that contains the
-            // var.
 
             if (_categoricalFeatures[var])
             {
@@ -126,14 +141,14 @@ void LinearRegression::modelToQueries()
                 query->_rootID = rootIndex[var];
             }
             else
-            {    
+            {
                 query->_rootID = _td->_root->_id;
+                // query->_rootID = 3;
             }
             
-           
             _compiler->addQuery(query);
         }
-    }
+    }    
 }
 
 

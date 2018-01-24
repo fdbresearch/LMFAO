@@ -51,6 +51,12 @@ Attribute* TreeDecomposition::getAttribute(int attID)
     return _attributes[attID];
 }
 
+// const std::vector<size_t>& getLeafNodes()
+// {
+//     return _leafNodes;
+// }
+
+
 size_t TreeDecomposition::getAttributeIndex(const std::string& name)
 {
     auto it = _attributeMap.find(name);
@@ -80,7 +86,7 @@ void TreeDecomposition::buildFromFile(std::string fileName)
         exit(1);
     }
 
-    std::cout << "Building the TD from file: " << fileName << "\n";
+    DINFO("Building the TD from file: " << fileName << "\n");
    
     /* Number of attributes and tables. */
     size_t n, m, e;
@@ -131,8 +137,6 @@ void TreeDecomposition::buildFromFile(std::string fileName)
     this->_attributesInRelation.resize(m);
     this->_attributes.resize(n);
    
-    std::cout << _numOfAttributes << " " << _numOfRelations << "\n";
-
     for (size_t i = 0; i < n; ++i)
     {
         /* Extract node information for each attribute. */
@@ -157,8 +161,7 @@ void TreeDecomposition::buildFromFile(std::string fileName)
         if (i != stoul(index))
             ERROR("Inconsistent index specified in your DTree config file.\n");
 
-        Type t;
-        if (type.compare("int")==0) t = Type::Integer;
+        Type t = Type::Integer;        
         if (type.compare("double")==0) t = Type::Double;
         if (type.compare("short")==0) t = Type::Short;
         if (type.compare("uint")==0) t = Type::U_Integer;
@@ -192,7 +195,7 @@ void TreeDecomposition::buildFromFile(std::string fileName)
         if (i != stoul(index))
             ERROR("Inconsistent index specified in your DTree config file.\n");
         
-        std::cout << index << " " << name << " " << attrs << "\n";
+        DINFO( index << " " << name << " " << attrs << "\n");
 
         this->_relations[i] = new TDNode(name, i);
         this->_relationsMap[name] = i;
@@ -228,7 +231,7 @@ void TreeDecomposition::buildFromFile(std::string fileName)
         getline(ssLine, node1, EDGE_SEPARATOR_CHAR);
         getline(ssLine, node2, PARAMETER_SEPARATOR_CHAR);
 
-        std::cout << node1 << " - " << node2 << "\n";
+        DINFO( node1 << " - " << node2 << "\n");
 
         int n1 = _relationsMap[node1];
         int n2 = _relationsMap[node2];
@@ -248,9 +251,8 @@ void TreeDecomposition::buildFromFile(std::string fileName)
             _leafNodes.push_back(_relations[i]->_id);    
     }
 
+    // We are computing the schema! 
     
-    DINFO("Computing schema \n");
-
     this->_root = _relations[0];
     var_bitset rootSchemaBitset = _root->_bag;
     
@@ -270,16 +272,16 @@ void TreeDecomposition::buildFromFile(std::string fileName)
             (rootSchemaBitset & ~_root->_neighborSchema[n]) | _root->_bag);
     }
  
-    for (size_t i = 0; i < _numOfRelations; i++)
-    {
-        printf("node: %s : ", getRelation(i)->_name.c_str());
-        std::cout << getRelation(i)->_bag << "\n";
-        for (size_t c = 0; c < getRelation(i)->_numOfNeighbors; c++)
-            std::cout <<getRelation(i)->_neighborSchema[c] << " | ";
-        std::cout << "\n";
-    }
+    // for (size_t i = 0; i < _numOfRelations; i++)
+    // {
+    //     printf("node: %s : ", getRelation(i)->_name.c_str());
+    //     std::cout << getRelation(i)->_bag << "\n";
+    //     for (size_t c = 0; c < getRelation(i)->_numOfNeighbors; c++)
+    //         std::cout <<getRelation(i)->_neighborSchema[c] << " | ";
+    //     std::cout << "\n";
+    // }
         
-    printf("We computed the schema! \n");
+    DINFO("Schema computed! \n");
 }
 
 

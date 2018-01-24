@@ -1,3 +1,4 @@
+
 //--------------------------------------------------------------------
 //
 // QueryCompiler.cpp
@@ -32,15 +33,12 @@ void QueryCompiler::compile()
         for (size_t agg = 0; agg < q->_aggregates.size(); ++agg)
         {
             Aggregate* aggregate = q->_aggregates[agg];
+
+            pair<size_t, size_t> resultPair = compileViews(
+                _td->getRelation(q->_rootID), q->_rootID, aggregate->_agg, q->_fVars);
             
-            aggregate->_incoming.push_back(
-                compileViews(_td->getRelation(q->_rootID),
-                             q->_rootID, aggregate->_agg, q->_fVars).first
-                );
-            aggregate->_incoming.push_back(
-                compileViews(_td->getRelation(q->_rootID),
-                             q->_rootID, aggregate->_agg, q->_fVars).second
-                );
+            aggregate->_incoming.push_back(resultPair.first);
+            aggregate->_incoming.push_back(resultPair.second);
         }
     }
     
@@ -139,14 +137,8 @@ pair<size_t,size_t> QueryCompiler::compileViews(TDNode* node, size_t targetID,
 
     
     for (size_t prod = 0; prod < aggregate.size(); prod++)
-    {    
         presentFunctions |= aggregate[prod];
-        cout << aggregate[prod] << endl;
-    }
 
-    cout << presentFunctions << endl;
-    cout << _functionList.size() << endl;
-    
     for (size_t i = 0; i < NUM_OF_FUNCTIONS; i++)
     {
         if (presentFunctions[i])
@@ -156,14 +148,7 @@ pair<size_t,size_t> QueryCompiler::compileViews(TDNode* node, size_t targetID,
 
             DINFO("Now considering function "+to_string(i)+" at node "+
                   node->_name+"\n");
-
-            cout << _functionList.size() << endl;
-
-            cout << presentFunctions[i] << endl;
-            cout << presentFunctions << endl;
             
-            cout << fVars << "\n" ;
-                
             /*
              * Check if that function is included in the local bag
              * - if so, then we do not push it down 
@@ -266,18 +251,12 @@ pair<size_t,size_t> QueryCompiler::compileViews(TDNode* node, size_t targetID,
                     //TODO: -- else better do not combine ?
                 }
             }
-
-            cout << prod << " : " << visited << "\n";
-            for (auto a : localAggregate)
-                cout << a << "\n";
             
             // add this product to localAggregates
             auto it = localAggMap.find(localAggregate);
             if (it != localAggMap.end())
             {
                 it->second.set(prod);
-
-                cout << "cached prod: " << prod << " "<< it->second << "\n";
             }
             else
             {
@@ -624,7 +603,6 @@ void QueryCompiler::test()
     vector<int> prod2 = {4,1,2,3};
     vector<int> prod3 = {0,5,2,3};
     vector<int> prod4 = {0,6,2,3};
-
     
     prod_bitset p1, p2, p3, p4;
     for (int i : prod1)
@@ -661,14 +639,11 @@ void QueryCompiler::test()
 
     DINFO("Compiling Views \n");
 
-    agg->_incoming.push_back(
-        compileViews(rootNode, rootNode->_id,
-                     faq->_aggregates[0]->_agg, faq->_fVars).first
-        );
-    agg->_incoming.push_back(
-        compileViews(rootNode, rootNode->_id,
-                     faq->_aggregates[0]->_agg, faq->_fVars).second
-        );
+    auto resultPair = compileViews(rootNode, rootNode->_id,
+                                   faq->_aggregates[0]->_agg, faq->_fVars);
+    
+    agg->_incoming.push_back(resultPair.first);
+    agg->_incoming.push_back(resultPair.second);
     
     DINFO("Compiled Views - number of Views: "+to_string(_viewList.size())+"\n");
     

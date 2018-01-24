@@ -11,7 +11,12 @@
 
 int main(int argc, char *argv[])
 {
-    lmfao::runAll();
+
+#ifndef MULTITHREAD
+    lmfao::run();
+#else
+     lmfao::runMultithreaded();
+#endif
     
     return 0;
 };

@@ -36,6 +36,15 @@ public:
      * Runs the data processing task.
      */
     virtual void run() = 0;
+
+    var_bitset getFeatures()
+    {
+        return _features;
+    }
+    
+protected:
+
+    var_bitset _features;
     
 };
 

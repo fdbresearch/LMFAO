@@ -35,6 +35,10 @@ public:
     ~LinearRegression();
 
     void run();
+
+//    var_bitset getFeatures();
+
+    var_bitset getCategoricalFeatures();
     
 private:
     
@@ -48,7 +52,7 @@ private:
     std::shared_ptr<TreeDecomposition> _td;
 
     //! Array containing the features of the model.
-    var_bitset _features;
+    // var_bitset _features;
 
     var_bitset _categoricalFeatures;
 
@@ -59,7 +63,6 @@ private:
     void loadFeatures();
 
     void computeGradient();
-    
     
 };
 

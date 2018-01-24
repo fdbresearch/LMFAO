@@ -71,7 +71,7 @@ public:
     size_t numberOfRelations();
     
     //! Vector storing IDs of leaves in the TD.    
-    std::vector<int> _leafNodes;
+    std::vector<size_t> _leafNodes;
 
     /**
      * Builds the DTree from a configuration file.
@@ -88,6 +88,8 @@ public:
     size_t getAttributeIndex(const std::string& name);
 
     size_t getRelationIndex(const std::string& name);
+
+//    const std::vector<size_t>& getLeafNodes();
     
 private:
 

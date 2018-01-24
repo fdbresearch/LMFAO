@@ -8,7 +8,9 @@
 //--------------------------------------------------------------------
 
 #include <Launcher.h>
+#include <LinearRegression.h>
 #include <CppGenerator.h>
+#include <RegressionTree.h>
 #include <SqlGenerator.h>
 
 #include <bitset>
@@ -20,8 +22,7 @@ using namespace multifaq::params;
 using namespace std;
 using namespace std::chrono;
 
-Launcher::Launcher(const string& pathToFiles) :
-    _pathToFiles(pathToFiles)
+Launcher::Launcher(const string& pathToFiles) : _pathToFiles(pathToFiles)
 {
 }
 
@@ -39,7 +40,12 @@ shared_ptr<TreeDecomposition> Launcher::getTreeDecomposition()
     return _treeDecomposition;
 }
 
-shared_ptr<Application> Launcher::getModel()
+shared_ptr<Application> Launcher::getApplication()
+{
+    return _application;
+}
+
+Model Launcher::getModel()
 {
     return _model;
 }
@@ -51,37 +57,30 @@ int Launcher::launch(const string& model, const string& codeGenerator)
         system_clock::now().time_since_epoch()).count();
 #endif
     
-    /* Build d-tree. */
+    /* Build tree decompostion. */
     _treeDecomposition.reset(new TreeDecomposition(_pathToFiles + TREEDECOMP_CONF));
 
-    std::cout << "Built the TD. \n";
-    std::cout << _treeDecomposition->_root->_name + "\n";
-    std::cout << _treeDecomposition->_root->_numOfNeighbors << "\n";
-
-    for (size_t i = 0; i < _treeDecomposition->_root->_neighbors.size(); i++)
-    {
-        std::cout << _treeDecomposition->_root->_neighbors[i] << " " <<
-            _treeDecomposition->getRelation(
-                _treeDecomposition->_root->_neighbors[i])->_name << "\n";
-    }
-
-    for (size_t i = 0; i < _treeDecomposition->_leafNodes.size(); i++)
-    {
-        std::cout << _treeDecomposition->_leafNodes[i] << " " <<
-            _treeDecomposition->getRelation(
-                _treeDecomposition->_leafNodes[i])->_name << "\n";
-    }
+    DINFO("Built the TD. \n");
     
     _compiler.reset(new QueryCompiler(_treeDecomposition));
 
     if (model.compare("reg") == 0)
-        _model.reset(
+    {
+        _model = LinearRegressionModel;
+        _application.reset(
             new LinearRegression(_pathToFiles, shared_from_this()));
-    if (model.compare("regtree") == 0)
-        _model.reset(
+
+        std::cout << _application->getFeatures() << std::endl;
+        
+    }
+    else if (model.compare("regtree") == 0)
+    {
+        _model = RegressionTreeModel;
+        _application.reset(
             new RegressionTree(_pathToFiles, shared_from_this()));
+    }
     
-    _model->run();
+    _application->run();    
     
 #ifdef BENCH
     int64_t startLoading = duration_cast<milliseconds>(

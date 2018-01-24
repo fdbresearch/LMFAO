@@ -41,3 +41,5 @@ core.*
 .DS_Store
 
 todo.md
+build/
+build/*

@@ -10,20 +10,17 @@
 #ifndef INCLUDE_RUN_LAUNCHER_H_
 #define INCLUDE_RUN_LAUNCHER_H_
 
-//#include <DataHandler.hpp>
-
 #include <Application.hpp>
 #include <CodeGenerator.hpp>
-#include <LinearRegression.h>
 #include <Logging.hpp>
 #include <QueryCompiler.h>
-#include <RegressionTree.h>
 #include <TreeDecomposition.h>
 
-// #include <Engine.h>
-// #include <MachineLearningModel.hpp>
-// #include <ResultHandler.hpp>
-// #include <Shuffler.hpp>
+enum Model 
+{
+    LinearRegressionModel,
+    RegressionTreeModel
+};
 
 /**
  * Class that takes care of assembling the different components of the database
@@ -57,9 +54,14 @@ public:
     std::shared_ptr<TreeDecomposition> getTreeDecomposition();
     
     /**
-     * Returns a pointer to the model.
+     * Returns a pointer to the application.
      */
-    std::shared_ptr<Application> getModel();
+    std::shared_ptr<Application> getApplication();
+
+    /**
+     * Returns a model identifier.
+     */
+    Model getModel();
 
     /**
      * Returns a pointer to the Query Compiler.
@@ -75,7 +77,7 @@ private:
     std::shared_ptr<QueryCompiler> _compiler;
 
     //! Model to be computed of the database.
-    std::shared_ptr<Application> _model;
+    std::shared_ptr<Application> _application;
 
     //! Engine module of the database.
     std::shared_ptr<TreeDecomposition> _treeDecomposition;
@@ -85,6 +87,8 @@ private:
     
     //! Path to the files used by the database.
     std::string _pathToFiles;
+
+    Model _model;
 };
 
 #endif // INCLUDE_RUN_LAUNCHER_H_

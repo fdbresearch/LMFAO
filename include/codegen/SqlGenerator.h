@@ -36,8 +36,19 @@ private:
 
     std::shared_ptr<QueryCompiler> _qc;
 
-    std::string getFunctionString(size_t fid);
+    std::shared_ptr<Application> _app;
 
+    Model _model;
+    
+    void generateLoadQuery();
+
+    void generateLmfaoQuery();
+
+    void generateNaiveQueries();
+    
+    inline std::string getFunctionString(size_t fid);
+
+    inline std::string typeToStr(Type type);
 };
 
 #endif /* INCLUDE_SQLGENERATOR_CODEGENERATOR_H_ */
