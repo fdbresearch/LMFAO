@@ -37,12 +37,10 @@ SqlGenerator::~SqlGenerator()
 void SqlGenerator::generateCode()
 {
     DINFO("Starting SQL - Generator \n");
-    //  generateLoadQuery();
 
+    generateLoadQuery();
     generateLmfaoQuery();
-    
-    // generateNaiveQueries();
-    
+    generateNaiveQueries();
 }
 
 void SqlGenerator::generateLmfaoQuery()
@@ -59,7 +57,6 @@ void SqlGenerator::generateLmfaoQuery()
             (v->_origin == v->_destination ? node->_numOfNeighbors :
              node->_numOfNeighbors - 1);
         
-        // TODO: move down 
         vector<bool> viewBitset(_qc->numberOfViews());
 
         string fvars = ""; 
@@ -74,14 +71,10 @@ void SqlGenerator::generateLmfaoQuery()
         {
             Aggregate* aggregate = v->_aggregates[aggNo];
 
-            
             string agg = "";
             size_t aggIdx = 0, incomingCounter = 0;
             for (size_t i = 0; i < aggregate->_n; ++i)
             {
-                // TODO: move here 
-                // vector<bool> viewBitset(_qc->numberOfViews());
-
                 string localAgg = "";
                 while (aggIdx < aggregate->_m[i])
                 {
@@ -91,7 +84,8 @@ void SqlGenerator::generateLmfaoQuery()
                         if (product.test(f))
                             localAgg += getFunctionString(f)+"*";
                     }
-                    localAgg.pop_back();
+                    if (!localAgg.empty())
+                        localAgg.pop_back();
                     localAgg += "+";
                     ++aggIdx;
                 }
@@ -194,7 +188,7 @@ void SqlGenerator::generateNaiveQueries()
     std::ofstream ofs("runtime/sql/flat_join.sql", std::ofstream::out);
     ofs << "SELECT "+attributeString+"\nFROM "+joinString+";\n";
     ofs.close();
-    DINFO("SELECT "+attributeString+"\nFROM "+joinString+";\n\n");
+    //  DINFO("SELECT "+attributeString+"\nFROM "+joinString+";\n\n");
     
     if (_model == LinearRegressionModel)
     {
@@ -266,7 +260,7 @@ void SqlGenerator::generateNaiveQueries()
         aggregateString.pop_back();
         
         ofs << "SELECT "+fVarString+aggregateString+"\nFROM "+joinString+";\n";
-        DINFO("SELECT "+fVarString+aggregateString+"\nFROM "+joinString+";\n");
+        //   DINFO("SELECT "+fVarString+aggregateString+"\nFROM "+joinString+";\n");
     }
     ofs.close();
 }
@@ -294,14 +288,14 @@ void SqlGenerator::generateLoadQuery()
         load.pop_back();
         load += ");\n";
 
-        load += "COPY "+relName+" FROM '"+_pathToData+"/"+relName+".tbl\' "+
+        load += "\COPY "+relName+" FROM '"+_pathToData+"/"+relName+".tbl\' "+
                 "DELIMITER \'|\' CSV;\n";
     }
 
     std::ofstream ofs("runtime/sql/load_data.sql", std::ofstream::out);
     ofs << drop + load;
     ofs.close();
-    DINFO(drop + load);
+    // DINFO(drop + load);
     
     for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
         drop +=  "DROP VIEW IF EXISTS V"+std::to_string(viewID)+";\n";
@@ -309,7 +303,7 @@ void SqlGenerator::generateLoadQuery()
     ofs.open("runtime/sql/drop_data.sql", std::ofstream::out);
     ofs << drop;
     ofs.close();
-    DINFO(drop);
+    // DINFO(drop);
 }
 
 inline string SqlGenerator::typeToStr(Type type)
@@ -336,7 +330,8 @@ inline string SqlGenerator::getFunctionString(size_t fid)
         if (f->_fVars.test(i))
             fvars +=  _td->getAttribute(i)->_name + ",";
     }
-    fvars.pop_back();
+    if (!fvars.empty())
+        fvars.pop_back();
 
     switch (f->_operation)
     {

@@ -7,7 +7,6 @@
 //
 //--------------------------------------------------------------------
 
-
 #ifndef INCLUDE_CPPHELPER_HPP_
 #define INCLUDE_CPPHELPER_HPP_
 
@@ -15,7 +14,6 @@
 #include <sstream>
 
 #include "CompilerUtils.hpp"
-//#include "Logging.hpp"
 
 namespace lmfao
 {
@@ -72,19 +70,6 @@ namespace lmfao
         }
     }
 
-    /**
-     * Structure used for sorting relations (used in getRelationOrdering).
-     */
-/*    template <typename T>
-    struct sortRelationOrder
-    {
-        inline bool operator()(const std::pair<T, int> &left,
-                        const std::pair<T, int> &right)
-        {
-            return left.first < right.first;
-        }
-    }; */
-
     template <typename T>
     inline void readFromFile(std::vector<T>& data, const std::string& path,
                       char delimiter)
@@ -98,27 +83,11 @@ namespace lmfao
         
         /* String to receive lines (ie. tuples) from the file. */
         std::string line;
-
-        std::vector<std::string> tmpData;
-        std::stringstream lineStream;
-        std::string cell;
     
         /* Scan through the tuples in the current table. */
         while (getline(input, line))
         {
-            lineStream << line;
-
-            // TODO: Push the below into the constructor of the Struct and use
-            // create with a string (line); --> can be done with boost::spirit
-            while (std::getline(lineStream, cell, delimiter))
-            {
-                tmpData.push_back(cell);
-            }
-
-            data.push_back(T(tmpData));
-
-            tmpData.clear();
-            lineStream.clear();
+            data.push_back(T(line));
         }
  
         input.close();

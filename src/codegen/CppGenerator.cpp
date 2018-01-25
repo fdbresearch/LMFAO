@@ -466,8 +466,13 @@ std::string CppGenerator::genHeader()
         "#include <unordered_map>\n" +
         "#include <thread>\n" +
         "#include <vector>\n\n" +
+        "#include <boost/spirit/include/qi.hpp>\n"+
+        "#include <boost/spirit/include/phoenix_core.hpp>\n"+
+        "#include <boost/spirit/include/phoenix_operator.hpp>\n\n"
         "#include \"CppHelper.hpp\"\n\n" +
-        "using namespace std::chrono;\n\n"+
+        "using namespace std::chrono;\n"+
+        "namespace qi = boost::spirit::qi;\n"+
+        "namespace phoenix = boost::phoenix;\n\n"+
         "const std::string PATH_TO_DATA = \"../../"+_pathToData+"\";\n\n"+
         "namespace lmfao\n{\n";
 }
@@ -480,7 +485,7 @@ std::string CppGenerator::genHeader()
 std::string CppGenerator::genTupleStructs()
 {
     std::string tupleStruct = "", attrConversion = "", attrConstruct = "",
-        attrAssign = "";
+        attrAssign = "", attrParse = "";
 
     for (size_t relID = 0; relID < _td->numberOfRelations(); ++relID)
     {
@@ -489,8 +494,12 @@ std::string CppGenerator::genTupleStructs()
         const var_bitset& bag = rel->_bag;
 
         attrConversion = "", attrConstruct = "", attrAssign = "";
-        tupleStruct += offset(1)+"struct "+relName+"_tuple\n"+offset(1)+"{\n"+offset(2);
+        tupleStruct += offset(1)+"struct "+relName+"_tuple\n"+
+            offset(1)+"{\n"+offset(2);
 
+        attrParse = offset(2)+"bool parseSuccess = qi::phrase_parse(tuple.begin(),"+
+            "tuple.end(),";
+            
         size_t field = 0;
         for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
         {
@@ -503,14 +512,22 @@ std::string CppGenerator::genTupleStructs()
                     "(fields["+std::to_string(field)+"]);\n";
                 attrConstruct += typeToStr(att->_type)+" "+att->_name+",";
                 attrAssign += offset(3)+"this->"+ att->_name + " = "+att->_name+";\n";
+
+                attrParse += "\n"+offset(3)+"qi::"+typeToStr(att->_type)+
+                    "_[phoenix::ref("+att->_name+") = qi::_1]>>";
                 ++field;
             }
         }
         attrConstruct.pop_back();
+        attrParse.pop_back();
+        attrParse.pop_back();
+        attrParse += ",\n"+offset(3)+"\'|\');\n";
 
-        tupleStruct += relName+"_tuple() {} \n"+offset(2) +
+        tupleStruct += relName+"_tuple() {} \n"+offset(2)+
+            relName+"_tuple(const std::string& tuple)\n"+offset(2)+
+            "{\n"+attrParse+offset(2)+"}\n"+offset(2)+
             relName+"_tuple(std::vector<std::string>& fields)\n"+offset(2)+
-            "{\n"+ attrConversion +offset(2)+"}\n"+offset(2)+
+            "{\n"+attrConversion +offset(2)+"}\n"+offset(2)+
             relName+"_tuple("+attrConstruct+")\n"+offset(2)+
             "{\n"+attrAssign+offset(2)+"}\n"+offset(1)+"};\n\n"+
             offset(1)+"std::vector<"+rel->_name+"_tuple> "+rel->_name+";\n\n";
