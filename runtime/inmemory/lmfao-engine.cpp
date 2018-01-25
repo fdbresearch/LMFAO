@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
 {
 
 #ifndef MULTITHREAD
-    std::cout << "run multithreaded lmfao\n";
+    std::cout << "run lmfao\n";
     lmfao::run();
 #else
     std::cout << "run multithreaded lmfao\n";

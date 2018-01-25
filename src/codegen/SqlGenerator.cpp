@@ -66,7 +66,8 @@ void SqlGenerator::generateLmfaoQuery()
         for (size_t i = 0; i < NUM_OF_VARIABLES; ++i)
             if (v->_fVars.test(i))
                 fvars +=  _td->getAttribute(i)->_name + ",";
-        fvars.pop_back();
+        if (!fvars.empty())
+            fvars.pop_back();
 
         string aggregateString = "";
         for (size_t aggNo = 0; aggNo < v->_aggregates.size(); ++aggNo)
@@ -85,19 +86,17 @@ void SqlGenerator::generateLmfaoQuery()
                 while (aggIdx < aggregate->_m[i])
                 {
                     const prod_bitset& product = aggregate->_agg[aggIdx];
-
                     for (size_t f = 0; f < NUM_OF_FUNCTIONS; ++f)
                     {  
                         if (product.test(f))
                             localAgg += getFunctionString(f)+"*";
                     }
-
                     localAgg.pop_back();
                     localAgg += "+";
                     ++aggIdx;
                 }
-
-                localAgg.pop_back();
+                if (!localAgg.empty())
+                    localAgg.pop_back();
 
                 string viewAgg = "";
                 while(incomingCounter < aggregate->_o[i])
@@ -111,8 +110,9 @@ void SqlGenerator::generateLmfaoQuery()
                         viewBitset[viewID] = 1;                    
                         incomingCounter += 2;
                     }
-                
-                    viewAgg.pop_back();
+                    
+                    if (!viewAgg.empty())
+                        viewAgg.pop_back();
                     viewAgg += "+";
                 }
 
@@ -135,10 +135,10 @@ void SqlGenerator::generateLmfaoQuery()
                 // else
                 //     aggregateSection[viewBitset] = aggregateString;
             }
-
+            
             agg.pop_back();
-
-            if (agg.empty()) agg = "1";
+            if (agg.empty())
+                agg = "1";
 
             aggregateString += "\nSUM("+agg+") AS agg_"+to_string(viewIdx)+
                 "_"+to_string(aggNo)+",";
@@ -146,7 +146,7 @@ void SqlGenerator::generateLmfaoQuery()
 
         aggregateString.pop_back();
 
-        if (fvars.size() > 0)
+        if (!fvars.empty())
         {
             returnString += "CREATE VIEW view_"+to_string(viewIdx)+" AS\nSELECT "+fvars+
                 ","+aggregateString+"\nFROM "+_td->getRelation(v->_origin)->_name+" ";
@@ -234,8 +234,6 @@ void SqlGenerator::generateNaiveQueries()
             if (query->_fVars[var])
                 fVarString += _td->getAttribute(var)->_name + ",";
         }
-        // if (!fVarString.empty())
-        //     fVarString.pop_back();
 
         std::string aggregateString = "";
         for (size_t agg = 0; agg < query->_aggregates.size(); ++agg)
