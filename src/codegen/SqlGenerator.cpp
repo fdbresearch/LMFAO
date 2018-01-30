@@ -288,7 +288,7 @@ void SqlGenerator::generateLoadQuery()
         load.pop_back();
         load += ");\n";
 
-        load += "\COPY "+relName+" FROM '"+_pathToData+"/"+relName+".tbl\' "+
+        load += "\\COPY "+relName+" FROM '"+_pathToData+"/"+relName+".tbl\' "+
                 "DELIMITER \'|\' CSV;\n";
     }
 

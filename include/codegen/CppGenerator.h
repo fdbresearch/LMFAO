@@ -65,6 +65,10 @@ private:
     std::string* viewName = nullptr;
 
     size_t* viewToGroupMapping = nullptr;
+
+    bool* _parallelizeGroup = nullptr;
+
+    size_t* _threadsPerGroup = nullptr;
     
     /* TODO: Technically there is no need to pre-materialise this! */
     void createVariableOrder();
@@ -77,7 +81,7 @@ private:
 
     std::string typeToStr(Type t);
 
-    std::string typeToStringConverter(Type t);
+//    std::string typeToStringConverter(Type t);
 
     std::string genHeader();
 
@@ -97,7 +101,8 @@ private:
 
     std::string genMaxMinValues(const std::vector<size_t>& view_id);
     
-    std::string genPointerArrays(const std::string& rel, std::string& numOfJoinVars);
+    std::string genPointerArrays(const std::string& rel, std::string& numOfJoinVars,
+                                 bool parallelize);
 
     /* TODO: Simplify this to avoid sort for cases with few views! */
     std::string genRelationOrdering(const std::string& rel_name,
@@ -114,17 +119,17 @@ private:
     
     // One Generic Case for Seek Value 
     std::string seekValueCase(size_t depth, const std::string& rel_name,
-                              const std::string& attr_name);
+                              const std::string& attr_name, bool parallel);
     
     std::string updateMaxCase(size_t depth, const std::string& rel_name,
-                              const std::string& attr_name);
+                              const std::string& attr_name, bool parallelize);
     
-    std::string getUpperPointer(const std::string rel_name, size_t depth);
+    std::string getUpperPointer(const std::string rel_name, size_t depth, bool parallel);
     
     std::string getLowerPointer(const std::string rel_name, size_t depth);
     
     std::string updateRanges(size_t depth, const std::string& rel_name,
-                             const std::string& attr_name);
+                             const std::string& attr_name, bool parallel);
     
     std::string getFunctionString(Function* f, std::string& fvars);
 
@@ -137,8 +142,8 @@ private:
 
     bool resortView(const size_t& incView, const size_t& view);
 
+    // This can be removed ...
     bool requireHash(const size_t& rel, const size_t& view);
-    
 
 };
 
