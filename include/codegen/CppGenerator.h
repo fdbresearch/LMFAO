@@ -134,6 +134,10 @@ private:
     std::string getFunctionString(Function* f, std::string& fvars);
 
     std::string genSortFunction(const size_t& rel_id);
+
+    std::string genFindUpperBound(const std::string& rel_name,
+                                  const std::string& attrName,
+                                  size_t depth, bool parallel); 
     
     std::string genRunFunction();
     std::string genRunMultithreadedFunction();
