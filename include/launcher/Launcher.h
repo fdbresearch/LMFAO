@@ -19,7 +19,8 @@
 enum Model 
 {
     LinearRegressionModel,
-    RegressionTreeModel
+    RegressionTreeModel,
+    CovarianceMatrixModel
 };
 
 /**

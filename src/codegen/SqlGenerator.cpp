@@ -258,8 +258,18 @@ void SqlGenerator::generateNaiveQueries()
             aggregateString += ",";
         }
         aggregateString.pop_back();
+
+        if (aggregateString.empty())
+            aggregateString = "1";
         
-        ofs << "SELECT "+fVarString+aggregateString+"\nFROM "+joinString+";\n";
+        ofs << "SELECT "+fVarString+"SUM("+aggregateString+")\nFROM "+joinString;
+        if (!fVarString.empty())
+        {
+            fVarString.pop_back();
+            ofs << "\nGROUP BY "+fVarString;
+        }
+        ofs << ";\n";
+        
         //   DINFO("SELECT "+fVarString+aggregateString+"\nFROM "+joinString+";\n");
     }
     ofs.close();

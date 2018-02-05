@@ -30,7 +30,7 @@ CppGenerator::CppGenerator(const std::string path,
 
     if (dataset.back() == '/')
         dataset.pop_back();
-        
+
     _datasetName = dataset.substr(dataset.rfind('/')).substr(1);
     std::transform(_datasetName.begin(), _datasetName.end(), _datasetName.begin(),
                    [](unsigned char c) -> unsigned char { return std::toupper(c); });
@@ -80,21 +80,21 @@ void CppGenerator::generateCode()
     
     std::ofstream ofs("runtime/inmemory/Engine.hpp", std::ofstream::out);
     
-    DINFO(genHeader() << std::endl);
+    // DINFO(genHeader() << std::endl);
     ofs << genHeader();
 
-    DINFO(genTupleStructs());
+    // DINFO(genTupleStructs());
     ofs << genTupleStructs();
 
-    DINFO(genLoadRelationFunction() << std::endl);
+    // DINFO(genLoadRelationFunction() << std::endl);
     ofs << genLoadRelationFunction() << std::endl;
 
-    DINFO(genCaseIdentifiers() << std::endl);
+    // DINFO(genCaseIdentifiers() << std::endl);
     ofs << genCaseIdentifiers() << std::endl;
 
     for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
     {
-        DINFO( genSortFunction(rel) << std::endl);
+        // DINFO( genSortFunction(rel) << std::endl);
         ofs << genSortFunction(rel) << std::endl;
     }
     
@@ -102,7 +102,7 @@ void CppGenerator::generateCode()
     for (size_t view = 0; view < _qc->numberOfViews(); ++view)
     {
         std::string s = genComputeViewFunction(view);
-        DINFO( s << std::endl);
+        // DINFO( s << std::endl);
         ofs << s << std::endl;
     }
 #else
@@ -110,18 +110,18 @@ void CppGenerator::generateCode()
     {
         std::string s = genComputeGroupFunction(group);
         
-        DINFO( s << std::endl);
+        // DINFO( s << std::endl);
         ofs << s << std::endl;
     }
 #endif
     
-    DINFO(genRunFunction() << std::endl);
+    // DINFO(genRunFunction() << std::endl);
     ofs << genRunFunction() << std::endl;
 
-    DINFO(genRunMultithreadedFunction() << std::endl);
+    // DINFO(genRunMultithreadedFunction() << std::endl);
     ofs << genRunMultithreadedFunction() << std::endl;
 
-    DINFO( "}\n\n#endif /* INCLUDE_TEMPLATE_"+_datasetName+"_HPP_*/\n");
+    // DINFO( "}\n\n#endif /* INCLUDE_TEMPLATE_"+_datasetName+"_HPP_*/\n");
     ofs <<  "}\n\n#endif /* INCLUDE_TEMPLATE_"+_datasetName+"_HPP_*/\n";
     
     // ofs << genFooter() << std::endl;
@@ -222,7 +222,7 @@ void CppGenerator::createGroupVariableOrder()
 
     for (size_t gid = 0; gid < viewGroups.size(); ++gid)
     {
-        TDNode* node = _td->getRelation(_qc->getView(viewGroups[gid][0])->_origin);
+        // TDNode* node = _td->getRelation(_qc->getView(viewGroups[gid][0])->_origin);
         // if (node->_name == "Inventory")
         // {
         //     _parallelizeGroup[gid] = true;
@@ -233,7 +233,7 @@ void CppGenerator::createGroupVariableOrder()
         //     _parallelizeGroup[gid] = false;
         //     _threadsPerGroup[gid] = 0;
         // }
-         _parallelizeGroup[gid] = false;
+        _parallelizeGroup[gid] = false;
     }
     
     groupVariableOrderBitset.resize(viewGroups.size());
@@ -297,14 +297,8 @@ void CppGenerator::createGroupVariableOrder()
             if (joinVars[var])
                 groupVariableOrder[group].push_back(var);
 
-        groupVariableOrderBitset[group] |= joinVars;  // TODO: This cannot just
-                                                      // be joinVars but should
-                                                      // also be the
-                                                      // intersection with the
-                                                      // parent bag FIXME:!
-
-        // NEED TO ADD FVARS intersection with parent node - but only if not root node ! 
-
+        groupVariableOrderBitset[group] |= joinVars;
+        
         groupViewsPerVarInfo[group].resize(groupVariableOrder[group].size() *
                                        (_qc->numberOfViews() + 2), 0);
 
@@ -465,26 +459,22 @@ void CppGenerator::createVariableOrder()
             }
         }
 
-        std::cout << "before var order \n";
-
         // Keep track of the views that origin from this node 
         viewsPerNode[view->_origin].push_back(viewID);
 
-        std::cout << "before var order \n";
-
 
 /* PRINT OUT */
-        std::cout << viewID << " : ";
-        for(size_t& n : variableOrder[viewID]) std::cout << n <<" ";
-        std::cout << "\n";
-        size_t i = 0;
-        for (const size_t& n : viewsPerVarInfo[viewID])
-        {
-            if (i % (_qc->numberOfViews() + 2) == 0) std::cout << "| ";
-            std::cout << n <<" ";
-            ++i;
-        }
-        std::cout << "\n";
+        // std::cout << viewID << " : ";
+        // for(size_t& n : variableOrder[viewID]) std::cout << n <<" ";
+        // std::cout << "\n";
+        // size_t i = 0;
+        // for (const size_t& n : viewsPerVarInfo[viewID])
+        // {
+        //     if (i % (_qc->numberOfViews() + 2) == 0) std::cout << "| ";
+        //     std::cout << n <<" ";
+        //     ++i;
+        // }
+        // std::cout << "\n";
 /* PRINT OUT */
     }
 }
@@ -564,9 +554,8 @@ std::string CppGenerator::genTupleStructs()
         tupleStruct += offset(1)+"struct "+relName+"_tuple\n"+
             offset(1)+"{\n"+offset(2);
 
-        attrParse = offset(3)+"bool parseSuccess = qi::phrase_parse(tuple.begin(),"+
-            "tuple.end(),";
-            
+        attrParse = offset(3)+"qi::phrase_parse(tuple.begin(),tuple.end(),";
+        
         size_t field = 0;
         for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
         {
@@ -1091,10 +1080,13 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                     viewName[viewID]+".end(),[ ](const "+viewName[viewID]+
                     "_tuple& lhs, const "+viewName[viewID]+"_tuple& rhs)\n"+
                     offset(2)+"{\n";
-            
+
+                var_bitset intersection = view->_fVars &
+                    _td->getRelation(view->_destination)->_bag;
+                
                 for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
                 {
-                    if (view->_fVars[var])
+                    if (intersection[var])
                     {   
                         const std::string& attrName = _td->getAttribute(var)->_name;
                     
@@ -1103,6 +1095,19 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                             "return lhs."+attrName+" < rhs."+attrName+";\n";
                     }
                 }
+                var_bitset additional = view->_fVars & ~intersection;
+                for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+                {
+                    if (additional[var])
+                    {   
+                        const std::string& attrName = _td->getAttribute(var)->_name;
+                    
+                        returnString += offset(3)+
+                            "if(lhs."+attrName+" != rhs."+attrName+")\n"+offset(4)+
+                            "return lhs."+attrName+" < rhs."+attrName+";\n";
+                    }
+                }
+                
                 returnString += offset(3)+"return false;\n"+offset(2)+"});\n";
             }
         }
@@ -1306,10 +1311,13 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                     viewName[viewID]+".end(),[ ](const "+viewName[viewID]+
                     "_tuple& lhs, const "+viewName[viewID]+"_tuple& rhs)\n"+
                     offset(2)+"{\n";
-            
+
+                                var_bitset intersection = view->_fVars &
+                    _td->getRelation(view->_destination)->_bag;
+                
                 for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
                 {
-                    if (view->_fVars[var])
+                    if (intersection[var])
                     {   
                         const std::string& attrName = _td->getAttribute(var)->_name;
                     
@@ -1318,6 +1326,29 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                             "return lhs."+attrName+" < rhs."+attrName+";\n";
                     }
                 }
+                var_bitset additional = view->_fVars & ~intersection;
+                for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+                {
+                    if (additional[var])
+                    {   
+                        const std::string& attrName = _td->getAttribute(var)->_name;
+                    
+                        returnString += offset(3)+
+                            "if(lhs."+attrName+" != rhs."+attrName+")\n"+offset(4)+
+                            "return lhs."+attrName+" < rhs."+attrName+";\n";
+                    }
+                }
+
+                // for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+                // {
+                //     if (view->_fVars[var])
+                //     {   
+                //         const std::string& attrName = _td->getAttribute(var)->_name;                    
+                //         returnString += offset(3)+
+                //             "if(lhs."+attrName+" != rhs."+attrName+")\n"+offset(4)+
+                //             "return lhs."+attrName+" < rhs."+attrName+";\n";
+                //     }
+                // }
                 returnString += offset(3)+"return false;\n"+offset(2)+"});\n";
             }
         }
@@ -1559,12 +1590,40 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
                 {
                     if (view->_fVars[v])
                     {
-                        if (!groupVariableOrderBitset[group_id][v])
+                        if (!groupVariableOrderBitset[group_id][v]) // TODO::
+                                                                    // THERE IS
+                                                                    // A PROBLEM
+                                                                    // HERE we
+                                                                    // do not
+                                                                    // take care
+                                                                    // of
+                                                                    // incoming views!
                         {
-                            if (!loopFactors[_qc->numberOfViews()])
-                                ++numLoopFactors;
+
+                            // Need to find the variable either in Relation Then
+                            // do the following
+
+                            // else find it in the views
+                            if (node._bag[v])
+                            {                                                            
+                                if (!loopFactors[_qc->numberOfViews()])
+                                    ++numLoopFactors;
                                                         
-                            loopFactors[_qc->numberOfViews()] = 1;
+                                loopFactors[_qc->numberOfViews()] = 1;
+                            }
+                            else
+                            {
+                                for (const size_t& incViewID : incViews)
+                                {
+                                    if (_qc->getView(incViewID)->_fVars[v])
+                                    {
+                                        if (!loopFactors[incViewID])
+                                            ++numLoopFactors;
+                                                        
+                                        loopFactors[incViewID] = 1;                               
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -1756,22 +1815,65 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
                 {
                     if (view->_fVars[v])
                     {
-                        size_t idx = varCounter * (_qc->numberOfViews() + 2);
-                        if (viewsPerVar[idx+1] == _qc->numberOfViews())
+                        if (node._bag[v])
                         {
-                            mapVars += relName+"[lowerptr_"+relName+"["+depthString+"]]."+
-                                _td->getAttribute(v)->_name+",";
+                            if (loopFactors[_qc->numberOfViews()]) 
+                                mapVars += relName+"[ptr_"+relName+"]."+
+                                    _td->getAttribute(v)->_name+",";
+                            else
+                                mapVars += relName+"[lowerptr_"+relName+"["+
+                                    depthString+"]]."+_td->getAttribute(v)->_name+",";       
                         }
                         else
                         {
-                            mapVars += viewName[viewsPerVar[idx+1]]+"[lowerptr_"+
-                                viewName[viewsPerVar[idx+1]]+"["+depthString+"]]."+
-                                _td->getAttribute(v)->_name+",";
+                            for (const size_t& incViewID : incViews)
+                            {
+                                View* view = _qc->getView(incViewID);
+                                if (view->_fVars[v])
+                                {
+                                    if (loopFactors[incViewID])
+                                        mapVars += viewName[incViewID]+"[ptr_"+
+                                            viewName[incViewID]+"]."+
+                                            _td->getAttribute(v)->_name+",";
+                                    else 
+                                        mapVars += viewName[incViewID]+"[lowerptr_"+
+                                            viewName[incViewID]+"["+depthString+"]]."+
+                                            _td->getAttribute(v)->_name+",";
+                                    break;
+                                }                                
+                            }                            
                         }
-                        ++varCounter;
+                        
+                        // size_t idx = varCounter * (_qc->numberOfViews() + 2);
+                        // if (viewID == 16)
+                        // {    
+                        //     std::cout << viewsPerVar[idx] << " : " << viewsPerVar[idx+1] << std::endl;
+                        //     std::cout << idx << std::endl;
+                        //     std::cout << _td->getRelation(0)->_bag[33] << std::endl;
+                        //     std::cout << v << ": " << _td->getAttribute(v)->_name << std::endl;
+                        //     std::cout << _td->getAttribute(varOrder[varCounter])->_name << std::endl;
+                        // }
+                        // // TODO: FIXME: This needs to find the view that
+                        // // actually contains this variable! 
+                        // if (viewsPerVar[idx+1] == _qc->numberOfViews())
+                        // {
+                        // mapVars += relName+"[lowerptr_"+relName+"["+
+                        //     depthString+"]]."+_td->getAttribute(v)->_name+",";
+                        // }
+                        // else
+                        // {
+                        //     mapVars += viewName[viewsPerVar[idx+1]]+"[lowerptr_"+
+                        //         viewName[viewsPerVar[idx+1]]+"["+depthString+"]]."+
+                        //         _td->getAttribute(v)->_name+",";
+                        // }
+                        // ++varCounter;
                     }
                 }
                 mapVars.pop_back();
+
+                // if (viewID == 16)
+                //     exit(0);
+                
 
                 std::string mapAggs = "", aggRef = "";
                 for (size_t agg = 0; agg < view->_aggregates.size(); ++agg)
@@ -1791,7 +1893,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
                     offset(4+depth+numLoopFactors)+"idx_"+viewName[viewID]+" = it_"+viewName[viewID]+"->second;\n"+
                     offset(3+depth+numLoopFactors)+"}\n"+offset(3+depth+numLoopFactors)+"else\n"+
                     offset(3+depth+numLoopFactors)+"{\n"+
-                    offset(4+depth+numLoopFactors)+viewName[viewID]+"_map["+mapVars+"] = "+viewName[viewID]+".size();\n"+
+                    offset(4+depth+numLoopFactors)+viewName[viewID]+"_map[{"+mapVars+"}] = "+viewName[viewID]+".size();\n"+
                     offset(4+depth+numLoopFactors)+"idx_"+viewName[viewID]+" = "+viewName[viewID]+".size();\n"+
                     offset(4+depth+numLoopFactors)+viewName[viewID]+".push_back({"+mapVars+","+mapAggs+"});\n"+
                     offset(3+depth+numLoopFactors)+"}\n"+
@@ -1826,7 +1928,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
                     " <= upperptr_"+relName+"["+depthString+"])\n"+
                     offset(3+depth)+"{\n";
 
-                closeLoopString = offset(3+depth+1)+"++ptr_"+relName+";\n"+
+                closeLoopString = offset(4+depth)+"++ptr_"+relName+";\n"+
                     offset(3+depth)+"}\n";
 
                 loopConstructed[_qc->numberOfViews()] = 1;
@@ -1837,19 +1939,19 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
                 if (loopCondition.first[viewID])
                 {
                     if (! loopConstructed[viewID]) 
-                        returnString += offset(3+depth)+"size_t ptr_"+viewName[viewID]+
-                            " = lowerptr_"+viewName[viewID]+"["+depthString+"]\n";
+                        returnString += offset(3+depth+loopCounter)+"size_t ptr_"+viewName[viewID]+
+                            " = lowerptr_"+viewName[viewID]+"["+depthString+"];\n";
                     else
-                        returnString += offset(3+depth)+"ptr_"+viewName[viewID]+
-                            " = lowerptr_"+viewName[viewID]+"["+depthString+"]\n";
+                        returnString += offset(3+depth+loopCounter)+"ptr_"+viewName[viewID]+
+                            " = lowerptr_"+viewName[viewID]+"["+depthString+"];\n";
 
                     // Add loop for view
                     returnString += offset(3+depth+loopCounter)+
                         "while(ptr_"+viewName[viewID]+
-                        " < upperptr_"+viewName[viewID]+"["+depthString+"])\n"+
+                        " <= upperptr_"+viewName[viewID]+"["+depthString+"])\n"+
                         offset(3+depth+loopCounter)+"{\n";
 
-                    closeLoopString += offset(3+depth+loopCounter)+
+                    closeLoopString = offset(4+depth+loopCounter)+
                         "++ptr_"+viewName[viewID]+";\n"+
                         offset(3+depth+loopCounter)+"}\n"+closeLoopString;
 
@@ -2257,11 +2359,6 @@ void CppGenerator::createTopologicalOrder()
         std::cout << i << ", ";
     std::cout << std::endl;
 
-    for (auto& group : viewGroups)
-        for (auto& i : group)
-            std::cout << viewToGroupMapping[orderedViewList[i]] << ", ";
-    std::cout << std::endl;
-
     
     for (auto& group : viewGroups)
     {
@@ -2271,7 +2368,9 @@ void CppGenerator::createTopologicalOrder()
         }
         std::cout << "|";
     }
-    std::cout << std::endl;    
+    std::cout << std::endl;
+
+    //  exit(0);
 }
 
 std::string CppGenerator::genRelationOrdering(
@@ -2289,7 +2388,6 @@ std::string CppGenerator::genRelationOrdering(
     
     size_t idx = depth * (_qc->numberOfViews() + 2);
     size_t numberContributing = viewsPerVarInfo[view_id][idx];
-
     if (numberContributing == 2)
     {
         std::string first, firstID;
@@ -3124,24 +3222,28 @@ std::string CppGenerator::genFindUpperBound(const std::string& rel_name,
         "lowerptr_"+rel_name+"["+depthString+"] <= "+upperPointer+")\n"+
         offset(6+depth)+"{\n"+
         offset(7+depth)+"lowerptr_"+rel_name+"["+depthString+"] += leap;\n"+
+        offset(7+depth)+"leap *= 2;\n"+
         offset(7+depth)+"if(lowerptr_"+rel_name+"["+depthString+
         "] < "+upperPointer+")\n"+offset(7+depth)+"{\n"+
         offset(8+depth)+"min_"+attrName+" = "+rel_name+"[lowerptr_"+rel_name+"["+
         depthString+"]]."+attrName+";\n"+
-        offset(8+depth)+"leap *= 2;\n"+
+//        offset(8+depth)+"leap *= 2;\n"+
         offset(7+depth)+"}\n"+offset(7+depth)+"else\n"+offset(7+depth)+"{\n"+
         offset(8+depth)+"lowerptr_"+rel_name+"["+depthString+"] = "+upperPointer+";\n"+
         offset(8+depth)+"break;\n"+
-        offset(7+depth)+"}\n"+offset(6+depth)+"}\n\n";
+        offset(7+depth)+"}\n"+
+        offset(6+depth)+"}\n";
+//        offset(6+depth)+"leap /= 2;\n";
 
     /*
      * When we found an upper bound; to find the least upper bound;
      * use binary search to backtrack.
      */ 
-    returnString += offset(6+depth)+"// Backtrack with binary search \n"+
+    returnString += offset(6+depth)+"/* Backtrack with binary search */\n"+
         offset(6+depth)+"if (leap > 1 && max_"+attrName+" <= "+rel_name+
         "[lowerptr_"+rel_name+"["+depthString+"]]."+attrName+")\n"+offset(6+depth)+"{\n"+
-        offset(7+depth)+"int high = lowerptr_"+rel_name+"["+depthString+"], low = "+
+        offset(7+depth)+"leap /= 2;\n"+
+        offset(7+depth)+"size_t high = lowerptr_"+rel_name+"["+depthString+"], low = "+
         "lowerptr_"+rel_name+"["+depthString+"] - leap, mid = 0;\n"+
         offset(7+depth)+"while (high > low && high != low)\n"+offset(7+depth)+"{\n"+
         offset(8+depth)+"mid = (high + low) / 2;\n"+

@@ -1,8 +1,8 @@
 //--------------------------------------------------------------------
 //
-// LinearRegression.cpp
+// CovarianceMatrix.cpp
 //
-// Created on: Nov 27, 2017
+// Created on: Feb 1, 2018
 // Author: Max
 //
 //--------------------------------------------------------------------
@@ -12,147 +12,137 @@
 #include <fstream>
 
 #include <Launcher.h>
-#include <LinearRegression.h>
+#include <CovarianceMatrix.h>
 
 static const std::string FEATURE_CONF = "/features.conf";
 
 static const char COMMENT_CHAR = '#';
 static const char NUMBER_SEPARATOR_CHAR = ',';
-// static const char PARAMETER_SEPARATOR_CHAR = ' ';
-// static const char ATTRIBUTE_SEPARATOR_CHAR = ',';
 static const char ATTRIBUTE_NAME_CHAR = ':';
-
 
 using namespace std;
 using namespace multifaq::params;
 namespace phoenix = boost::phoenix;
 using namespace boost::spirit;
 
-
-LinearRegression::LinearRegression(const string& pathToFiles,
-                                   shared_ptr<Launcher> launcher) :
+CovarianceMatrix::CovarianceMatrix(
+    const string& pathToFiles, shared_ptr<Launcher> launcher) :
     _pathToFiles(pathToFiles)
 {
     _compiler = launcher->getCompiler();
     _td = launcher->getTreeDecomposition();
 }
 
-LinearRegression::~LinearRegression()
+CovarianceMatrix::~CovarianceMatrix()
 {
     delete[] _queryRootIndex;
 }
 
-void LinearRegression::run()
+void CovarianceMatrix::run()
 {
     loadFeatures();
     modelToQueries();
     _compiler->compile();
 }
 
-// var_bitset LinearRegression::getFeatures()
-// {
-//     cout << _features << endl;
-    
-//     return _features;
-// }
-
-var_bitset LinearRegression::getCategoricalFeatures()
+void CovarianceMatrix::modelToQueries()
 {
-    return _categoricalFeatures;
-}
-
-
-void LinearRegression::modelToQueries()
-{
-
     size_t numberOfFunctions = 0;
     size_t featureToFunction[NUM_OF_VARIABLES],
         secondaryFeatureToFunction[NUM_OF_VARIABLES];
     
     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
     {
-        if (_features.test(var))
+        if (_features.test(var) && !_categoricalFeatures.test(var))
         {
-            if (_categoricalFeatures.test(var))
-            {
-                // TODO: TODO: TODO: Need to set the parameter here correctly!
-                double* parameter = new double[1];
-                parameter[0] = 0.0;
-                _compiler->addFunction(
-                    new Function({var}, Operation::lr_cat_parameter, parameter));
-            }
-            else 
-            {
-                double* parameter = new double[1];
-                parameter[0] = 0.0;
-            
-                _compiler->addFunction(
-                    new Function({var}, Operation::lr_cont_parameter, parameter));
-            }
-
+            _compiler->addFunction(
+                new Function({var}, Operation::sum));
             featureToFunction[var] = numberOfFunctions;
             numberOfFunctions++;
         }
     }
 
-    size_t numberOfFeatures = _features.count();
-    numberOfFunctions = 0;
-    
     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
     {
         if (_features.test(var) && !_categoricalFeatures.test(var))
         {
-            _compiler->addFunction(new Function({var}, Operation::sum));
-            secondaryFeatureToFunction[var] = numberOfFeatures + numberOfFunctions;
+            _compiler->addFunction(
+                new Function({var}, Operation::quadratic_sum));
+            secondaryFeatureToFunction[var] = numberOfFunctions;
             numberOfFunctions++;
         }
     }
 
     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
     {
-        if (_features.test(var))
-        {   
+        if (!_features[var])
+            continue;
+        
+        if (!_categoricalFeatures[var])
+        {
+            // quadratic function ...
             Aggregate* agg = new Aggregate(1);
-            agg->_m[0] = 0;
-            
-            for (size_t otherVar = 0; otherVar < NUM_OF_VARIABLES; ++otherVar)
-            {
-                if (_features.test(otherVar))
-                {
-                    prod_bitset product;
-                    product.set(featureToFunction[otherVar]);
-                    
-                    if (!_categoricalFeatures.test(var))
-                        product.set(secondaryFeatureToFunction[var]);
-                    
-                    agg->_agg.push_back(product);
 
-                    // TODO: Make sure this is correct!?!
-                    ++agg->_m[0];
-                }
-            }
-            
-            Query* query = new Query();
-            query->_aggregates.push_back(agg);
+            prod_bitset product;
+            product.set(secondaryFeatureToFunction[var]);
 
-            if (_categoricalFeatures[var])
-            {
-                query->_fVars.set(var);
-                query->_rootID = _queryRootIndex[var];
-            }
-            else
-            {
-                query->_rootID = _td->_root->_id;
-                // query->_rootID = 3;
-            }
-            
-            _compiler->addQuery(query);
+            agg->_agg.push_back(product);
+            agg->_m[0] = 1;
+
+            Query* quad = new Query();
+            quad->_aggregates.push_back(agg);
+
+            quad->_rootID = _td->_root->_id;
+            // quad->_rootID = _queryRootIndex[var];
+
+            _compiler->addQuery(quad);
         }
-    }    
+
+        for (size_t otherVar = var+1; otherVar < NUM_OF_VARIABLES; ++otherVar)
+        {
+            if (_features[otherVar])
+            {
+                // Create a query & Aggregate
+                Query* query = new Query();
+                Aggregate* agg = new Aggregate(1);
+
+                prod_bitset product;
+                
+                if (_categoricalFeatures[var])
+                {
+                    query->_fVars.set(var);
+                    query->_rootID = _queryRootIndex[var];
+                }
+                else
+                {
+                    product.set(featureToFunction[var]);
+                    query->_rootID = _td->_root->_id;
+                }
+                
+                if (_categoricalFeatures[otherVar])
+                {
+                    query->_fVars.set(otherVar);
+
+                    // If both varaibles are categoricalVars - we choose the
+                    // otherVar as the root 
+                    query->_rootID = _queryRootIndex[otherVar];
+                }
+                else
+                {
+                    // create product of both var and otherVar
+                    product.set(featureToFunction[otherVar]);                    
+                }
+                agg->_agg.push_back(product);
+                agg->_m[0] = 1;
+                
+                query->_aggregates.push_back(agg);
+                _compiler->addQuery(query);
+            }
+        }
+    }
 }
 
-
-void LinearRegression::loadFeatures()
+void CovarianceMatrix::loadFeatures()
 {
     _queryRootIndex = new size_t[NUM_OF_VARIABLES]();
     
@@ -257,15 +247,4 @@ void LinearRegression::loadFeatures()
         /* Clear string stream. */
         ssLine.clear();
     }
-
-
-    cout << _features << "\n";
-    cout << _categoricalFeatures << "\n";
-}
-
-
-void LinearRegression::computeGradient()
-{
-    _compiler->compile();
-    
 }

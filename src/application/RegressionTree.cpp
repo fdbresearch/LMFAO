@@ -57,15 +57,9 @@ void RegressionTree::run()
     root->_conditions.set(9);
     root->_conditions.set(15);
     
-    cout << "here \n";
-
     splitNodeQueries(root);
     _compiler->compile();
-
-
-    cout << "here \n";
     
-
     // 1. define queries for new splits
     // 2. compile views for these queries
     // 3. compute these views / queries and opt. split
@@ -97,7 +91,8 @@ void RegressionTree::computeCandidates()
     DINFO(_pathToFiles + "\n");
     DINFO(_features << "\n");
 
-    if (_pathToFiles.compare("data/example") == 0 || _pathToFiles.compare("data/example/") == 0) 
+    if (_pathToFiles.compare("data/example") == 0 ||
+        _pathToFiles.compare("data/example/") == 0) 
     {
        _thresholds =
             {

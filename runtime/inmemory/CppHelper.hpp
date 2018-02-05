@@ -25,7 +25,7 @@ namespace lmfao
         V min = relation[lower_pointer].*element;
 
         size_t leap = 1;
-        while (lower_pointer <= upper_pointer && min < max)
+        while (min < max && lower_pointer <= upper_pointer)
         {
             lower_pointer += leap;
             
@@ -51,7 +51,8 @@ namespace lmfao
             while (high > low && high != low)
             {
                 mid = (high + low) / 2;
-                if (max > relation[mid - 1].*element && max <= relation[mid].*element)
+                if (max > relation[mid - 1].*element &&
+                    max <= relation[mid].*element)
                 {
                     lower_pointer = mid;
                     break;

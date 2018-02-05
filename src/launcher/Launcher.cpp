@@ -7,9 +7,11 @@
 //
 //--------------------------------------------------------------------
 
+#include <Count.h>
+#include <CovarianceMatrix.h>
+#include <CppGenerator.h>
 #include <Launcher.h>
 #include <LinearRegression.h>
-#include <CppGenerator.h>
 #include <RegressionTree.h>
 #include <SqlGenerator.h>
 
@@ -69,9 +71,6 @@ int Launcher::launch(const string& model, const string& codeGenerator)
         _model = LinearRegressionModel;
         _application.reset(
             new LinearRegression(_pathToFiles, shared_from_this()));
-
-        std::cout << _application->getFeatures() << std::endl;
-        
     }
     else if (model.compare("regtree") == 0)
     {
@@ -79,8 +78,19 @@ int Launcher::launch(const string& model, const string& codeGenerator)
         _application.reset(
             new RegressionTree(_pathToFiles, shared_from_this()));
     }
-    
-    _application->run();    
+    else if (model.compare("covar") == 0)
+    {
+        _model = CovarianceMatrixModel;
+        _application.reset(
+            new CovarianceMatrix(_pathToFiles, shared_from_this()));
+    }
+    else if (model.compare("count") == 0)
+    {
+        // _model = CountModel;
+        _application.reset(
+            new Count(_pathToFiles, shared_from_this()));
+    }
+    _application->run();
     
 #ifdef BENCH
     int64_t startLoading = duration_cast<milliseconds>(

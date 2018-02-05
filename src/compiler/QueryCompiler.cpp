@@ -27,6 +27,48 @@ void QueryCompiler::compile()
 {
     DINFO("Compiling the queries into views - number of queries: " + 
           to_string(_queryList.size()));
+
+    int qID = 0;
+    for (Query* q : _queryList)
+    {
+        printf("%d (%s): ", qID++, _td->getRelation(q->_rootID)->_name.c_str());
+        for (size_t i = 0; i < NUM_OF_VARIABLES; i++)
+            if (q->_fVars.test(i)) printf(" %s ", _td->getAttribute(i)->_name.c_str());
+        printf(" || ");
+        
+        for (size_t aggNum = 0; aggNum < q->_aggregates.size(); ++aggNum)
+        {
+            Aggregate* agg = q->_aggregates[aggNum];
+        
+            size_t aggIdx = 0;
+            for (size_t i = 0; i < agg->_n; i++)
+            {
+                while (aggIdx < agg->_m[i])
+                {
+                    const auto &prod = agg->_agg[aggIdx];
+                    for (size_t f = 0; f < NUM_OF_FUNCTIONS; f++)
+                        if (prod.test(f))
+                        {
+                            Function* func = getFunction(f);
+                            
+                            printf(" f_%lu(", f);
+
+                            for (size_t i = 0; i < NUM_OF_VARIABLES; i++)
+                                if (func->_fVars.test(i))
+                                    printf(" %s ", _td->getAttribute(i)->_name.c_str());
+                            printf(" )");
+
+                        }
+                    
+                    printf("+");
+                    ++aggIdx;
+                }
+                printf(" - ");
+            }
+        }
+        printf("\n");
+    }
+
     
     for (Query* q : _queryList)
     {
@@ -49,29 +91,31 @@ void QueryCompiler::compile()
         printf("%d (%s, %s): ", viewID++, _td->getRelation(v->_origin)->_name.c_str(),
                _td->getRelation(v->_destination)->_name.c_str());
         for (size_t i = 0; i < NUM_OF_VARIABLES; i++)
-            if (v->_fVars.test(i)) printf(" %lu ", i);
+            if (v->_fVars.test(i)) printf(" %s ", _td->getAttribute(i)->_name.c_str());
         printf(" || ");
 
-        Aggregate* agg = v->_aggregates[0];
-        
-        size_t aggIdx = 0;
-        for (size_t i = 0; i < agg->_n; i++)
-        {
-            while (aggIdx < agg->_m[i])
-            {
-                auto prod = agg->_agg[aggIdx];
-            
-                for (size_t f = 0; f < NUM_OF_FUNCTIONS; f++)
-                    if (prod.test(f))
-                        printf(" f_%lu ", i);
-                
-                printf("+");
-                ++aggIdx;
-            }
-            
-            printf(" - ");
-        }
 
+        for (size_t aggNum = 0; aggNum < v->_aggregates.size(); ++aggNum)
+        {
+            Aggregate* agg = v->_aggregates[aggNum];
+        
+            size_t aggIdx = 0;
+            for (size_t i = 0; i < agg->_n; i++)
+            {
+                while (aggIdx < agg->_m[i])
+                {
+                    const auto &prod = agg->_agg[aggIdx];
+                    for (size_t f = 0; f < NUM_OF_FUNCTIONS; f++)
+                        if (prod.test(f))
+                            printf(" f_%lu ", f);
+                
+                    printf("+");
+                    ++aggIdx;
+                }
+                printf(" - ");
+            }
+        }
+        
         printf("\n");
     }
 /* Printout */
