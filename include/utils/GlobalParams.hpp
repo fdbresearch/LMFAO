@@ -22,7 +22,7 @@ namespace multifaq
 /* Runtime variable: can be used across different compilation units; must be
  * defined in a source file. */
 #else
-        const size_t NUM_OF_FUNCTIONS = 100;
+        const size_t NUM_OF_FUNCTIONS = 300;
 #endif
 
 /* Compile time constant: can be used directly to enable loop unrolling and

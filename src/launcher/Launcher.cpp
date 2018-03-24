@@ -90,6 +90,11 @@ int Launcher::launch(const string& model, const string& codeGenerator)
         _application.reset(
             new Count(_pathToFiles, shared_from_this()));
     }
+    else
+    {
+        ERROR("The model "+model+" is not supported. \n");
+        exit(1);
+    }
     _application->run();
     
 #ifdef BENCH
@@ -100,9 +105,15 @@ int Launcher::launch(const string& model, const string& codeGenerator)
     if (codeGenerator.compare("mem") == 0)
         _codeGenerator.reset(
             new CppGenerator(_pathToFiles, shared_from_this()));
-    if (codeGenerator.compare("sql") == 0)
+    else if (codeGenerator.compare("sql") == 0)
         _codeGenerator.reset(
             new SqlGenerator(_pathToFiles, shared_from_this()));
+    else
+    {
+        ERROR("The code generator "+codeGenerator+" is not supported. \n");
+        exit(1);
+    }
+    
     _codeGenerator->generateCode();
     
 #ifdef BENCH
