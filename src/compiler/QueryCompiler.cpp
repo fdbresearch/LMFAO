@@ -21,7 +21,11 @@ QueryCompiler::QueryCompiler(shared_ptr<TreeDecomposition> td) : _td(td)
     // exit(1);
 }
 
-QueryCompiler::~QueryCompiler() {}
+QueryCompiler::~QueryCompiler()
+{
+    for (Function* f : _functionList)
+        delete f;
+}
 
 void QueryCompiler::compile()
 {
@@ -160,18 +164,16 @@ pair<size_t,size_t> QueryCompiler::compileViews(TDNode* node, size_t targetID,
                                    vector<prod_bitset> aggregate,
                                    var_bitset freeVars)
 {
-    DINFO("\nBeginning compileViews at node " + to_string(node->_id) + " target "+
-          to_string(targetID) + " freeVars: " + freeVars.to_string() +
-          " number of products: " + to_string(aggregate.size()) +"\n");
-    
-    cache_tuple t = make_tuple(node->_id, targetID, aggregate, freeVars);
+    // DINFO("\nBeginning compileViews at node " + to_string(node->_id) + " target "+
+    //       to_string(targetID) + " freeVars: " + freeVars.to_string() +
+    //       " number of products: " + to_string(aggregate.size()) +"\n");
     
     /* Check if the required view has already been declared - if so reuse this one */
+    cache_tuple t = make_tuple(node->_id, targetID, aggregate, freeVars);
     auto it = _cache.find(t);
     if (it != _cache.end())
     {
-        printf("We effectively reused an exisitng view. \n");
-        
+        // DINFO("We effectively reused an exisitng view. \n");
         // _viewList[it->second]->_usageCount += 1;
         return it->second;
     }
@@ -179,7 +181,7 @@ pair<size_t,size_t> QueryCompiler::compileViews(TDNode* node, size_t targetID,
     vector<prod_bitset> pushDownMask(node->_numOfNeighbors);
     prod_bitset localMask, forcedLocalFunctions, remainderMask, presentFunctions;
 
-    
+    // find all functions in the aggregate 
     for (size_t prod = 0; prod < aggregate.size(); prod++)
         presentFunctions |= aggregate[prod];
 
@@ -187,47 +189,47 @@ pair<size_t,size_t> QueryCompiler::compileViews(TDNode* node, size_t targetID,
     {
         if (presentFunctions[i])
         {
-            var_bitset& fVars = _functionList[i]->_fVars;
+            // DINFO("Now considering function "+to_string(i)+" at node "+
+            //       node->_name+"\n");
+            
+            const var_bitset& fVars = _functionList[i]->_fVars;
             bool pushedDown = false;
 
-            DINFO("Now considering function "+to_string(i)+" at node "+
-                  node->_name+"\n");
-            
             /*
              * Check if that function is included in the local bag
              * - if so, then we do not push it down 
              */
             if ((node->_bag & fVars) == fVars)
             {
-                DINFO("Function "+to_string(i)+" is included in bag "+
-                      node->_name+"\n");
-                    
+                // DINFO("Function "+to_string(i)+" is included in bag "+
+                //       node->_name+"\n");
+                
                 /* Leave it here as local computation */
                 localMask.set(i);
             }
             else
             {
-                DINFO("Function "+to_string(i)+" is NOT included in bag "+
-                      node->_name+"\n");
+                // DINFO("Function "+to_string(i)+" is NOT included in bag "+
+                //       node->_name+"\n");
 
                 /* For each child of current node */
                 for (size_t c = 0; c < node->_numOfNeighbors; c++)
                 {
-                    TDNode* neighbor = _td->getRelation(node->_neighbors[c]);
+                    // TDNode* neighbor = _td->getRelation(node->_neighbors[c]);
                 
                     /* neighbor is not target! */
-                    if (neighbor->_id != targetID)
+                    if (node->_neighbors[c] != targetID) // neyighbor->_id
                     {
                         /* childSchema contains the function then push down */
                         if ((node->_neighborSchema[c] & fVars) == fVars)
                         {
+                            // DINFO("Function "+to_string(i)+" is pushed to "+
+                            //       neighbor->_name+" "+to_string(c)+"\n");
+
                             /* push it to this child */
                             pushDownMask[c].set(i);
                             remainderMask.set(i);
                             pushedDown = true;
-
-                            DINFO("Function "+to_string(i)+" is pushed to "+
-                                  neighbor->_name+" "+to_string(c)+"\n");
                             break;
                         }
                     }
@@ -235,8 +237,8 @@ pair<size_t,size_t> QueryCompiler::compileViews(TDNode* node, size_t targetID,
 
                 if (!pushedDown)
                 {
-                    DINFO("Function "+to_string(i)+" cannot be pushed below "+
-                          node->_name+"\n");
+                    // DINFO("Function "+to_string(i)+" cannot be pushed below "+
+                    //       node->_name+"\n");
 
                     /* Leave it here as local computation */
                     localMask.set(i);
@@ -279,7 +281,7 @@ pair<size_t,size_t> QueryCompiler::compileViews(TDNode* node, size_t targetID,
             
             for (size_t other = prod + 1; other < aggregate.size(); other++)
             {
-                /* check if prod and other share teh same functions below */
+                /* check if prod and other share the same functions below */
                 if ((aggregate[prod] & remainderMask) ==
                     (aggregate[other] & remainderMask))
                 {
@@ -364,7 +366,7 @@ pair<size_t,size_t> QueryCompiler::compileViews(TDNode* node, size_t targetID,
                             {aggregate[prod] & pushDownMask[n]};
 
                         if (mergable && n == (neigh-1))
-                        {                            
+                        {  
                             for (size_t other = 0; other < NUM_OF_PRODUCTS; ++other)
                             {
                                 if (merges[other])
@@ -446,8 +448,8 @@ pair<size_t,size_t> QueryCompiler::compileViews(TDNode* node, size_t targetID,
     /* Adding the  view for the entire subtree to the cache */ 
     _cache[t] = viewAggregatePair;
 
-    DINFO("End of compileViews for "+to_string(node->_id)+" to "+
-          to_string(targetID)+"\n");
+    // DINFO("End of compileViews for "+to_string(node->_id)+" to "+
+    //       to_string(targetID)+"\n");
     
     /* Return ID of this view */  
     return viewAggregatePair;

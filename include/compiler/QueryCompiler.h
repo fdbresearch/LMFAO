@@ -95,6 +95,8 @@ enum Operation
     sum,
     linear_sum,
     quadratic_sum,
+    cubic_sum,
+    quartic_sum,
     exponential,
     prod,
     indicator_eq,
