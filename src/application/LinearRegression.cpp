@@ -112,9 +112,10 @@ void LinearRegression::modelToQueries()
     {
         if (_features.test(var))
         {   
-            Aggregate* agg = new Aggregate(1);
-            agg->_m[0] = 0;
-            
+            // Aggregate* agg = new Aggregate(1);
+            // agg->_m[0] = 0;
+            Aggregate* agg = new Aggregate();
+
             for (size_t otherVar = 0; otherVar < NUM_OF_VARIABLES; ++otherVar)
             {
                 if (_features.test(otherVar))
@@ -128,7 +129,7 @@ void LinearRegression::modelToQueries()
                     agg->_agg.push_back(product);
 
                     // TODO: Make sure this is correct!?!
-                    ++agg->_m[0];
+                    // ++agg->_m[0];
                 }
             }
             

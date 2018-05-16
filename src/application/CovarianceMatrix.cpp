@@ -14,7 +14,7 @@
 #include <Launcher.h>
 #include <CovarianceMatrix.h>
 
-//#define DEGREE_TWO
+// #define DEGREE_TWO
 
 static const std::string FEATURE_CONF = "/features.conf";
 
@@ -44,7 +44,9 @@ void CovarianceMatrix::run()
 {
     loadFeatures();
     modelToQueries();
-    _compiler->compile();    
+    _compiler->compile();
+
+    std::cout << "At end of application->run()\n";
 }
 
 void CovarianceMatrix::modelToQueries()
@@ -104,7 +106,6 @@ void CovarianceMatrix::modelToQueries()
     {
         if (!_features[var])
             continue;
-
         
         prod_bitset prod_linear_v1;
         prod_bitset prod_quad_v1;
@@ -116,10 +117,13 @@ void CovarianceMatrix::modelToQueries()
             // linear function ...
             prod_linear_v1.set(featureToFunction[var]);
             
-            Aggregate* agg_linear = new Aggregate(1);
-            agg_linear->_agg.push_back(prod_linear_v1);
-            agg_linear->_m[0] = 1;
+            // Aggregate* agg_linear = new Aggregate(1);
+            // agg_linear->_agg.push_back(prod_linear_v1);
+            // agg_linear->_m[0] = 1;
 
+            Aggregate* agg_linear = new Aggregate();
+            agg_linear->_agg.push_back(prod_linear_v1);
+            
             Query* linear = new Query();
             linear->_aggregates.push_back(agg_linear);
             linear->_rootID = _td->_root->_id;
@@ -129,10 +133,12 @@ void CovarianceMatrix::modelToQueries()
             // quadratic function ...
             prod_quad_v1.set(quadFeatureToFunction[var]);
 
-            Aggregate* agg_quad = new Aggregate(1);
+            // Aggregate* agg_quad = new Aggregate(1);
+            // agg_quad->_agg.push_back(prod_quad_v1);
+            // agg_quad->_m[0] = 1;
+            Aggregate* agg_quad = new Aggregate();
             agg_quad->_agg.push_back(prod_quad_v1);
-            agg_quad->_m[0] = 1;
-
+            
             Query* quad = new Query();
             quad->_aggregates.push_back(agg_quad);
             quad->_rootID = _td->_root->_id;
@@ -143,10 +149,12 @@ void CovarianceMatrix::modelToQueries()
         {
             v1_root = _queryRootIndex[var];
 
-            Aggregate* agg_linear = new Aggregate(1);
+            // Aggregate* agg_linear = new Aggregate(1);
+            // agg_linear->_agg.push_back(prod_linear_v1);
+            // agg_linear->_m[0] = 1;
+            Aggregate* agg_linear = new Aggregate();
             agg_linear->_agg.push_back(prod_linear_v1);
-            agg_linear->_m[0] = 1;
-
+            
             Query* linear = new Query();
             linear->_aggregates.push_back(agg_linear);
             linear->_fVars.set(var);
@@ -163,8 +171,9 @@ void CovarianceMatrix::modelToQueries()
                 
                 prod_bitset prod_quad_v2 = prod_linear_v1;
                 
-                Aggregate* agg_quad_v2 = new Aggregate(1);
-                agg_quad_v2->_m[0] = 1;
+                // Aggregate* agg_quad_v2 = new Aggregate(1);
+                // agg_quad_v2->_m[0] = 1;
+                Aggregate* agg_quad_v2 = new Aggregate();
                 
                 Query* quad_v2 = new Query();
                 quad_v2->_rootID = v1_root;
@@ -204,7 +213,7 @@ void CovarianceMatrix::modelToQueries()
             continue;
 
         Query* linear = new Query();
-        Aggregate* agg_linear = new Aggregate(1);
+        Aggregate* agg_linear = new Aggregate();
 
         prod_bitset prod_linear;
 
@@ -215,15 +224,15 @@ void CovarianceMatrix::modelToQueries()
             linear->_fVars.set(var);
         
         agg_linear->_agg.push_back(prod_linear);
-        agg_linear->_m[0] = 1;
+        // agg_linear->_m[0] = 1;
 
         linear->_rootID = _queryRootIndex[var];
         linear->_aggregates.push_back(agg_linear);
         _compiler->addQuery(linear);
 
         /********** PRINT OUT ********/
-        std::cout << _td->getAttribute(var)->_name << std::endl;
-        std::cout << linear->_rootID << std::endl;
+        // std::cout << _td->getAttribute(var)->_name << std::endl;
+        // std::cout << linear->_rootID << std::endl;
         /********** PRINT OUT ********/
     }
     
@@ -236,22 +245,23 @@ void CovarianceMatrix::modelToQueries()
         {            
             // add quad
             Query* quad = new Query();
-            Aggregate* agg_quad = new Aggregate(1);
+            Aggregate* agg_quad = new Aggregate();
             prod_bitset prod_quad;
 
             // add quad
             prod_quad.set(quadFeatureToFunction[var]);
 
             agg_quad->_agg.push_back(prod_quad);
-            agg_quad->_m[0] = 1;
+            // agg_quad->_m[0] = 1;
 
             quad->_rootID = _queryRootIndex[var];
             quad->_aggregates.push_back(agg_quad);
             _compiler->addQuery(quad);
 
             /********** PRINT OUT ********/
-            std::cout << _td->getAttribute(var)->_name + "*" +_td->getAttribute(var)->_name  << std::endl;
-            std::cout << quad->_rootID << std::endl;
+            // std::cout << _td->getAttribute(var)->_name + "*" +
+            //     _td->getAttribute(var)->_name  << std::endl;
+            // std::cout << quad->_rootID << std::endl;
             /********** PRINT OUT ********/
         }
 
@@ -262,7 +272,7 @@ void CovarianceMatrix::modelToQueries()
 
             // add combo linear, linear
             Query* combo = new Query();
-            Aggregate* agg_combo = new Aggregate(1);
+            Aggregate* agg_combo = new Aggregate();
             prod_bitset prod_combo_v1;
 
             // add combo
@@ -282,14 +292,15 @@ void CovarianceMatrix::modelToQueries()
             }
             
             agg_combo->_agg.push_back(prod_combo_v1);
-            agg_combo->_m[0] = 1;
+            // agg_combo->_m[0] = 1;
 
             combo->_aggregates.push_back(agg_combo);
             _compiler->addQuery(combo);
 
             /********** PRINT OUT ********/
-            std::cout << _td->getAttribute(var)->_name + "*" +_td->getAttribute(var2)->_name  << std::endl;
-            std::cout << combo->_rootID << std::endl;
+            // std::cout << _td->getAttribute(var)->_name + "*" +
+            //     _td->getAttribute(var2)->_name  << std::endl;
+            // std::cout << combo->_rootID << std::endl;
             /********** PRINT OUT ********/
         }
     }
@@ -303,22 +314,24 @@ void CovarianceMatrix::modelToQueries()
         {   
             // add cubic (if degree 2)
             Query* cubic = new Query();
-            Aggregate* agg_cubic = new Aggregate(1);
+            Aggregate* agg_cubic = new Aggregate();
             prod_bitset prod_cubic_v1;
 
             // add cubic
             prod_cubic_v1.set(cubicFeatureToFunction[var]);
 
             agg_cubic->_agg.push_back(prod_cubic_v1);
-            agg_cubic->_m[0] = 1;
+            // agg_cubic->_m[0] = 1;
 
             cubic->_rootID = _queryRootIndex[var];
             cubic->_aggregates.push_back(agg_cubic);
             _compiler->addQuery(cubic);
 
             /********** PRINT OUT ********/
-            std::cout << "cubic: "<< _td->getAttribute(var)->_name + "*" +_td->getAttribute(var)->_name + "*" +_td->getAttribute(var)->_name << std::endl;
-            std::cout << cubic->_rootID << std::endl;
+            // std::cout << "cubic: "<< _td->getAttribute(var)->_name + "*"
+            //     +_td->getAttribute(var)->_name + "*" +
+            //     _td->getAttribute(var)->_name << std::endl;
+            // std::cout << cubic->_rootID << std::endl;
             /********** PRINT OUT ********/
 
             for (size_t var2 = var+1; var2 < NUM_OF_VARIABLES; ++var2)
@@ -328,7 +341,7 @@ void CovarianceMatrix::modelToQueries()
 
                 // add combo quad, linear (if degree 2) 
                 Query* combo = new Query();
-                Aggregate* agg_combo = new Aggregate(1);
+                Aggregate* agg_combo = new Aggregate();
                 prod_bitset prod_combo_v1;
 
                 // add quad feature 
@@ -344,14 +357,16 @@ void CovarianceMatrix::modelToQueries()
                 }
             
                 agg_combo->_agg.push_back(prod_combo_v1);
-                agg_combo->_m[0] = 1;
+                // agg_combo->_m[0] = 1;
 
                 combo->_aggregates.push_back(agg_combo);
                 _compiler->addQuery(combo);
 
                 /********** PRINT OUT ********/
-                std::cout << _td->getAttribute(var)->_name + "*" +_td->getAttribute(var)->_name + "*" +_td->getAttribute(var2)->_name << std::endl;
-                std::cout << combo->_rootID << std::endl;
+                // std::cout << _td->getAttribute(var)->_name + "*" +
+                //     _td->getAttribute(var)->_name + "*" +
+                //     _td->getAttribute(var2)->_name << std::endl;
+                // std::cout << combo->_rootID << std::endl;
                 /********** PRINT OUT ********/
             }
         }
@@ -365,7 +380,7 @@ void CovarianceMatrix::modelToQueries()
             {
                 // add combo of linear, quad
                 Query* combo = new Query();
-                Aggregate* agg_combo = new Aggregate(1);
+                Aggregate* agg_combo = new Aggregate();
                 prod_bitset prod_combo_v1;
 
                 // add linear
@@ -380,16 +395,17 @@ void CovarianceMatrix::modelToQueries()
                 prod_combo_v1.set(quadFeatureToFunction[var2]);
             
                 agg_combo->_agg.push_back(prod_combo_v1);
-                agg_combo->_m[0] = 1;
+                // agg_combo->_m[0] = 1;
 
                 combo->_aggregates.push_back(agg_combo);
                 _compiler->addQuery(combo);
 
                 /********** PRINT OUT ********/
-                std::cout << _td->getAttribute(var)->_name + "*" +_td->getAttribute(var2)->_name + "*" +_td->getAttribute(var2)->_name << std::endl;
-                std::cout << combo->_rootID << std::endl;
+                // std::cout << _td->getAttribute(var)->_name + "*" +
+                //     _td->getAttribute(var2)->_name + "*" +
+                //     _td->getAttribute(var2)->_name << std::endl;
+                // std::cout << combo->_rootID << std::endl;
                 /********** PRINT OUT ********/
-
             }
 
             // add combinations of linear, linear, linear
@@ -400,7 +416,7 @@ void CovarianceMatrix::modelToQueries()
 
                 // add combo of linear, linear, linear
                 Query* combo = new Query();
-                Aggregate* agg_combo = new Aggregate(1);
+                Aggregate* agg_combo = new Aggregate();
                 prod_bitset prod_combo_v1;
 
                 // add linear
@@ -430,14 +446,16 @@ void CovarianceMatrix::modelToQueries()
                 }
                  
                 agg_combo->_agg.push_back(prod_combo_v1);
-                agg_combo->_m[0] = 1;
+                // agg_combo->_m[0] = 1;
 
                 combo->_aggregates.push_back(agg_combo);
                 _compiler->addQuery(combo);
 
                 /********** PRINT OUT ********/
-                std::cout << _td->getAttribute(var)->_name + "*" +_td->getAttribute(var2)->_name + "*" +_td->getAttribute(var3)->_name << std::endl;
-                std::cout << combo->_rootID << std::endl;
+                // std::cout << _td->getAttribute(var)->_name + "*" +
+                //     _td->getAttribute(var2)->_name + "*" +
+                //     _td->getAttribute(var3)->_name << std::endl;
+                // std::cout << combo->_rootID << std::endl;
                 /********** PRINT OUT ********/
             }
         }
@@ -454,22 +472,24 @@ void CovarianceMatrix::modelToQueries()
             
             // add quartic (if degree 2)
             Query* quartic = new Query();
-            Aggregate* agg_quartic = new Aggregate(1);
+            Aggregate* agg_quartic = new Aggregate();
             prod_bitset prod_quartic_v1;
 
             // add quartic
             prod_quartic_v1.set(quarticFeatureToFunction[var]);
 
             agg_quartic->_agg.push_back(prod_quartic_v1);
-            agg_quartic->_m[0] = 1;
+            // agg_quartic->_m[0] = 1;
 
             quartic->_rootID = _queryRootIndex[var];
             quartic->_aggregates.push_back(agg_quartic);
             _compiler->addQuery(quartic);
 
             /********** PRINT OUT ********/
-            std::cout << _td->getAttribute(var)->_name + "*" +_td->getAttribute(var)->_name + "*" +_td->getAttribute(var)->_name + "*" +_td->getAttribute(var)->_name << std::endl;
-            std::cout << quartic->_rootID << std::endl;
+            // std::cout << _td->getAttribute(var)->_name + "*" +
+            //     _td->getAttribute(var)->_name + "*" +_td->getAttribute(var)->_name +
+            //     "*" +_td->getAttribute(var)->_name << std::endl;
+            // std::cout << quartic->_rootID << std::endl;
             /********** PRINT OUT ********/
             
             // add combo cubic and linear (if degree 2) 
@@ -480,7 +500,7 @@ void CovarianceMatrix::modelToQueries()
 
                 // add combo cubic, linear (if degree 2) 
                 Query* combo = new Query();
-                Aggregate* agg_combo = new Aggregate(1);
+                Aggregate* agg_combo = new Aggregate();
                 prod_bitset prod_combo_v1;
 
                 // add cubic feature 
@@ -496,15 +516,16 @@ void CovarianceMatrix::modelToQueries()
                 }
             
                 agg_combo->_agg.push_back(prod_combo_v1);
-                agg_combo->_m[0] = 1;
+                // agg_combo->_m[0] = 1;
 
                 combo->_aggregates.push_back(agg_combo);
                 _compiler->addQuery(combo);
 
                 /********** PRINT OUT ********/
-                std::cout << _td->getAttribute(var)->_name + "*" +_td->getAttribute(var)->_name + "*" +_td->getAttribute(var)->_name + "*" +
-                    _td->getAttribute(var2)->_name << std::endl;
-                std::cout << combo->_rootID << std::endl;        
+                // std::cout << _td->getAttribute(var)->_name + "*" +
+                //     _td->getAttribute(var)->_name + "*" +_td->getAttribute(var)->_name+
+                //     "*" + _td->getAttribute(var2)->_name << std::endl;
+                // std::cout << combo->_rootID << std::endl;        
                 /********** PRINT OUT ********/
 
             }
@@ -518,7 +539,7 @@ void CovarianceMatrix::modelToQueries()
                 {
                     // add combo of quad, quad
                     Query* combo = new Query();
-                    Aggregate* agg_combo = new Aggregate(1);
+                    Aggregate* agg_combo = new Aggregate();
                     prod_bitset prod_combo_v1;
 
                     // add quad
@@ -535,15 +556,17 @@ void CovarianceMatrix::modelToQueries()
                     }
                     
                     agg_combo->_agg.push_back(prod_combo_v1);
-                    agg_combo->_m[0] = 1;
+                    // agg_combo->_m[0] = 1;
 
                     combo->_aggregates.push_back(agg_combo);
                     _compiler->addQuery(combo);
 
                     /********** PRINT OUT ********/
-                    std::cout << _td->getAttribute(var)->_name + "*" +_td->getAttribute(var)->_name + "*" +_td->getAttribute(var2)->_name + "*" <<
-                        _td->getAttribute(var2)->_name << std::endl;
-                    std::cout << combo->_rootID << std::endl;        
+                    // std::cout << _td->getAttribute(var)->_name + "*" +
+                    //     _td->getAttribute(var)->_name + "*" +
+                    //     _td->getAttribute(var2)->_name + "*" <<
+                    //     _td->getAttribute(var2)->_name << std::endl;
+                    // std::cout << combo->_rootID << std::endl;        
                     /********** PRINT OUT ********/
 
                 }
@@ -556,7 +579,7 @@ void CovarianceMatrix::modelToQueries()
 
                     // add combo of quad, linear, linear
                     Query* combo = new Query();
-                    Aggregate* agg_combo = new Aggregate(1);
+                    Aggregate* agg_combo = new Aggregate();
                     prod_bitset prod_combo_v1;
                     
                     // add quad
@@ -582,15 +605,17 @@ void CovarianceMatrix::modelToQueries()
                     }
                  
                     agg_combo->_agg.push_back(prod_combo_v1);
-                    agg_combo->_m[0] = 1;
+                    // agg_combo->_m[0] = 1;
 
                     combo->_aggregates.push_back(agg_combo);
                     _compiler->addQuery(combo);
                     
                     /********** PRINT OUT ********/
-                    std::cout << _td->getAttribute(var)->_name + "*" +_td->getAttribute(var)->_name + "*" +_td->getAttribute(var2)->_name + "*" <<
-                        _td->getAttribute(var3)->_name << std::endl;
-                    std::cout << combo->_rootID << std::endl;
+                    // std::cout << _td->getAttribute(var)->_name + "*" +
+                    //     _td->getAttribute(var)->_name + "*" +
+                    //     _td->getAttribute(var2)->_name + "*" <<
+                    //     _td->getAttribute(var3)->_name << std::endl;
+                    // std::cout << combo->_rootID << std::endl;
                     /********** PRINT OUT ********/
                 }
             }   
@@ -604,7 +629,7 @@ void CovarianceMatrix::modelToQueries()
 
             // add combo linear, cubic (if degree 2) 
             Query* combo = new Query();
-            Aggregate* agg_combo = new Aggregate(1);
+            Aggregate* agg_combo = new Aggregate();
             prod_bitset prod_combo_v1;
 
             if (!_categoricalFeatures[var])
@@ -619,15 +644,16 @@ void CovarianceMatrix::modelToQueries()
             prod_combo_v1.set(cubicFeatureToFunction[var2]);
 
             agg_combo->_agg.push_back(prod_combo_v1);
-            agg_combo->_m[0] = 1;
+            // agg_combo->_m[0] = 1;
 
             combo->_aggregates.push_back(agg_combo);
             _compiler->addQuery(combo);
 
             /********** PRINT OUT ********/
-            std::cout << _td->getAttribute(var)->_name + "*" +_td->getAttribute(var2)->_name + "*" +_td->getAttribute(var2)->_name + "*" << 
-                _td->getAttribute(var2)->_name << std::endl;
-            std::cout << combo->_rootID << std::endl;
+            // std::cout << _td->getAttribute(var)->_name + "*" +
+            //     _td->getAttribute(var2)->_name + "*" +_td->getAttribute(var2)->_name +
+            //     "*" << _td->getAttribute(var2)->_name << std::endl;
+            // std::cout << combo->_rootID << std::endl;
             /********** PRINT OUT ********/
             
             // for (size_t var2 = var+1; var2 < NUM_OF_VARIABLES; ++var2)
@@ -640,17 +666,13 @@ void CovarianceMatrix::modelToQueries()
             //         // add combo of quad, quad
             //         Query* combo = new Query();
             //         Aggregate* agg_combo = new Aggregate(1);
-
             //         // add quad
             //         prod_combo_v1.set(quadFeatureToFunction[var]);
             //         combo->_rootID = _queryRootIndex[var];
-
             //         // add quad
             //         prod_combo_v1.set(quadFeatureToFunction[var2]);
-            
             //         agg_combo->_agg.push_back(prod_combo_v1);
             //         agg_combo->_m[0] = 1;
-
             //         combo->_aggregates.push_back(agg_combo);
             //         _compiler->addQuery(combo);
             //     }
@@ -663,7 +685,7 @@ void CovarianceMatrix::modelToQueries()
 
                 // add combo of linear, quad, linear
                 Query* combo = new Query();
-                Aggregate* agg_combo = new Aggregate(1);
+                Aggregate* agg_combo = new Aggregate();
                 prod_bitset prod_combo_v1;
 
                 // add linear
@@ -687,15 +709,17 @@ void CovarianceMatrix::modelToQueries()
                 }
                  
                 agg_combo->_agg.push_back(prod_combo_v1);
-                agg_combo->_m[0] = 1;
+                // agg_combo->_m[0] = 1;
 
                 combo->_aggregates.push_back(agg_combo);
                 _compiler->addQuery(combo);
                 
                 /********** PRINT OUT ********/
-                std::cout << _td->getAttribute(var)->_name + "*" +_td->getAttribute(var2)->_name + "*" +_td->getAttribute(var2)->_name + "*" <<
-                    _td->getAttribute(var3)->_name << std::endl;
-                std::cout << combo->_rootID << std::endl;
+                // std::cout << _td->getAttribute(var)->_name + "*" +
+                //     _td->getAttribute(var2)->_name + "*" +
+                //     _td->getAttribute(var2)->_name + "*" <<
+                //     _td->getAttribute(var3)->_name << std::endl;
+                // std::cout << combo->_rootID << std::endl;
                 /********** PRINT OUT ********/
             }
 
@@ -709,7 +733,7 @@ void CovarianceMatrix::modelToQueries()
                 {
                     // add combo of linear, linear, quad
                     Query* combo = new Query();
-                    Aggregate* agg_combo = new Aggregate(1);
+                    Aggregate* agg_combo = new Aggregate();
                     prod_bitset prod_combo_v1;
 
 
@@ -734,15 +758,17 @@ void CovarianceMatrix::modelToQueries()
                     prod_combo_v1.set(quadFeatureToFunction[var3]);
                  
                     agg_combo->_agg.push_back(prod_combo_v1);
-                    agg_combo->_m[0] = 1;
+                    // agg_combo->_m[0] = 1;
 
                     combo->_aggregates.push_back(agg_combo);
                     _compiler->addQuery(combo);
 
                     /********** PRINT OUT ********/
-                    std::cout << _td->getAttribute(var)->_name + "*" +_td->getAttribute(var2)->_name + "*" +_td->getAttribute(var3)->_name + "*" << 
-                        _td->getAttribute(var3)->_name << std::endl;
-                    std::cout << combo->_rootID << std::endl;
+                    // std::cout << _td->getAttribute(var)->_name + "*" +
+                    //     _td->getAttribute(var2)->_name + "*" +
+                    //     _td->getAttribute(var3)->_name + "*" << 
+                    //     _td->getAttribute(var3)->_name << std::endl;
+                    // std::cout << combo->_rootID << std::endl;
                     /********** PRINT OUT ********/       
                 }
 
@@ -754,7 +780,7 @@ void CovarianceMatrix::modelToQueries()
 
                     // add combo of linear, linear, linear, linear 
                     Query* combo = new Query();
-                    Aggregate* agg_combo = new Aggregate(1);
+                    Aggregate* agg_combo = new Aggregate();
                     prod_bitset prod_combo_v1;
                     
                     // add linear
@@ -793,15 +819,17 @@ void CovarianceMatrix::modelToQueries()
                     }
 
                     agg_combo->_agg.push_back(prod_combo_v1);
-                    agg_combo->_m[0] = 1;
+                    // agg_combo->_m[0] = 1;
 
                     combo->_aggregates.push_back(agg_combo);
                     _compiler->addQuery(combo);
 
                     /********** PRINT OUT ********/
-                    std::cout << _td->getAttribute(var)->_name + "*" +_td->getAttribute(var2)->_name + "*" +_td->getAttribute(var3)->_name + "*" <<
-                        _td->getAttribute(var4)->_name << std::endl;
-                    std::cout << combo->_rootID << std::endl;
+                    // std::cout << _td->getAttribute(var)->_name + "*" +
+                    //     _td->getAttribute(var2)->_name + "*" +
+                    //     _td->getAttribute(var3)->_name + "*" <<
+                    //     _td->getAttribute(var4)->_name << std::endl;
+                    // std::cout << combo->_rootID << std::endl;
                     /********** PRINT OUT ********/
  
                 }   
@@ -809,10 +837,7 @@ void CovarianceMatrix::modelToQueries()
         }
     }
     
-    std::cout << "defiend functions / queries \n";
-    // exit(0);
 #endif
-
 
 }
 

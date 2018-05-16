@@ -19,6 +19,203 @@
 
 // #define PREVIOUS
 
+namespace std
+{
+/**
+ * Custom hash function for vector of pairs.
+ */
+    template<> struct hash<vector<pair<size_t,size_t>>>
+    {
+        HOT inline size_t operator()(const vector<pair<size_t,size_t>>& p) const
+	{
+            size_t seed = 0;
+            hash<size_t> h;
+            for (const pair<size_t,size_t>& d : p)
+            {
+                seed ^= h(d.first) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+                seed ^= h(d.second) + 0x9e3779b9 + (seed << 6) + (seed >> 2);    
+            }
+            return seed;
+	}
+    };
+}
+
+
+struct ProductAggregate
+{
+    prod_bitset product;
+    std::vector<std::pair<size_t,size_t>> viewAggregate;
+    std::pair<size_t,size_t> previous;
+    std::pair<size_t,size_t> correspondingLoopAgg;
+
+    bool multiplyByCount = false;
+    
+    bool operator==(const ProductAggregate &other) const
+    {
+        return this->product == other.product &&
+            this->viewAggregate == other.viewAggregate &&
+            this->previous == other.previous &&
+            this->multiplyByCount == other.multiplyByCount;
+    }
+};
+
+struct ProductAggregate_hash
+{
+    size_t operator()(const ProductAggregate &key ) const
+    {
+        size_t h = 0;
+        h ^= std::hash<prod_bitset>()(key.product)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<size_t>()(key.previous.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<size_t>()(key.previous.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<std::vector<std::pair<size_t,size_t>>>()(key.viewAggregate)+
+            0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<bool>()(key.multiplyByCount)+0x9e3779b9 + (h<<6) + (h>>2);
+        return h;
+    }
+};
+
+struct PostLoopAgg
+{
+    std::pair<size_t,size_t> local;
+    std::pair<size_t,size_t> post;
+
+    bool operator==(const PostLoopAgg &other) const
+    {
+        return this->local == other.local &&
+            this->post == other.post;
+    }
+};
+
+struct PostLoopAgg_hash
+{
+    size_t operator()(const PostLoopAgg &key ) const
+    {
+        size_t h = 0;
+        h ^= std::hash<size_t>()(key.local.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<size_t>()(key.local.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<size_t>()(key.post.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<size_t>()(key.post.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        return h;
+    }
+};
+
+struct DependentComputation
+{
+    prod_bitset product;
+    std::vector<std::pair<size_t,size_t>> view;    
+};
+
+
+struct AggRegTuple
+{
+    // bool hasPreviousComputation = false;
+    std::pair<size_t,size_t> previous;
+    std::pair<bool,size_t> product;
+    std::pair<bool,size_t> view;
+
+    bool postLoopAgg = false;
+    std::pair<size_t,size_t> localAgg;
+    std::pair<size_t,size_t> postLoop;
+
+    bool newViewProduct = false;
+    bool singleViewAgg = false;
+    std::pair<size_t,size_t> viewAgg;
+
+    bool multiplyByCount = false;
+    // size_t view;
+    size_t loopID;
+
+    bool operator==(const AggRegTuple &other) const
+    {
+        return this->product == other.product &&
+            this->view == other.view &&
+            this->viewAgg == other.viewAgg &&
+            this->previous == other.previous &&
+            this->localAgg == other.localAgg &&
+            this->postLoop == other.postLoop;
+    }
+};
+
+struct AggRegTuple_hash
+{
+    size_t operator()(const AggRegTuple &key ) const
+    {
+        size_t h = 0;
+        h ^= std::hash<int>()(key.previous.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<int>()(key.previous.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<bool>()(key.product.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<size_t>()(key.product.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<bool>()(key.view.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<size_t>()(key.view.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<size_t>()(key.viewAgg.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<size_t>()(key.viewAgg.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<size_t>()(key.localAgg.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<size_t>()(key.localAgg.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<size_t>()(key.postLoop.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<size_t>()(key.postLoop.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        return h;
+    }
+};
+
+struct PostAggRegTuple
+{
+    std::pair<size_t,size_t> local = {0,0};
+    std::pair<size_t,size_t> post  = {0,0};
+
+    bool operator==(const PostAggRegTuple &other) const
+    {
+        return this->local == other.local &&
+            this->post == other.post;
+    }
+};
+
+struct PostAggRegTuple_hash
+{
+    size_t operator()(const PostAggRegTuple &key ) const
+    {
+        size_t h = 0;
+        h ^= std::hash<int>()(key.local.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<int>()(key.local.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<int>()(key.post.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<int>()(key.post.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        return h;
+    }
+};
+
+struct AggregateTuple
+{
+    size_t viewID;
+    size_t aggID;
+    std::pair<size_t,size_t> local;
+    std::pair<size_t,size_t> post;
+    std::pair<bool, size_t> dependentProduct;
+    std::pair<bool, size_t> dependentView;
+    size_t loopID;
+
+    DependentComputation dependentComputation;
+
+    bool hasDependentComputation = false;
+    ProductAggregate dependentProdAgg; 
+    // bool dependentComp[2] = {false};
+    // size_t dependentID[2];
+};
+
+struct NewAggregateTuple
+{
+    size_t viewID;
+    size_t aggID;
+    std::pair<size_t,size_t> local;
+    std::pair<size_t,size_t> post;
+    std::pair<bool, size_t> dependentProduct;
+    std::pair<bool, size_t> dependentView;
+    size_t loopID;
+
+    DependentComputation dependentComputation;
+    
+    // bool dependentComp[2] = {false};
+    // size_t dependentID[2];
+};
+
 class CppGenerator: public CodeGenerator
 {
 public:
@@ -31,7 +228,6 @@ public:
     void generateCode();
     
 private:
-    
     std::string _pathToData;
 
     std::string _datasetName;
@@ -77,6 +273,7 @@ private:
     std::vector<std::vector<std::string>> aggregateRegister;
     std::vector<std::vector<boost::dynamic_bitset<>>> loopRegister;
 
+    
     std::vector<boost::dynamic_bitset<>> preAggregateIndexes;
     std::vector<boost::dynamic_bitset<>> postAggregateIndexes;
     std::vector<boost::dynamic_bitset<>> dependentAggregateIndexes;
@@ -103,7 +300,90 @@ private:
     // std::unordered_map<std::string, std::pair<size_t,size_t>> deferredAggregateMap;
     // std::vector<std::vector<std::string>> deferredAggregateRegister;
     // std::vector<std::vector<boost::dynamic_bitset<>>> deferredLoopRegister;
+    
+/**************************************************************************/
+/**************************************************************************/
+    std::vector<std::vector<AggRegTuple>> newAggregateRegister;
+    std::vector<std::unordered_map<
+                    AggRegTuple, size_t, AggRegTuple_hash>> aggregateRegisterMap;
 
+    std::vector<std::vector<size_t>> aggregateRemapping;
+    std::vector<std::vector<std::vector<size_t>>> newAggregateRemapping;
+    size_t aggregateCounter;
+
+    std::vector<std::unordered_map<ProductAggregate,size_t,ProductAggregate_hash>>
+    productToVariableMap;
+    
+    std::vector<std::vector<ProductAggregate>> productToVariableRegister;
+    
+    std::vector<std::unordered_map<prod_bitset,size_t>> localProductMap;
+    std::vector<std::vector<prod_bitset>> localProductList;
+    std::vector<std::vector<size_t>> localProductRemapping;
+    std::vector<std::vector<std::vector<size_t>>> newLocalProductRemapping;
+    size_t productCounter;
+    
+    std::vector<std::map<std::vector<std::pair<size_t,size_t>>,size_t>> viewProductMap;
+    std::vector<std::vector<std::vector<std::pair<size_t,size_t>>>> viewProductList;
+    std::vector<std::vector<size_t>> viewProductRemapping;
+    std::vector<std::vector<std::vector<size_t>>> newViewProductRemapping;
+    size_t viewCounter;
+
+    std::vector<std::vector<size_t>> postRemapping;
+    size_t postCounter;
+    
+    std::vector<std::unordered_map<
+                    PostAggRegTuple,size_t,PostAggRegTuple_hash>>postRegisterMap;
+
+    std::vector<std::vector<PostAggRegTuple>> postRegisterList;
+
+    std::vector<std::vector<boost::dynamic_bitset<>>> contributingViewList;
+    // std::vector<std::vector<dyn_bitset>> productLoopFactors;
+
+    std::vector<std::map<boost::dynamic_bitset<>, size_t>> totalLoopFactors;
+    std::vector<std::vector<boost::dynamic_bitset<>>> totalLoopFactorList;
+
+    std::vector<std::vector<size_t>> productLoopID;
+    std::vector<std::vector<size_t>> incViewLoopID;
+    std::vector<size_t> outViewLoopID;
+    std::vector<std::vector<size_t>> aggRegLoopID;
+
+    std::vector<std::vector<AggregateTuple>> aggregateComputation;
+    std::vector<DependentComputation> dependentComputation;
+
+    std::vector<boost::dynamic_bitset<>> listOfLoops;
+    std::vector<prod_bitset> functionsPerLoop;
+    std::vector<prod_bitset> functionsPerLoopBranch;
+    std::vector<boost::dynamic_bitset<>> viewsPerLoop;
+    std::vector<std::vector<size_t>> nextLoopsPerLoop;
+
+    std::vector<boost::dynamic_bitset<>> depListOfLoops;
+    std::vector<prod_bitset> depFunctionsPerLoop;
+    std::vector<prod_bitset> depFunctionsPerLoopBranch;
+    std::vector<boost::dynamic_bitset<>> depViewsPerLoop;
+    std::vector<std::vector<size_t>> depNextLoopsPerLoop;
+    
+
+    std::vector<std::unordered_map<ProductAggregate,size_t,ProductAggregate_hash>>
+    depProductToVariableMap;
+    std::vector<std::vector<ProductAggregate>> depProductToVariableRegister;
+
+
+    std::vector<boost::dynamic_bitset<>> outViewLoop;
+    
+    std::vector<boost::dynamic_bitset<>> outputLoops;
+    std::vector<std::vector<size_t>> outputNextLoops;
+    std::vector<boost::dynamic_bitset<>> outputViewsPerLoop;
+
+    
+    std::vector<std::vector<ProductAggregate>> outProductToVariableRegister;
+
+    std::vector<std::vector<prod_bitset>> outLocalProductRegister;
+    std::vector<std::vector<std::vector<std::pair<size_t,size_t>>>>
+    outViewProductRegister;
+    std::vector<std::vector<AggRegTuple>> outAggregateRegister;
+ 
+/***************************************************x***********************/
+/**************************************************************************/
     
     /* TODO: Technically there is no need to pre-materialise this! */
     void createVariableOrder();
@@ -111,21 +391,35 @@ private:
     void createRelationSortingOrder(TDNode* node, const size_t& parent_id);
 
     void createTopologicalOrder();
+
+    void genDataHandler();
+    void genComputeGroupHeaderSource(size_t group);
+    void genMakeFile();
+    void genMainFunction();
+
+    prod_bitset computeLoopMasks(
+        prod_bitset presentFunctions, boost::dynamic_bitset<> consideredLoops,
+        const var_bitset& varOrderBitset, const var_bitset& relationBag,
+        const boost::dynamic_bitset<>& contributingViews,
+        boost::dynamic_bitset<>& nextVariable,
+        const boost::dynamic_bitset<>& prefixLoops);
+
+    void registerAggregatesToLoops(size_t depth, size_t group_id);
+
+    void registerDependentComputationToLoops(size_t view_id, size_t group_id);
+
+    std::pair<size_t,size_t> addProductToLoop(
+        ProductAggregate& prodAgg, size_t& currentLoop, bool& loopsOverRelation,
+        const size_t& maxDepth);
     
     inline std::string offset(size_t off);
 
     std::string typeToStr(Type t);
-
-//    std::string typeToStringConverter(Type t);
-
+    
     std::string genHeader();
 
     std::string genTupleStructs();
-
-    // std::string genFooter();
-    // std::string genRelationTupleStructs(TDNode* rel);
-    // std::string genViewTupleStructs(View* view, size_t view_id);
-
+    
     std::string genCaseIdentifiers();
     
     std::string genLoadRelationFunction();
@@ -159,7 +453,8 @@ private:
     std::string updateMaxCase(size_t depth, const std::string& rel_name,
                               const std::string& attr_name, bool parallelize);
     
-    std::string getUpperPointer(const std::string rel_name, size_t depth, bool parallel);
+    std::string getUpperPointer(
+        const std::string rel_name, size_t depth, bool parallel);
     
     std::string getLowerPointer(const std::string rel_name, size_t depth);
     
@@ -169,7 +464,7 @@ private:
     std::string getFunctionString(Function* f, std::string& fvars);
 
     std::string genSortFunction(const size_t& rel_id);
-
+ 
     std::string genFindUpperBound(const std::string& rel_name,
                                   const std::string& attrName,
                                   size_t depth, bool parallel); 
@@ -183,27 +478,37 @@ private:
 
     // This can be removed ...
     bool requireHash(const size_t& rel, const size_t& view);
-
-    // std::string getProductAggregate(const prod_bitset& product,
-    //                                 const TDNode& node,
-    //                                 Aggregate* aggregate,
-    //                                 const var_bitset& varOrderBitset,
-    //                                 size_t incomingCounter, size_t i);
-
+    
     void aggregateGenerator(size_t group_id, const TDNode& node);
 
     void computeViewLevel(size_t group_id, const TDNode& node);
 
-    void computeAggregateRegister(
-        const size_t group_id, const size_t view_id, const size_t agg_id,
-        std::vector<prod_bitset>& productSum, std::vector<size_t>& incoming,
-        std::vector<std::pair<size_t, size_t>>& localAggReg,
-        //  std::vector<std::pair<size_t, size_t>>& viewAggReg,
-        bool splitViewAggSummation, size_t depth);
-    
-    void updateAggregateRegister(
-        std::pair<size_t,size_t>& outputIndex, const std::string& aggString,
-        size_t depth, const boost::dynamic_bitset<>& loopFactor, bool pre);
+    // void computeAggregateRegister(
+    //     const size_t group_id, const size_t view_id, const size_t agg_id,
+    //     std::vector<prod_bitset>& productSum, std::vector<size_t>& incoming,
+    //     std::vector<std::pair<size_t, size_t>>& localAggReg,
+    //     //  std::vector<std::pair<size_t, size_t>>& viewAggReg,
+    //     bool splitViewAggSummation, size_t depth);
+    // void computeAggregateRegister( Aggregate* aggregate,
+    //     const size_t group_id, const size_t view_id,const size_t agg_id,
+    //     const size_t depth, std::vector<std::pair<size_t, size_t>>& localAggReg);
+
+    void registerAggregatesToVariables(Aggregate* aggregate,
+        const size_t group_id, const size_t view_id,const size_t agg_id,
+        const size_t depth, std::vector<std::pair<size_t, size_t>>& localAggReg);
+
+    // TODO: This can be savely removed! 
+    // void updateAggregateRegister(
+    //     std::pair<size_t,size_t>& outputIndex, const std::string& aggString,
+    //     size_t depth, const boost::dynamic_bitset<>& loopFactor, bool pre);
+
+    // std::string newgenAggregateString(
+    //     const TDNode& node, boost::dynamic_bitset<> consideredLoops,
+    //     size_t depth, size_t group_id);
+
+    // std::string newgenFinalAggregateString(
+    //     const TDNode* node, boost::dynamic_bitset<> consideredLoops,
+    //     size_t depth, size_t group_id);
 
     std::string genAggregateString(
         const std::vector<std::string>& aggRegister,
@@ -218,6 +523,20 @@ private:
         boost::dynamic_bitset<>& addedAggs, size_t depth,
         std::vector<size_t>& includableViews,
         boost::dynamic_bitset<>& addedViews,size_t offDepth);
+
+    std::string genAggLoopString(
+        const TDNode& node, const size_t loop, size_t depth,
+        const boost::dynamic_bitset<>& contributingViews,
+        const size_t numOfOutViewLoops);
+
+    std::string genProductString(
+        const TDNode& node, const boost::dynamic_bitset<>& contributingViews,
+        const prod_bitset& product);
+
+    template<typename T>
+    std::string resetRegisterArray(
+        const size_t& depth, std::vector<std::vector<T>>& registerList,
+        std::string registerName);
     
 };
 

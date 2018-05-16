@@ -133,6 +133,8 @@ struct Function
     
 };
 
+
+#ifdef PREVIOUS
 struct Aggregate
 {
     size_t _n;
@@ -157,6 +159,31 @@ struct Aggregate
         delete[] _o;
     }
 };
+#else
+struct Aggregate
+{
+    // Each aggregate is a sum of products of functions
+    std::vector<prod_bitset> _agg;
+
+    // Each product can have potentially different incoming Views 
+    std::vector<std::pair<size_t,size_t>> _incoming;
+
+    // void addAggregate(prod_bitset local, std::pair<size_t, size_t> child) 
+    // { 
+    //     _agg.push_back(local);
+    //     _incoming.push_back(child);
+    //     // ++_n;
+    // }
+
+    // void addAggregate(prod_bitset local) 
+    // { 
+    //     _agg.push_back(local);
+    //     // ++_n;
+    // }
+    
+    Aggregate() {}
+};
+#endif
 
 
 struct Query
@@ -177,6 +204,8 @@ struct Query
 
 struct View
 {
+    unsigned int _numberIncomingViews;    
+
     unsigned int _origin;
     unsigned int _destination;
     unsigned int _usageCount; // TODO: DO WE ACTUALLY NEED THIS ?!?

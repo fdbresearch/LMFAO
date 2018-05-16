@@ -43,8 +43,10 @@ void SqlGenerator::generateCode()
     generateNaiveQueries();
 }
 
+
 void SqlGenerator::generateLmfaoQuery()
 {
+#ifdef PREVIOUS
     string returnString = "";
     
     int viewIdx = 0;
@@ -166,11 +168,13 @@ void SqlGenerator::generateLmfaoQuery()
     ofs.close();
 
     DINFO(returnString);   
+#endif
 }
 
 
 void SqlGenerator::generateNaiveQueries()
 {
+#ifdef PREVIOUS
     string joinString = "", aggregateString = "", fVarString = "",
         attributeString  = "";
     
@@ -273,10 +277,12 @@ void SqlGenerator::generateNaiveQueries()
         //   DINFO("SELECT "+fVarString+aggregateString+"\nFROM "+joinString+";\n");
     }
     ofs.close();
+#endif
 }
 
 void SqlGenerator::generateLoadQuery()
 {
+#ifdef PREVIOUS
     string load = "", drop = "";
     
     for (size_t relID = 0; relID < _td->numberOfRelations(); ++relID)
@@ -314,6 +320,7 @@ void SqlGenerator::generateLoadQuery()
     ofs << drop;
     ofs.close();
     // DINFO(drop);
+#endif
 }
 
 inline string SqlGenerator::typeToStr(Type type)

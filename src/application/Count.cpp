@@ -38,8 +38,7 @@ void Count::modelToQueries()
     Query* query = new Query();
     query->_rootID = _td->_root->_id;
     
-    Aggregate* agg = new Aggregate(1);
-    agg->_m[0] = 1;
+    Aggregate* agg = new Aggregate();
 
     prod_bitset product;
     agg->_agg.push_back(product);

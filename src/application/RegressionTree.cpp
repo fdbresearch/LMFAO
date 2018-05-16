@@ -193,9 +193,12 @@ void RegressionTree::splitNodeQueries(RegTreeNode* node)
 {   
     for (size_t var=0; var < NUM_OF_VARIABLES; ++var)
     {
-        Aggregate* aggC = new Aggregate(1);
-        Aggregate* aggL = new Aggregate(1);
-        Aggregate* aggQ = new Aggregate(1);
+        Aggregate* aggC = new Aggregate();
+        Aggregate* aggL = new Aggregate();
+        Aggregate* aggQ = new Aggregate();
+        // Aggregate* aggC = new Aggregate(1);
+        // Aggregate* aggL = new Aggregate(1);
+        // Aggregate* aggQ = new Aggregate(1);
         
         /* Q_C */
         aggC->_agg.push_back(node->_conditions);
