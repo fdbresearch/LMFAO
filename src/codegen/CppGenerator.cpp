@@ -2235,8 +2235,11 @@ void CppGenerator::registerAggregatesToVariables(
             aggComputation.local = localComputation[prodID];
             aggComputation.post = localAggReg[prodID];
             aggComputation.dependentComputation = dependentComputation[prodID];
-            
             aggComputation.dependentProdAgg = prodAgg;
+
+            if (dependentFunctions.any() || !dependentViewReg.empty())
+                aggComputation.hasDependentComputation = true;
+            
             // if (dependentFunctions.any() || !dependentViewReg.empty())
             // {                
             //     ProductAggregate prodAgg;
@@ -2799,10 +2802,10 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
 }
 
 
-std::string CppGenerator::genAggLoopString(const TDNode& node, const size_t currentLoop,
-                                           size_t depth,
-                                           const dyn_bitset& contributingViews,
-                                           const size_t numOfOutViewLoops)
+
+std::string CppGenerator::genAggLoopString(
+    const TDNode& node, const size_t currentLoop,size_t depth,
+    const dyn_bitset& contributingViews,const size_t numOfOutViewLoops)
 {
     const size_t thisLoopID = currentLoop;
     const dyn_bitset& thisLoop = listOfLoops[thisLoopID];
@@ -2816,8 +2819,70 @@ std::string CppGenerator::genAggLoopString(const TDNode& node, const size_t curr
     {
         const prod_bitset& product = localProductList[thisLoopID][prodID];
 
-        // We turn the product into a string 
-        std::string productString = genProductString(node,contributingViews,product);
+        bool decomposedProduct = false;
+        std::string productString = "";
+        
+        if (product.count() > 1)
+        {
+            prod_bitset subProduct = product;
+            prod_bitset removedFunctions;
+
+            size_t subProductID;
+
+            bool foundSubProduct = false;
+            while (!foundSubProduct && subProduct.count() > 1)
+            {
+                size_t highestPosition = 0;
+                // need to continue with this the next loop
+                for (size_t f = NUM_OF_FUNCTIONS; f > 0; f--)
+                {
+                    if (product[f])
+                    {
+                        highestPosition = f;
+                        break;
+                    }
+                }
+
+                subProduct.reset(highestPosition);
+                removedFunctions.set(highestPosition);
+
+                auto local_it = localProductMap[thisLoopID].find(subProduct);
+                if (local_it != localProductMap[thisLoopID].end())
+                {
+                    foundSubProduct = true;
+                    subProductID = local_it->second;
+                }
+            }
+
+            if (foundSubProduct)
+            {
+                std::string local = std::to_string(
+                    newLocalProductRemapping[depth][thisLoopID][subProductID]);
+
+                productString += "localRegister["+local+"]*";
+                    
+                auto local_it = localProductMap[thisLoopID].find(removedFunctions);
+                if (local_it != localProductMap[thisLoopID].end())
+                {
+                    foundSubProduct = false;
+                    subProductID = local_it->second;
+
+                    local = std::to_string(
+                        newLocalProductRemapping[depth][thisLoopID][subProductID]);
+                    productString += "localRegister["+local+"]";
+                }
+                else
+                {
+                    productString += genProductString(node,contributingViews,removedFunctions);
+                }
+
+                decomposedProduct = true;
+            }
+        }
+        
+        // We turn the product into a string
+        if (!decomposedProduct)
+            productString += genProductString(node,contributingViews,product);
 
         returnString += offset(3+depth+numOfLoops)+"localRegister["+
             std::to_string(productCounter)+"] = "+productString + ";\n";
@@ -2846,13 +2911,9 @@ std::string CppGenerator::genAggLoopString(const TDNode& node, const size_t curr
         newViewProductRemapping[depth][thisLoopID][viewProd] = viewCounter;
         ++viewCounter;
     }
+
     
     // Recurse to the next loop(s) if possible
-
-    // size_t next = 0;
-    // while(currentLoop < listOfLoops.size()-1)
-    // {
-    //     currentLoop++;        
     for (size_t next=0; next < nextLoopsPerLoop[thisLoopID].size(); ++next)
     {
         size_t nextLoop = nextLoopsPerLoop[thisLoopID][next];
@@ -2950,15 +3011,11 @@ std::string CppGenerator::genAggLoopString(const TDNode& node, const size_t curr
             returnString += offset(3+depth+numOfLoops)+
                 "aggregateRegister["+std::to_string(aggregateCounter)+"] += ";
 
-            // if (node._id == 1 && regTuple.previous.first < listOfLoops.size())
-            //     std::cout<<regTuple.previous.first<<"  "<<listOfLoops.size()<<std::endl;
             if (regTuple.previous.first < listOfLoops.size())
             {
                 std::string prev = std::to_string(
                     newAggregateRemapping[depth-1][regTuple.previous.first]
                     [regTuple.previous.second]);
-                // if (node._id == 1)
-                //     std::cout << "HERE " + prev + "\n";
                 
                 returnString += "aggregateRegister["+prev+"]*";
             }
@@ -2979,10 +3036,7 @@ std::string CppGenerator::genAggLoopString(const TDNode& node, const size_t curr
             }
             else if (regTuple.singleViewAgg)
             {
-                // if (regTuple.viewAgg.first == 2) 
-                //     std::cout << "aggregates_"+viewName[regTuple.viewAgg.first]+"["+
-                //         std::to_string(regTuple.viewAgg.second)+"]\n";
-                returnString +=  "aggregates_"+viewName[regTuple.viewAgg.first]+"["+
+                returnString += "aggregates_"+viewName[regTuple.viewAgg.first]+"["+
                     std::to_string(regTuple.viewAgg.second)+"]*";
             }
             
@@ -3005,108 +3059,400 @@ std::string CppGenerator::genAggLoopString(const TDNode& node, const size_t curr
             ++aggregateCounter;
         }
     }
+    
+    return returnString;
+}
 
 
+
+std::string CppGenerator::genDependentAggLoopString(
+    const TDNode& node, const size_t currentLoop,size_t depth,
+    const dyn_bitset& contributingViews, const size_t maxDepth)
+{
+    const size_t thisLoopID = currentLoop;
+
+    const DependentLoop& depLoop = depListOfLoops[thisLoopID];
+    const dyn_bitset& thisLoop = depLoop.loopFactors;
+
+    // std::cout << "currentLoop: " << thisLoop << std::endl;
+    
+    size_t numOfLoops = thisLoop.count();
+    
+    std::string returnString = "";
+    std::string depthString = std::to_string(depth);
+        
+    // Print all products for this considered loop
+    for (size_t prodID = 0; prodID < localProductList[thisLoopID].size(); ++prodID)
+    {
+        const prod_bitset& product = localProductList[thisLoopID][prodID];
+
+        // We turn the product into a string 
+        std::string productString = genProductString(node,contributingViews,product);
+
+        returnString += offset(3+depth+numOfLoops)+"localRegister["+
+            std::to_string(productCounter)+"] = "+productString+";\n";
+        
+        // increment the counter and update the remapping array
+        depLocalProductRemapping[thisLoopID][prodID] = productCounter;
+        ++productCounter;
+    }
+
+    // for (size_t viewProd = 0; viewProd < viewProductList[thisLoopID].size();
+    // ++viewProd)
+    // {
+    //     std::string viewProduct = "";
+    //     for (const std::pair<size_t, size_t>& viewAgg :
+    //              viewProductList[thisLoopID][viewProd])
+    //     {
+    //         viewProduct += "aggregates_"+viewName[viewAgg.first]+"["+
+    //             std::to_string(viewAgg.second)+"]*";
+    //     }   
+    //     viewProduct.pop_back();
+    //     returnString += offset(3+depth+numOfLoops)+
+    //         "viewRegister["+std::to_string(viewCounter)+"] = "+
+    //         viewProduct +";\n";
+    //     // Increment the counter and update the remapping array
+    //     newViewProductRemapping[depth][thisLoopID][viewProd] = viewCounter;
+    //     ++viewCounter;
+    // }
+    
+    for (size_t aggID = 0; aggID < newAggregateRegister[thisLoopID].size(); ++aggID)
+    {
+        const AggRegTuple& regTuple = newAggregateRegister[thisLoopID][aggID];
+        
+        if (regTuple.preLoopAgg)
+        {
+            // We use a mapping to the correct index
+            returnString += offset(3+depth+numOfLoops)+
+                "aggregateRegister["+std::to_string(aggregateCounter)+"] = ";
+
+            if (regTuple.previous.first < depListOfLoops.size())
+            {
+                std::string prev = std::to_string(
+                    depAggregateRemapping[regTuple.previous.first]
+                    [regTuple.previous.second]);
+                
+                returnString += "aggregateRegister["+prev+"]*";
+            }
+            
+            if (regTuple.product.first)
+            {
+                std::string local = std::to_string(
+                    depLocalProductRemapping[thisLoopID][regTuple.product.second]
+                    );
+                returnString += "localRegister["+local+"]*";
+            }
+        
+            if (regTuple.singleViewAgg)
+            {
+                returnString += "aggregates_"+viewName[regTuple.viewAgg.first]+"["+
+                    std::to_string(regTuple.viewAgg.second)+"]*";
+            }
+            
+            returnString.pop_back();
+            returnString += ";\n";
+            
+            // Increment the counter and update the remapping array
+            depAggregateRemapping[thisLoopID][aggID] = aggregateCounter;
+            ++aggregateCounter;
+        }
+    }
+    
+    // Recurse to the next loop(s) if possible
+    for (size_t next=0; next < depLoop.next.size(); ++next)
+    {
+        size_t nextLoop = depLoop.next[next];
+        DependentLoop& nextDepLoop = depListOfLoops[nextLoop];
+        
+        if (((nextDepLoop.loopFactors & thisLoop) == thisLoop))
+        {
+            size_t viewID = nextDepLoop.loopVariable;
+
+            std::string closeLoopString = "";
+            if (viewID < _qc->numberOfViews())
+            {
+                returnString +=
+                    offset(3+depth+numOfLoops)+"ptr_"+viewName[viewID]+
+                    " = lowerptr_"+viewName[viewID]+"["+depthString+"];\n"+
+                    offset(3+depth+numOfLoops)+"while(ptr_"+viewName[viewID]+
+                    " <= upperptr_"+viewName[viewID]+"["+depthString+"])\n"+
+                    offset(3+depth+numOfLoops)+"{\n"+
+                    offset(4+depth+numOfLoops)+viewName[viewID]+
+                    "_tuple &"+viewName[viewID]+"Tuple = "+viewName[viewID]+
+                    "[ptr_"+viewName[viewID]+"];\n"+
+                    offset(4+depth+numOfLoops)+"double *aggregates_"+viewName[viewID]+
+                    " = "+viewName[viewID]+"Tuple.aggregates;\n";
+                
+                closeLoopString += offset(4+depth+numOfLoops)+"++ptr_"+viewName[viewID]+
+                    ";\n"+offset(3+depth+numOfLoops)+"}\n"+closeLoopString;
+            }
+            else 
+            {
+                returnString +=
+                    offset(3+depth+numOfLoops)+"ptr_"+node._name+
+                    " = lowerptr_"+node._name+"["+depthString+"];\n"+
+                    offset(3+depth+numOfLoops)+"while(ptr_"+node._name+
+                    " <= upperptr_"+node._name+"["+depthString+"])\n"+
+                    offset(3+depth+numOfLoops)+"{\n"+
+                    offset(4+depth+numOfLoops)+node._name +
+                    "_tuple &"+node._name+"Tuple = "+node._name+
+                    "[ptr_"+node._name+"];\n";
+                
+                closeLoopString = offset(4+depth+numOfLoops)+"++ptr_"+node._name+";\n"+
+                    offset(3+depth+numOfLoops)+"}\n"+closeLoopString;
+            }
+
+            // std::cout<< "Call genDependentAggLoopString from 1 \n";
+            
+            returnString += genDependentAggLoopString(
+                node, nextLoop, depth, contributingViews, maxDepth);
+            
+            returnString += closeLoopString;
+
+            // After recurse, add the aggregates that have been added with post FLAG
+            for (size_t aggID = 0; aggID <
+                     newAggregateRegister[nextLoop].size(); ++aggID)
+            {
+                const AggRegTuple& regTuple = newAggregateRegister[nextLoop][aggID];
+        
+                if (regTuple.postLoopAgg)
+                {
+                    // We use a mapping to the correct index
+                    returnString += offset(3+depth+numOfLoops)+
+                        "aggregateRegister["+std::to_string(aggregateCounter)+"] += ";
+
+                    if (regTuple.localAgg.first < depListOfLoops.size())
+                    {
+                        std::string local = std::to_string(
+                            newAggregateRemapping[depth][regTuple.localAgg.first]
+                            [regTuple.localAgg.second]);
+                        returnString += "aggregateRegister["+local+"]*";
+                    }
+
+                    if (regTuple.postLoop.first < depListOfLoops.size())
+                    {
+                        std::string post = std::to_string(
+                            newAggregateRemapping[depth][regTuple.postLoop.first]
+                            [regTuple.postLoop.second]); 
+                        returnString += "aggregateRegister["+post+"]*";
+                    }
+                    
+                    returnString.pop_back();
+                    returnString += ";\n";
+            
+                    // Increment the counter and update the remapping array
+                    depAggregateRemapping[nextLoop][aggID] = aggregateCounter;
+                    ++aggregateCounter;
+                }
+            }
+        }
+        else break;
+    }
+
+    for (size_t aggID = 0; aggID < newAggregateRegister[thisLoopID].size(); ++aggID)
+    {
+        const AggRegTuple& regTuple = newAggregateRegister[thisLoopID][aggID];
+        
+        if (!regTuple.postLoopAgg && !regTuple.preLoopAgg)
+        {
+            // We use a mapping to the correct index
+            returnString += offset(3+depth+numOfLoops)+
+                "aggregateRegister["+std::to_string(aggregateCounter)+"] += ";
+
+            if (regTuple.previous.first < depListOfLoops.size())
+            {
+                std::string prev = std::to_string(
+                    depAggregateRemapping[regTuple.previous.first]
+                    [regTuple.previous.second]);
+                
+                returnString += "aggregateRegister["+prev+"]*";
+            }
+            
+            if (regTuple.product.first)
+            {
+                std::string local = std::to_string(
+                    depLocalProductRemapping[thisLoopID][regTuple.product.second]
+                    );
+                returnString += "localRegister["+local+"]*";
+            }
+        
+            if (regTuple.singleViewAgg)
+            {
+                returnString += "aggregates_"+viewName[regTuple.viewAgg.first]+"["+
+                    std::to_string(regTuple.viewAgg.second)+"]*";
+            }
+            
+            if (regTuple.postLoop.first < depListOfLoops.size())
+            {
+                std::string postLoop = std::to_string(
+                    newAggregateRemapping[depth][regTuple.postLoop.first]
+                    [regTuple.postLoop.second]);
+                returnString += "aggregateRegister["+postLoop+"]*";
+            }
+            
+            returnString.pop_back();
+            returnString += ";\n";
+            
+            // Increment the counter and update the remapping array
+            depAggregateRemapping[thisLoopID][aggID] = aggregateCounter;
+            ++aggregateCounter;
+        }
+    }
+
+    size_t outViewID = depLoop.outView.find_first();
+    while (outViewID != boost::dynamic_bitset<>::npos)
+    {
+        View* view = _qc->getView(outViewID);
+        
+        // Add the code that outputs tuples for the views           
+        std::string viewVars = "";            
+        for (size_t v = 0; v < NUM_OF_VARIABLES; ++v)
+        {
+            if (view->_fVars[v])
+            {
+                if (node._bag[v])
+                {
+                    viewVars += node._name+"Tuple."+
+                        _td->getAttribute(v)->_name+",";
+                }
+                else
+                {
+                    for (const size_t& incViewID : incomingViews[outViewID])
+                    {
+                        View* view = _qc->getView(incViewID);
+                        if (view->_fVars[v])
+                        {
+                            viewVars += viewName[incViewID]+"Tuple."+
+                                _td->getAttribute(v)->_name+",";
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        viewVars.pop_back();
+
+        size_t offDepth = numOfLoops+depth+3;
+        if (_requireHashing[outViewID])
+        {
+            returnString +=
+                offset(offDepth)+viewName[outViewID]+"_iterator"+
+                " = "+viewName[outViewID]+"_map.find({"+viewVars+"});\n"+
+                offset(offDepth)+"if ("+viewName[outViewID]+"_iterator"
+                " != "+viewName[outViewID]+"_map.end())\n"+
+                offset(offDepth)+"{\n"+
+                offset(offDepth+1)+"aggregates_"+viewName[outViewID]+
+                " = "+viewName[outViewID]+"["+viewName[outViewID]+
+                "_iterator->second].aggregates;\n"+
+                offset(offDepth)+"}\n"+
+                offset(offDepth)+"else\n"+
+                offset(offDepth)+"{\n"+
+                offset(offDepth+1)+"size_t idx_"+viewName[outViewID]+
+                " = "+viewName[outViewID]+".size();\n"+
+                offset(offDepth+1)+viewName[outViewID]+
+                "_map[{"+viewVars+"}] = idx_"+viewName[outViewID]+";\n"+
+                offset(offDepth+1)+viewName[outViewID]+
+                ".push_back({"+viewVars+"});\n"+
+                offset(offDepth+1)+"aggregates_"+viewName[outViewID]+
+                " = "+viewName[outViewID]+"[idx_"+viewName[outViewID]+
+                "].aggregates;\n"+
+                offset(offDepth)+"}\n";
+        }
+        else
+        {
+            // just add string to push to view
+            returnString += offset(offDepth)+viewName[outViewID]+
+                ".push_back({"+viewVars+"});\n"+offset(offDepth)+
+                "aggregates_"+viewName[outViewID]+" = "+viewName[outViewID]+
+                ".back().aggregates;\n";
+        }
+            
+        for(const AggregateTuple& aggTuple : aggregateComputation[outViewID])
+        {
+            returnString += offset(offDepth)+"aggregates_"+
+                viewName[outViewID]+"["+std::to_string(aggTuple.aggID)+
+                "] += ";
+
+            std::string aggBody = "";
+            if (aggTuple.local.first < maxDepth)
+            {
+                const ProductAggregate& prodAgg =
+                    productToVariableRegister[aggTuple.local.first]
+                    [aggTuple.local.second];
+        
+                const std::pair<size_t,size_t>& correspondingLoopAgg =
+                    prodAgg.correspondingLoopAgg;
+                    
+                std::string prev = std::to_string(
+                    newAggregateRemapping[aggTuple.local.first]
+                    [correspondingLoopAgg.first]
+                    [correspondingLoopAgg.second]);
+                
+                aggBody += "aggregateRegister["+prev+"]*";
+            }
+            if (aggTuple.post.first < maxDepth)
+            {
+                std::string post = std::to_string(
+                    postRemapping[aggTuple.post.first]
+                    [aggTuple.post.second]);
+                aggBody += "postRegister["+post+"]*";
+            }
+
+            if (aggTuple.hasDependentComputation)
+            {
+                const std::pair<size_t,size_t>& correspondingLoopAgg =
+                    aggTuple.dependentProdAgg.correspondingLoopAgg;
+                
+                std::string prev = std::to_string(
+                    depAggregateRemapping[correspondingLoopAgg.first]
+                    [correspondingLoopAgg.second]);
+
+                aggBody += "aggregateRegister["+prev+"]*";
+            }
+
+            // TODO:TODO:TODO: ---> make sure this is correct
+            if (aggBody.empty())
+                aggBody = "1*";
+
+            returnString += aggBody;
+            returnString.pop_back();
+            returnString += ";\n";            
+        }
+
+        outViewID = depLoop.outView.find_next(outViewID);
+    }
     return returnString;
 }
 
 
 
 
-void CppGenerator::assignOutputToViews(
-    dyn_bitset consideredLoops, dyn_bitset& outputViews)
-{
-    dyn_bitset nextLoops(_qc->numberOfViews()+1);
-    dyn_bitset localOutputViews(_qc->numberOfViews()+1);
-    
-    for (size_t viewID=0; viewID <  _qc->numberOfViews() + 1; ++viewID)
-    {
-        if (outputViews[viewID])
-        {
-            dyn_bitset& loopFactors = outViewLoop[viewID];
 
-            if (loopFactors[viewID])
-            {
-                if (loopFactors == consideredLoops)
-                {
-                    // Register this outputView to this loop
-                    localOutputViews.set(viewID);
-                    outputViews.reset(viewID);
-                }
-                else
-                {
-                    // check for next view
-                    if ((consideredLoops & loopFactors) == consideredLoops)
-                    {
-                        dyn_bitset remainingLoops = loopFactors & ~consideredLoops;
-                        if (remainingLoops.any())
-                        {
-                            size_t highestPosition = 0;
-                            // need to continue with this the next loop
-                            for (size_t view=_qc->numberOfViews(); view > 0; view--)
-                            {
-                                if (consideredLoops[view])
-                                {
-                                    highestPosition = view;
-                                    break;
-                                }
-                            }
-
-                            size_t next = remainingLoops.find_next(highestPosition);
-                            if (next != boost::dynamic_bitset<>::npos)
-                                nextLoops.set(next);
-                            else
-                            {
-                                ERROR("We found a remaining Loop which is not higher" <<
-                                      " than the highest considered loop?!\n");
-                                exit(1);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    outputLoops.push_back(consideredLoops);
-    outputViewsPerLoop.push_back(localOutputViews);
- 
-    // Recurse to the next loops
-    for (size_t viewID=0; viewID < _qc->numberOfViews() + 1; ++viewID)
-    {
-        if (nextLoops[viewID])
-        {
-            dyn_bitset nextConsideredLoops = consideredLoops;
-            nextConsideredLoops.set(viewID);
-
-            dyn_bitset nextOutputViews = outputViews;
-            
-            // Recurse to the next loops
-            for (size_t outViewID=0; outViewID < _qc->numberOfViews() + 1; ++outViewID)
-            {
-                // Remove all views that are not subset of this
-                // nextConsideredViews
-                if ((nextConsideredLoops & outViewLoop[outViewID]) !=
-                    nextConsideredLoops)
-                    nextOutputViews.reset(outViewID);
-            }
-            
-            assignOutputToViews(nextConsideredLoops,nextOutputViews);            
-        }
-    }
-}
-
-
-prod_bitset CppGenerator::computeDependentLoopMasks(
-    prod_bitset presentFunctions, dyn_bitset consideredLoops,
-    const var_bitset& varOrderBitset, const var_bitset& relationBag,
-    const dyn_bitset& contributingViews, dyn_bitset& nextVariable,
-    const dyn_bitset& prefixLoops)
+prod_bitset CppGenerator::computeDependentLoops(
+    size_t view_id, prod_bitset presentFunctions, var_bitset relationBag,
+    dyn_bitset contributingViews, var_bitset varOrderBitset,
+    dyn_bitset addedOutLoops, size_t thisLoopID)
 {
     dyn_bitset loopFactors(_qc->numberOfViews()+1);
     dyn_bitset nextLoops(_qc->numberOfViews()+1);
 
     prod_bitset loopFunctionMask;
+
+    const dyn_bitset& consideredLoops = depListOfLoops[thisLoopID].loopFactors;
+
+    size_t highestPosition = 0;
+    // need to continue with this the next loop
+    for (size_t view=_qc->numberOfViews(); view > 0; view--)
+    {
+        if (consideredLoops[view])
+        {
+            highestPosition = view;
+            break;
+        }
+    }
+
+    
+    dyn_bitset nonAddedOutLoops = outViewLoop[view_id] & ~addedOutLoops;
 
     // then find all loops required to compute these functions and create masks
     for (size_t f = 0; f < NUM_OF_FUNCTIONS; f++)
@@ -3128,9 +3474,8 @@ prod_bitset CppGenerator::computeDependentLoopMasks(
                         {
                             if (contributingViews[incID])
                             {
-                                const var_bitset& incViewBitset =
-                                    _qc->getView(incID)->_fVars;
-
+                                View* incView = _qc->getView(incID);
+                                const var_bitset& incViewBitset = incView->_fVars;
                                 if (incViewBitset[v])
                                 {
                                     loopFactors.set(incID);
@@ -3142,7 +3487,12 @@ prod_bitset CppGenerator::computeDependentLoopMasks(
                 }
             }
 
-            loopFactors &= ~prefixLoops;
+            // TODO: TODO: Consider this again 
+            if ((loopFactors & nonAddedOutLoops).any() ||
+                (nonAddedOutLoops.any() && (loopFactors & ~outViewLoop[view_id]).any()))
+                continue;
+            
+            loopFactors |= addedOutLoops;
             
             if (loopFactors == consideredLoops)
             {
@@ -3156,17 +3506,6 @@ prod_bitset CppGenerator::computeDependentLoopMasks(
                     dyn_bitset remainingLoops = loopFactors & ~consideredLoops;
                     if (remainingLoops.any())
                     {
-                        size_t highestPosition = 0;
-                        // need to continue with this the next loop
-                        for (size_t view=_qc->numberOfViews(); view > 0; view--)
-                        {
-                            if (consideredLoops[view])
-                            {
-                                highestPosition = view;
-                                break;
-                            }
-                        }
-
                         size_t next = remainingLoops.find_next(highestPosition);
                         if (next != boost::dynamic_bitset<>::npos)
                             nextLoops.set(next);
@@ -3181,20 +3520,14 @@ prod_bitset CppGenerator::computeDependentLoopMasks(
             }
         }
     }
-
-    // Then use the registrar to split the functions to their loops
     
-    size_t numOfLoops = depListOfLoops.size();
-    depListOfLoops.push_back(consideredLoops);
-    depFunctionsPerLoop.push_back(loopFunctionMask);
-    depFunctionsPerLoopBranch.push_back(loopFunctionMask);
-    depViewsPerLoop.push_back(nextVariable);
-    depNextLoopsPerLoop.push_back(std::vector<size_t>());
-        
-    std::vector<size_t>& nextLoopIDs = depNextLoopsPerLoop[numOfLoops];
-
     presentFunctions &= ~loopFunctionMask;
-
+    
+    // Then use the registrar to split the functions to their loops
+    DependentLoop& depLoop = depListOfLoops[thisLoopID];
+    if (loopFunctionMask.any())
+        depLoop.functionMask.push_back({view_id, loopFunctionMask});
+    
     // Recurse to the next loops
     for (size_t viewID=0; viewID < _qc->numberOfViews() + 1; ++viewID)
     {
@@ -3203,22 +3536,327 @@ prod_bitset CppGenerator::computeDependentLoopMasks(
             dyn_bitset nextConsideredLoops = consideredLoops;
             nextConsideredLoops.set(viewID);
 
-            nextVariable.reset();
-            nextVariable.set(viewID);
-            
-            nextLoopIDs.push_back(listOfLoops.size());
-            
-            prod_bitset nextLoopFunctions = computeLoopMasks(
-                presentFunctions,nextConsideredLoops,varOrderBitset,
-                relationBag,contributingViews,nextVariable, prefixLoops);
-            
-            depFunctionsPerLoopBranch[numOfLoops] |= nextLoopFunctions;
+            if (outViewLoop[view_id][viewID])
+            {
+                ERROR("THERE IS A MISTAKE WITH NEXT CONSIDERED LOOPS IN DEP COMP\n");
+                exit(1);
+            }
+
+            // TODO: check the next loops for the given DependentLoop
+            // if any of them use the same loop -- then reuse this one
+
+            bool found = false;
+            size_t nextLoopID;
+            for (const size_t& potNextLoop : depLoop.next)
+            {
+                if (depListOfLoops[potNextLoop].loopFactors == nextConsideredLoops)
+                {
+                    found = true;
+                    nextLoopID = potNextLoop;
+                }
+            }
+
+            if (!found)
+            {
+                nextLoopID = depListOfLoops.size();
+
+                // otherwise add a new loop to the list with the correct loops and
+                // loopVariable and then add this new loop to next of this loop
+                DependentLoop newDepLoop(_qc->numberOfViews());
+                newDepLoop.loopFactors = nextConsideredLoops;
+                newDepLoop.loopVariable = viewID;
+
+                // std::cout << "#########" << newDepLoop.loopFactors << std::endl;
+                
+                depListOfLoops.push_back(newDepLoop);
+
+                // std::cout << depLoop.next.size() << std::endl;
+                depListOfLoops[thisLoopID].next.push_back(nextLoopID);
+            }
+
+            prod_bitset branch =
+                computeDependentLoops(view_id,presentFunctions,relationBag,
+                                      contributingViews, varOrderBitset,
+                                      addedOutLoops,nextLoopID);
+
+            depListOfLoops[thisLoopID].branchFunctions |= branch;
+        }
+    }
+
+    if (outViewLoop[view_id] == consideredLoops)
+        depListOfLoops[thisLoopID].outView.set(view_id);
+
+    if (consideredLoops == addedOutLoops && nonAddedOutLoops.any())
+    {
+        size_t nextOutLoop = nonAddedOutLoops.find_first();
+        if (nextOutLoop != boost::dynamic_bitset<>::npos)
+        {
+            dyn_bitset nextConsideredLoops = consideredLoops;
+            nextConsideredLoops.set(nextOutLoop);
+
+            bool found = false;
+            size_t nextLoopID;
+            for (const size_t& potNextLoop : depLoop.next)
+            {
+                if (depListOfLoops[potNextLoop].loopFactors == nextConsideredLoops)
+                {
+                    found = true;
+                    nextLoopID = potNextLoop;
+                }
+            }
+
+            if (!found)
+            {
+                nextLoopID = depListOfLoops.size();
+
+                // otherwise add a new loop to the list with the correct loops and
+                // loopVariable and then add this new loop to next of this loop
+                DependentLoop newDepLoop(_qc->numberOfViews());
+                newDepLoop.loopFactors = nextConsideredLoops;
+                newDepLoop.loopVariable = nextOutLoop;
+                
+                
+                depListOfLoops.push_back(newDepLoop);
+
+                depListOfLoops[thisLoopID].next.push_back(nextLoopID);
+            }
+
+            addedOutLoops.set(nextOutLoop);
+
+            prod_bitset branch =                
+                computeDependentLoops(view_id,presentFunctions,relationBag,
+                                      contributingViews,varOrderBitset,
+                                      addedOutLoops,nextLoopID);
+
+            depListOfLoops[thisLoopID].branchFunctions |= branch;
         }
     }
     
-    return functionsPerLoopBranch[numOfLoops];
+    return depListOfLoops[thisLoopID].branchFunctions;
 }
 
+
+
+std::pair<size_t,size_t> CppGenerator::addDependentProductToLoop(
+    ProductAggregate& prodAgg, const size_t view_id, size_t& currentLoop,
+    const size_t& maxDepth, std::pair<size_t,size_t>& prevAgg)
+{
+    const size_t thisLoopID = currentLoop;
+    const DependentLoop& thisLoop = depListOfLoops[currentLoop];
+    
+    size_t maskID = 0;
+    bool hasMask = false;
+    
+    dyn_bitset nonAddedOutLoops = outViewLoop[view_id] & ~thisLoop.loopFactors;
+    
+    for (size_t id = 0; id < thisLoop.functionMask.size(); ++id)
+    {
+        if (thisLoop.functionMask[id].first == view_id)
+        {
+            maskID = id;
+            hasMask = true;
+            break;
+        }
+    }
+
+    std::pair<bool,size_t> regTupleProduct = {false,0};
+    
+    if (hasMask)
+    {
+        const prod_bitset& fMask = thisLoop.functionMask[maskID].second;
+    
+        // check if this product requires computation over this loop loopmask
+        prod_bitset loopFunctions = prodAgg.product & fMask;
+        if (loopFunctions.any())
+        {
+            // This should be add to the loop not depth 
+            auto proditerator = localProductMap[currentLoop].find(loopFunctions);
+            if (proditerator != localProductMap[currentLoop].end())
+            {
+                // set this local product to the id given by the map
+                regTupleProduct = {true, proditerator->second};
+            }
+            else
+            {
+                size_t nextID = localProductList[currentLoop].size();
+                localProductMap[currentLoop][loopFunctions] = nextID;
+                regTupleProduct = {true, nextID};
+                localProductList[currentLoop].push_back(loopFunctions);
+            }
+        }
+    }
+    
+    bool singleViewAgg = false;
+    
+    std::pair<size_t, size_t> regTupleView;
+    if (!prodAgg.viewAggregate.empty() && thisLoop.loopVariable != _qc->numberOfViews())
+    {
+        if (outViewLoop[view_id][thisLoop.loopVariable] || regTupleProduct.first)
+        {
+            singleViewAgg = true;
+        
+            for (const std::pair<size_t, size_t>& viewAgg : prodAgg.viewAggregate)
+            {
+                if (viewAgg.first == thisLoop.loopVariable)
+                {
+                    regTupleView = viewAgg;
+                    break;
+                }
+            }
+        }
+    }
+    
+    std::pair<size_t,size_t> previousLoopComp = {depListOfLoops.size(),0};
+    std::pair<size_t, size_t> postComputation =  {depListOfLoops.size(),0};
+    
+    // If this aggregate is part of the 
+    if (nonAddedOutLoops.any())
+    {
+        if ((regTupleProduct.first || singleViewAgg) && 
+            (thisLoop.loopFactors & outViewLoop[view_id]) == thisLoop.loopFactors)
+        {
+            AggRegTuple regTuple;
+            regTuple.product = regTupleProduct;
+            
+            regTuple.singleViewAgg = singleViewAgg;
+            regTuple.viewAgg = regTupleView;
+
+            regTuple.preLoopAgg = true;
+            regTuple.previous = prevAgg;
+            
+            auto regit = aggregateRegisterMap[thisLoopID].find(regTuple);
+            if (regit != aggregateRegisterMap[thisLoopID].end())
+            {
+                previousLoopComp = {thisLoopID,regit->second};
+            }
+            else
+            {
+                // If so, add it to the aggregate register
+                size_t newID = newAggregateRegister[thisLoopID].size();
+                
+                aggregateRegisterMap[thisLoopID][regTuple] = newID;
+                newAggregateRegister[thisLoopID].push_back(regTuple);
+        
+                previousLoopComp =  {thisLoopID,newID};
+            }
+
+            prevAgg = previousLoopComp;
+        }
+        
+        // need to find the loop that adds the next OutLoop
+        size_t nextOutLoop = nonAddedOutLoops.find_first();
+        
+        bool found = false;
+        dyn_bitset nextConsideredLoops = thisLoop.loopFactors;
+        nextConsideredLoops.set(nextOutLoop);
+        
+        for (size_t next=0; next < thisLoop.next.size(); ++next)
+        {
+            size_t nextLoopID = thisLoop.next[next];
+            DependentLoop& nextLoop = depListOfLoops[nextLoopID];
+
+            if (nextLoop.loopFactors == nextConsideredLoops)
+            {
+                addDependentProductToLoop(
+                    prodAgg,view_id,nextLoopID,maxDepth,prevAgg);
+                found = true;
+                break;
+            }
+        }
+
+        if (!found)
+        {
+            ERROR("There is a problem with nextOutLoop in addDepProd\n");
+            exit(1);
+        }
+    }
+    else
+    {
+        for (size_t next=0; next < thisLoop.next.size(); ++next)
+        {
+            size_t nextLoopID = thisLoop.next[next];
+            DependentLoop& nextLoop = depListOfLoops[nextLoopID];
+
+            if (((nextLoop.loopFactors & thisLoop.loopFactors) != thisLoop.loopFactors))
+            {
+                ERROR("There is a problem with nextLoopFactors in addDepProd\n");
+                exit(1);
+            }
+
+            // We only want to go into this loop if there is somehting
+            // for this prodAGG for this view
+            if ((thisLoop.branchFunctions & prodAgg.product).any())
+            {
+                std::pair<size_t, size_t> pAgg = {};
+                postComputation =
+                    addDependentProductToLoop(prodAgg, view_id, nextLoopID, maxDepth,
+                                              pAgg);
+            
+                if (next + 1 != thisLoop.next.size() &&
+                    (thisLoop.branchFunctions & prodAgg.product).any())
+                {
+                    // Add this product to this loop with the 'prev'Computation
+                    AggRegTuple postRegTuple;
+                    postRegTuple.postLoopAgg = true;
+                    postRegTuple.localAgg = previousLoopComp; 
+                    postRegTuple.postLoop = postComputation;
+
+                    // TODO: add the aggregate to the register!!
+                    auto regit = aggregateRegisterMap[nextLoopID].find(postRegTuple);
+                    if (regit != aggregateRegisterMap[nextLoopID].end())
+                    {
+                        previousLoopComp = {nextLoopID,regit->second};
+                    }
+                    else
+                    {
+                        // If so, add it to the aggregate register
+                        size_t newID = newAggregateRegister[nextLoopID].size();
+                        aggregateRegisterMap[nextLoopID][postRegTuple] = newID;
+                        newAggregateRegister[nextLoopID].push_back(postRegTuple);
+                    
+                        previousLoopComp =  {nextLoopID,newID};
+                    }
+                }
+                else
+                {
+                    previousLoopComp = postComputation;
+                }
+            }
+        }
+
+        // Check if this product has already been computed, if not we add it to the
+        // list
+        if (regTupleProduct.first || singleViewAgg ||
+            prevAgg.first < depListOfLoops.size())
+        {
+            AggRegTuple regTuple;
+            regTuple.product = regTupleProduct;
+            regTuple.viewAgg = regTupleView;
+            regTuple.singleViewAgg = singleViewAgg;
+            regTuple.postLoop = previousLoopComp;
+            regTuple.previous = prevAgg;
+            
+            auto regit = aggregateRegisterMap[thisLoopID].find(regTuple);
+            if (regit != aggregateRegisterMap[thisLoopID].end())
+            {
+                previousLoopComp = {thisLoopID,regit->second};
+            }
+            else
+            {
+                // If so, add it to the aggregate register
+                size_t newID = newAggregateRegister[thisLoopID].size();
+                aggregateRegisterMap[thisLoopID][regTuple] = newID;
+                newAggregateRegister[thisLoopID].push_back(regTuple);
+        
+                previousLoopComp =  {thisLoopID,newID};
+            }
+
+            prevAgg = previousLoopComp;
+        }
+    }
+    
+    return previousLoopComp;
+}
 
 
 void CppGenerator::registerDependentComputationToLoops(size_t depth, size_t group_id)
@@ -3228,422 +3866,71 @@ void CppGenerator::registerDependentComputationToLoops(size_t depth, size_t grou
     const var_bitset& relationBag =
         _td->getRelation(_qc->getView(viewGroups[group_id][0])->_origin)->_bag;
 
-    listOfLoops.clear();
-    functionsPerLoop.clear();
-    functionsPerLoopBranch.clear();
-    viewsPerLoop.clear();
-    nextLoopsPerLoop.clear();
-    
+    depListOfLoops.clear();
+
+
     dyn_bitset consideredLoops(_qc->numberOfViews()+1);
-    dyn_bitset nextVariable(_qc->numberOfViews()+1);
-    dyn_bitset prefixLoops = outViewLoop[view_id];
-
-    // TODO: Reset the arrays that are needed in assignOutput
-
-    // TODO: Assign out-views to loops here
+    
+    DependentLoop depLoop(_qc->numberOfViews());
+    depLoop.loopFactors = consideredLoops;
+    depLoop.loopVariable = NUM_OF_VARIABLES;
+    
+    depListOfLoops.push_back(depLoop);
+    
+    // TODO: add empty loop to the list of dependentLoops
     for (const size_t viewID : viewGroups[group_id])
     {
         if (viewLevelRegister[viewID] == depth)
-            assignOutputToViews(consideredLoops, outputViews);
-    }
-
-
-    size_t numberOfOutputLoops = outputLoops.size();
-
-    // TODO: The below needs to be done for each group of views with the same loops
-    for (size_t outLoopID = 0; outLoopID < numberOfOutputLoops; ++outLoopID)
-    {
-
-                
-        // go through the ProductAggregates and find functions computed here 
-        prod_bitset presentFunctions;
-        dyn_bitset contributingViews(_qc->numberOfViews()+1);
-
-        for (/*view iD */)
         {
-            for (const AggregateTuple& depAgg : aggregateComputation[view_id])
+            // go through the ProductAggregates and find functions computed here 
+            prod_bitset presentFunctions;
+            dyn_bitset contributingViews(_qc->numberOfViews()+1);
+            dyn_bitset addedOutLoops(_qc->numberOfViews()+1);
+            
+            for (const AggregateTuple& depAgg : aggregateComputation[viewID])
             {
                 presentFunctions |= depAgg.dependentProdAgg.product;
                 for (const auto& p : depAgg.dependentProdAgg.viewAggregate)
                     contributingViews.set(p.first);
             }
+            
+            computeDependentLoops(viewID,presentFunctions,relationBag,contributingViews,
+                                  varOrderBitset,addedOutLoops,0);
         }
-        
-        // TODO: Then do the loop Mask
-        // compute the function mask for each loop 
-        computeDependentLoopMasks(
-            presentFunctions, consideredLoops, varOrderBitset,
-            relationBag, contributingViews, nextVariable, prefixLoops);
-        
-        // The first register loop should all views that we do not iterate over! 
-        viewsPerLoop[0] |= contributingViews;
-        for (size_t j = 1; j < viewsPerLoop.size(); ++j)
-            viewsPerLoop[0] &= ~viewsPerLoop[j];
+    }
+    
+    localProductList.clear();
+    localProductMap.clear();
+    localProductList.resize(depListOfLoops.size());
+    localProductMap.resize(depListOfLoops.size());
+    
+    newAggregateRegister.clear();
+    aggregateRegisterMap.clear();
+    newAggregateRegister.resize(depListOfLoops.size());
+    aggregateRegisterMap.resize(depListOfLoops.size());
+    
 
-        // ---------- TODO: are these necessary!?
-        newAggregateRegister.clear();
-        aggregateRegisterMap.clear();
-        newAggregateRegister.resize(listOfLoops.size());
-        aggregateRegisterMap.resize(listOfLoops.size());
-
-        localProductMap.clear();
-        localProductList.clear();
-        localProductList.resize(listOfLoops.size());
-        localProductMap.resize(listOfLoops.size());
-
-        viewProductMap.clear();
-        viewProductList.clear();
-        viewProductList.resize(listOfLoops.size());
-        viewProductMap.resize(listOfLoops.size());
-        // ---------- TODO: are these necessary!?
-
-        for (/*view iD */)
+    // TODO: TODO: reset the List and Maps for aggregates and
+    
+    for (const size_t viewID : viewGroups[group_id])
+    {
+        if (viewLevelRegister[viewID] == depth)
         {
-            for (AggregateTuple& depAgg : aggregateComputation[view_id])
+            for (AggregateTuple& depAgg : aggregateComputation[viewID])
             {
+                ProductAggregate& prodAgg = depAgg.dependentProdAgg;
+
                 size_t currentLoop = 0;
-                bool loopsOverRelation = false;
-                if (depAgg.hasDependentComputation)
-                {
-                    ProductAggregate& prodAgg = depAgg.dependentProdAgg;
-                    prodAgg.correspondingLoopAgg =
-                        addProductToDepedentLoop(
-                            prodAgg,currentLoop,loopsOverRelation,maxDepth);
-                    
-                    // TODO: WE NEED TO SET CORRESPONDING LOOP AGG CORRECTLY
-                    // Perhaps we can apply a remapping?! And then update
-                    // correspondingLoopAgg after!? 
-                }
-            }
-        }
-        
-        // We could compute the loops required for these aggregates and then merge
-        // the aggregates and the loops required for the output (somehow)
-        
-        // add the outViewLoop to the depView
-        for (size_t loopID = 0; loopID < depListOfLoops.size(); ++loopID)
-            depListOfLoops[loopID] |= outputLoops[outputLoopID];
-        
-        mergeLoops(outLoopID, 0);
-         
-        // TO CONSIDER: Should the dependent computation only have
-        // ProductAggregates?! --> would perhaps make sense
-    }
-}
-
-void CppGenerator::mergeLoops(size_t outLoopID, size_t depLoopID)
-{
-    // add aggregats to this outLoop
-    outLocalProductRegister[outLoopID].insert(
-        outLocalProductRegister[outLoopID].end(),
-        localProductList[depLoopID].begin(), 
-        localProductList[depLoopID].end()
-        );
-
-    outViewProductRegister[outLoopID].insert(
-        outViewProductRegister[outLoopID].end(),
-        viewProductList[depLoopID].begin(), 
-        viewProductList[depLoopID].end()
-        );
-
-    outAggregateRegister[outLoopID].insert(
-        outAggregateRegister[outLoopID].end(),
-        newAggregateRegister[depLoopID].begin(), 
-        newAggregateRegister[depLoopID].end()
-        );
-
-    // TODO: TODO: TODO: ---> we need to do the remapping of indexes somehow 
-
-    /* Next looops for depComp */
-    for (size_t nextDep=0; nextDep < depNextLoopsPerLoop[thisLoopID].size(); ++nextDep)
-    {        
-        dyn_bitset& nextDepLoop = depListOfLoops[depNextLoopsPerLoop[next]];
-
-        if (((nextDepLoop & thisLoop) != thisLoop))
-        {
-            ERROR("There is a problem with depNextLoopsPerLoop\n");
-            exit(1);
-        }
-        
-        bool found = false;
-        size_t nextOutLoop = 0;
-        
-        // find this next loop in outViewLoop
-        for (size_t nextOut=0; nextOut <
-                 outputNextLoops[thisLoopID].size(); ++nextOut)
-        {
-            dyn_bitset& nextOutLoop =  outputLoops[nextOut];
+                std::pair<size_t, size_t> prevAgg = {depListOfLoops.size(), 0};
                 
-            if (nextOutLoop == nextDepLoopx)
-            {
-                found = true;
-                nextOutLoop = nextOut;
-                break;
-            }
-        }
+                addDependentProductToLoop(
+                    prodAgg, viewID, currentLoop, maxDepth, prevAgg);
 
-        if (found)
-            mergeLoops(nextOutLoop, nextDep);
-        else
-        {
-            // if it doesn't then add the loop and all there next ones to
-            // the outViewLoops
-            addAllRemainingLoops(nextDep);
-            // TODO: update the nextLoop list for this outLoop 
+                prodAgg.correspondingLoopAgg = prevAgg;
+            }
         }
     }
 }
-
-size_t CppGenerator::addAllRemainingLoops(size_t depLoopID)
-{
-    // add aggregats to this outLoop
-    size_t numOfLoops = depListOfLoops.size();
-    depListOfLoops.push_back(depListOfLoops[depLoopID]);
-    // depViewsPerLoop.push_back(nextVariable);
-    depNextLoopsPerLoop.push_back(std::vector<size_t>());
-
-    outProductToVariableRegister.push_back(
-        depProductToVariableRegister[depLoopID]);
-    
-    // find this next loop in outViewLoop
-    std::vector<size_t>& nextLoopIDs = depNextLoopsPerLoop[numOfLoops];
-    for (size_t next=0; next < depNextLoopsPerLoop[depLoopID].size(); ++next)
-    {
-        nextLoopIDs.push_back(listOfLoops.size());
-        addAllRemainingLoops(depNextLoopsPerLoop[next]);
-    }
-}
-
-
-
-std::pair<size_t,size_t> CppGenerator::addProductToDepedentLoop(
-    ProductAggregate& prodAgg, size_t& currentLoop, bool& loopsOverRelation,
-    const size_t& maxDepth)
-{
-    const size_t thisLoopID = currentLoop;
-    const dyn_bitset& thisLoop = depListOfLoops[currentLoop];
-
-    dyn_bitset viewsForThisLoop = depViewsPerLoop[currentLoop];
-    loopsOverRelation = viewsForThisLoop[_qc->numberOfViews()];
-    
-    viewsForThisLoop.reset(_qc->numberOfViews());
- 
-    std::pair<bool,size_t> regTupleProduct = {false,0};  
-
-    // check if this product requires computation over this loop loopmask
-    prod_bitset loopFunctions = prodAgg.product & depFunctionsPerLoop[currentLoop];
-    if (loopFunctions.any())
-    {
-        // This should be add to the loop not depth 
-        auto proditerator = localProductMap[currentLoop].find(loopFunctions);
-        if (proditerator != localProductMap[currentLoop].end())
-        {
-            // set this local product to the id given by the map
-            regTupleProduct = {true, proditerator->second};
-        }
-        else
-        {
-            size_t nextID = localProductList[currentLoop].size();
-            localProductMap[currentLoop][loopFunctions] = nextID;
-            regTupleProduct = {true, nextID};
-            localProductList[currentLoop].push_back(loopFunctions);
-        }
-    }
-
-    bool newViewProduct = false;
-    bool singleViewAgg = false;
-    
-    std::pair<size_t, size_t> regTupleView;
-
-    if (!prodAgg.viewAggregate.empty())
-    {
-        if (viewsForThisLoop.count() > 1)
-        {
-            newViewProduct = true;
-       
-            std::vector<std::pair<size_t, size_t>> viewReg;
-
-            size_t viewID = viewsForThisLoop.find_first();
-            if (viewID != boost::dynamic_bitset<>::npos)
-            {
-                for (const std::pair<size_t, size_t>& viewAgg : prodAgg.viewAggregate)
-                {
-                    if (viewAgg.first == viewID)
-                    {
-                        viewReg.push_back(viewAgg);
-                        break;
-                    }
-                }
-
-                viewID = depViewsPerLoop[currentLoop].find_next(viewID);
-            }
-        
-            auto viewit = viewProductMap[currentLoop].find(viewReg);
-            if (viewit != viewProductMap[currentLoop].end())
-            {
-                // set this local product to the id given by the map
-                regTupleView = {currentLoop, viewit->second};            
-            }
-            else
-            {
-                size_t nextID =  viewProductList[currentLoop].size();
-                viewProductMap[currentLoop][viewReg] = nextID;
-                regTupleView = {currentLoop, nextID};
-                viewProductList[currentLoop].push_back(viewReg);
-            }
-        }
-        else if (viewsForThisLoop.count() == 1)
-        {
-            // Inside a loop there would only be a single view agg, so we could avoid
-            // explicitly materializing the view Agg and simply multiply directly with
-            // the aggregate from the view - this could be captured in the aggregate
-            // computation that captures both the local aggregate and the view Agg
-            singleViewAgg = true;
-        
-            // reuse the simple aggregate from the corresponding view
-            size_t viewID = viewsForThisLoop.find_first();
-
-            for (const std::pair<size_t, size_t>& viewAgg : prodAgg.viewAggregate)
-            {
-                if (viewAgg.first == viewID)
-                {
-                    regTupleView = viewAgg;
-                    break;
-                }
-            }
-        }
-    }
-    
-    
-    std::pair<size_t,size_t> previousComputation = {listOfLoops.size(),0};
-    
-    for (size_t next=0; next < depNextLoopsPerLoop[thisLoopID].size(); ++next)
-    {
-        size_t nextLoop = depNextLoopsPerLoop[thisLoopID][next];
-        if (((listOfLoops[nextLoop] & thisLoop) != thisLoop))
-        {
-            ERROR("There is a problem with nextLoopsPerLoop\n");
-            exit(1);
-        }
-        
-        if ((depFunctionsPerLoopBranch[nextLoop] & prodAgg.product).any())
-        {
-            std::pair<size_t, size_t> postComputation =
-                addProductToDepedentLoop(prodAgg,nextLoop,loopsOverRelation,maxDepth);
-            
-            if (next + 1 != nextLoopsPerLoop[thisLoopID].size() &&
-                (depFunctionsPerLoopBranch[nextLoopsPerLoop[thisLoopID][next+1]]&
-                 prodAgg.product).any())
-            {
-                // Add this product to this loop with the 'prev'Computation
-                AggRegTuple postRegTuple;
-                postRegTuple.postLoopAgg = true;
-                postRegTuple.localAgg = previousComputation; 
-                postRegTuple.postLoop = postComputation;
-
-                // TODO: add the aggregate to the register!!
-                auto regit = aggregateRegisterMap[nextLoop].find(postRegTuple);
-                if (regit != aggregateRegisterMap[nextLoop].end())
-                {
-                    previousComputation = {nextLoop,regit->second};
-                }
-                else
-                {
-                    // If so, add it to the aggregate register
-                    size_t newID = newAggregateRegister[nextLoop].size();
-                    aggregateRegisterMap[nextLoop][postRegTuple] = newID;
-                    newAggregateRegister[nextLoop].push_back(postRegTuple);
-                    
-                    previousComputation =  {nextLoop,newID};
-                }
-            }
-            else
-            {
-                previousComputation = postComputation;
-            }
-            
-        }
-    }
-    
-    // while(currentLoop < listOfLoops.size()-1)
-    // {
-    //     currentLoop++;
-    //     if (((listOfLoops[currentLoop] & thisLoop) == thisLoop))
-    //     {
-    //         if ((functionsPerLoopBranch[currentLoop] & prodAgg.product).any())
-    //         {
-    //             std::pair<size_t, size_t> postComputation =
-    //                 addProductToLoop(prodAgg,currentLoop,loopsOverRelation,maxDepth);
-    //             /**************** PRINT OUT ******************/
-    //             // std::cout << "HERE \n";
-    //             // std::cout << listOfLoops[currentLoop] <<"  "<<thisLoop<<std::endl;
-    //             /**************** PRINT OUT ******************/
-    //             // Add this product to this loop with the 'prev'Computation
-    //             AggRegTuple postRegTuple;
-    //             postRegTuple.postLoopAgg = true;
-    //             postRegTuple.localAgg = previousComputation; // TODO:TODO:TODO:
-    //             postRegTuple.postLoop = postComputation;
-    //             // TODO: add the aggregate to the register!!
-    //             auto regit = aggregateRegisterMap[currentLoop].find(postRegTuple);
-    //             if (regit != aggregateRegisterMap[currentLoop].end())
-    //                 previousComputation = {currentLoop,regit->second};
-    //             else
-    //             {
-    //                 // If so, add it to the aggregate register
-    //                 size_t newID = newAggregateRegister[currentLoop].size();
-    //                 aggregateRegisterMap[currentLoop][postRegTuple] = newID;
-    //                 newAggregateRegister[currentLoop].push_back(postRegTuple); 
-    //                 previousComputation =  {currentLoop,newID};;
-    //             }
-    //         }
-    //     }
-    //     else break;
-    // }
-
-    // Check if this product has already been computed, if not we add it to the list
-    AggRegTuple regTuple;
-    regTuple.product = regTupleProduct;
-    regTuple.viewAgg = regTupleView;
-    regTuple.newViewProduct = newViewProduct;
-    regTuple.singleViewAgg = singleViewAgg;
-    regTuple.postLoop = previousComputation;
-
-    regTuple.previous = {depListOfLoops.size(),0};
-    regTuple.multiplyByCount = false;
-    
-    // Multiply by previous #computation -- if needed
-    if (thisLoop.none())
-    {
-        if (prodAgg.previous.first < maxDepth)
-        {            
-            const ProductAggregate& prevProdAgg =
-                productToVariableRegister[prodAgg.previous.first]
-                [prodAgg.previous.second];
-            regTuple.previous = prevProdAgg.correspondingLoopAgg;
-        }
-        // Mutliply by count if needed
-        if (!loopsOverRelation && prodAgg.multiplyByCount)
-            regTuple.multiplyByCount = true;
-    }
-
-    auto regit = aggregateRegisterMap[thisLoopID].find(regTuple);
-    if (regit != aggregateRegisterMap[thisLoopID].end())
-    {
-        previousComputation = {thisLoopID,regit->second};
-    }
-    else
-    {
-        // If so, add it to the aggregate register
-        size_t newID = newAggregateRegister[thisLoopID].size();
-        aggregateRegisterMap[thisLoopID][regTuple] = newID;
-        newAggregateRegister[thisLoopID].push_back(regTuple);
-        
-        previousComputation =  {thisLoopID,newID};
-    }
-
-    return previousComputation;
-}
-
 
 
 std::string CppGenerator::genProductString(
@@ -4197,202 +4484,35 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
         postRemapping[depth].push_back(postCounter);
         ++postCounter;
     }
+    
+    registerDependentComputationToLoops(depth, group_id);
 
-    size_t depDepth = depth + varOrder.size();
-    localProductRemapping[depDepth].resize(localProductList[depDepth].size());
-    viewProductRemapping[depDepth].resize(viewProductList[depDepth].size());
+    depAggregateRemapping.resize(depListOfLoops.size());
+    depLocalProductRemapping.resize(depListOfLoops.size());
 
-    // dyn_bitset newconsideredLoops(_qc->numberOfViews()+1);
-    // returnString += newgenFinalAggregateString(
-    //     &node, newconsideredLoops, depth, group_id);
-
-    // TODO: TODO: Add the dependent Computation here
-
-    for (const size_t& viewID : viewGroups[group_id])
+    for (size_t loop = 0; loop < depListOfLoops.size(); loop++)
     {
-        if (viewLevelRegister[viewID] == depth)
-        {
-            View* view = _qc->getView(viewID);
-         
-            registerDependentComputationToLoops(viewID, group_id);
+        // updating the remapping arrays 
+        depAggregateRemapping[loop].resize(
+            newAggregateRegister[loop].size(),10000);
+        depLocalProductRemapping[loop].resize(
+            localProductList[loop].size(),10000);
 
-            // We now compute the string for the loops required by this view.
-            std::string closeLoopString = "";
-            size_t numOfLoops = 0;
-            
-            for (size_t incViewID = 0; incViewID < _qc->numberOfViews(); ++incViewID)
-            {
-                if (outViewLoop[viewID][incViewID])
-                {
-                    returnString +=
-                        offset(3+depth+numOfLoops)+"ptr_"+viewName[incViewID]+
-                        " = lowerptr_"+viewName[incViewID]+"["+depthString+"];\n"+
-                        offset(3+depth+numOfLoops)+"while(ptr_"+viewName[incViewID]+
-                        " <= upperptr_"+viewName[incViewID]+"["+depthString+"])\n"+
-                        offset(3+depth+numOfLoops)+"{\n"+
-                        offset(4+depth+numOfLoops)+viewName[incViewID]+
-                        "_tuple &"+viewName[incViewID]+"Tuple = "+viewName[incViewID]+
-                        "[ptr_"+viewName[incViewID]+"];\n"+
-                        offset(4+depth+numOfLoops)+"double *aggregates_"+
-                        viewName[incViewID]+" = "+viewName[incViewID]+
-                        "Tuple.aggregates;\n";
-                
-                    closeLoopString = offset(4+depth+numOfLoops)+"++ptr_"+
-                        viewName[incViewID]+";\n"+offset(3+depth+numOfLoops)+"}\n"+
-                        closeLoopString;
-
-                    numOfLoops++;
-                }
-            }
-
-            if (outViewLoop[viewID][_qc->numberOfViews()])
-            {
-                returnString +=
-                    offset(3+depth+numOfLoops)+"ptr_"+node._name+
-                    " = lowerptr_"+node._name+"["+depthString+"];\n"+
-                    offset(3+depth+numOfLoops)+"while(ptr_"+node._name+
-                    " <= upperptr_"+node._name+"["+depthString+"])\n"+
-                    offset(3+depth+numOfLoops)+"{\n"+
-                    offset(4+depth+numOfLoops)+node._name +
-                    "_tuple &"+node._name+"Tuple = "+node._name+
-                    "[ptr_"+node._name+"];\n";
-                
-                closeLoopString = offset(4+depth+numOfLoops)+"++ptr_"+node._name+";\n"+
-                    offset(3+depth+numOfLoops)+"}\n"+closeLoopString;
-
-                numOfLoops++;
-            } 
-
-            // We add the string for the aggregates
-            size_t loopID = 0;
-            dyn_bitset contributingViews(_qc->numberOfViews()+1);
-            dyn_bitset consideredLoops(_qc->numberOfViews()+1);
-
-            returnString += genAggLoopString(node,loopID,depth,contributingViews,
-                                             outViewLoop[viewID].count());
-            
-            // Add the code that outputs tuples for the views           
-            std::string viewVars = "";            
-            for (size_t v = 0; v < NUM_OF_VARIABLES; ++v)
-            {
-                if (view->_fVars[v])
-                {
-                    if (node._bag[v])
-                    {
-                        viewVars += node._name+"Tuple."+
-                            _td->getAttribute(v)->_name+",";
-                    }
-                    else
-                    {
-                        for (const size_t& incViewID : incomingViews[viewID])
-                        {
-                            View* view = _qc->getView(incViewID);
-                            if (view->_fVars[v])
-                            {
-                                viewVars += viewName[incViewID]+"Tuple."+
-                                    _td->getAttribute(v)->_name+",";
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            viewVars.pop_back();
-
-            size_t offDepth = numOfLoops+depth+3;
-            if (_requireHashing[viewID])
-            {
-                returnString +=
-                    offset(offDepth)+viewName[viewID]+"_iterator"+
-                    " = "+viewName[viewID]+"_map.find({"+viewVars+"});\n"+
-                    offset(offDepth)+"if ("+viewName[viewID]+"_iterator"
-                    " != "+viewName[viewID]+"_map.end())\n"+
-                    offset(offDepth)+"{\n"+
-                    offset(offDepth+1)+"aggregates_"+viewName[viewID]+
-                    " = "+viewName[viewID]+"["+viewName[viewID]+
-                    "_iterator->second].aggregates;\n"+
-                    offset(offDepth)+"}\n"+
-                    offset(offDepth)+"else\n"+
-                    offset(offDepth)+"{\n"+
-                    offset(offDepth+1)+"size_t idx_"+viewName[viewID]+
-                    " = "+viewName[viewID]+".size();\n"+
-                    offset(offDepth+1)+viewName[viewID]+
-                    "_map[{"+viewVars+"}] = idx_"+viewName[viewID]+";\n"+
-                    offset(offDepth+1)+viewName[viewID]+
-                    ".push_back({"+viewVars+"});\n"+
-                    offset(offDepth+1)+"aggregates_"+viewName[viewID]+
-                    " = "+viewName[viewID]+"[idx_"+viewName[viewID]+
-                    "].aggregates;\n"+
-                    offset(offDepth)+"}\n";
-            }
-            else
-            {
-                // just add string to push to view
-                returnString += offset(offDepth)+viewName[viewID]+
-                    ".push_back({"+viewVars+"});\n"+offset(offDepth)+
-                    "aggregates_"+viewName[viewID]+" = "+viewName[viewID]+
-                    ".back().aggregates;\n";
-            }
-            
-            for(const AggregateTuple& aggTuple : aggregateComputation[viewID])
-            {
-                returnString += offset(offDepth)+"aggregates_"+
-                    viewName[viewID]+"["+std::to_string(aggTuple.aggID)+
-                    "] += ";
-
-
-                std::string aggBody = "";
-                if (aggTuple.local.first < varOrder.size())
-                {
-                    const ProductAggregate& prodAgg =
-                        productToVariableRegister[aggTuple.local.first]
-                        [aggTuple.local.second];
-        
-                    const std::pair<size_t,size_t>& correspondingLoopAgg =
-                        prodAgg.correspondingLoopAgg;
-                    
-                    std::string prev = std::to_string(
-                        newAggregateRemapping[depth][correspondingLoopAgg.first]
-                        [correspondingLoopAgg.second]);
-                
-                    aggBody += "aggregateRegister["+prev+"]*";
-                }
-                if (aggTuple.post.first < varOrder.size())
-                {
-                    std::string post = std::to_string(
-                        postRemapping[aggTuple.post.first]
-                        [aggTuple.post.second]);
-                    aggBody += "postRegister["+post+"]*";
-                }
-
-                if (aggTuple.hasDependentComputation)
-                {
-                    const std::pair<size_t,size_t>& correspondingLoopAgg =
-                         aggTuple.dependentProdAgg.correspondingLoopAgg;
-                    
-                    std::string prev = std::to_string(
-                        newAggregateRemapping[depth][correspondingLoopAgg.first]
-                        [correspondingLoopAgg.second]);
-
-                    aggBody += "aggregateRegister["+prev+"]*";
-                }
-
-                if (aggBody.empty())
-                    aggBody = "1*";
-
-                returnString += aggBody;
-                returnString.pop_back();
-                returnString += ";\n";
-                // TODO: make sure we do not consider this one again
-            
-                // This is a specific aggregate for a specific view
-                // so we can update the aggregate array directly. 
-            }
-        
-            returnString += closeLoopString;
-        }
+        numAggsRegistered += newAggregateRegister[loop].size();
     }
     
+    if (numAggsRegistered > 0)
+    {
+        returnString += offset(3 + depth)+"memset(&aggregateRegister["+
+            std::to_string(aggregateCounter)+"], 0, sizeof(double) * "+
+            std::to_string(numAggsRegistered)+");\n";
+    }
+
+    size_t depLoopID = 0;
+    dyn_bitset depContributingViews(_qc->numberOfViews()+1);
+    returnString += genDependentAggLoopString(
+        node,depLoopID,depth,depContributingViews,varOrder.size());
+
     if (depth+1 < varOrder.size())
         returnString += offset(3+depth)+"}\n";
 #else

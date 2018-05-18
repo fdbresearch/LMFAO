@@ -114,6 +114,8 @@ struct AggRegTuple
     std::pair<bool,size_t> view;
 
     bool postLoopAgg = false;
+    bool preLoopAgg = false;
+    
     std::pair<size_t,size_t> localAgg;
     std::pair<size_t,size_t> postLoop;
 
@@ -132,7 +134,10 @@ struct AggRegTuple
             this->viewAgg == other.viewAgg &&
             this->previous == other.previous &&
             this->localAgg == other.localAgg &&
-            this->postLoop == other.postLoop;
+            this->postLoop == other.postLoop &&
+            this->preLoopAgg == other.preLoopAgg &&
+            this->postLoopAgg == other.postLoopAgg;
+        
     }
 };
 
@@ -195,26 +200,28 @@ struct AggregateTuple
     DependentComputation dependentComputation;
 
     bool hasDependentComputation = false;
-    ProductAggregate dependentProdAgg; 
-    // bool dependentComp[2] = {false};
-    // size_t dependentID[2];
+    ProductAggregate dependentProdAgg;
 };
 
-struct NewAggregateTuple
+struct DependentLoop
 {
-    size_t viewID;
-    size_t aggID;
-    std::pair<size_t,size_t> local;
-    std::pair<size_t,size_t> post;
-    std::pair<bool, size_t> dependentProduct;
-    std::pair<bool, size_t> dependentView;
-    size_t loopID;
-
-    DependentComputation dependentComputation;
+    std::vector<std::pair<size_t,prod_bitset>> functionMask;
+    std::vector<size_t> next;
     
-    // bool dependentComp[2] = {false};
-    // size_t dependentID[2];
+    boost::dynamic_bitset<> outView;
+    boost::dynamic_bitset<> loopFactors;
+
+    size_t loopVariable;
+    prod_bitset branchFunctions; // TODO: These need to be specific for the
+                                 // actual view!! 
+    
+    DependentLoop(size_t numOfViews)
+    {
+        outView.resize(numOfViews + 1);
+        outView.reset();
+    }
 };
+
 
 class CppGenerator: public CodeGenerator
 {
@@ -356,17 +363,7 @@ private:
     std::vector<boost::dynamic_bitset<>> viewsPerLoop;
     std::vector<std::vector<size_t>> nextLoopsPerLoop;
 
-    std::vector<boost::dynamic_bitset<>> depListOfLoops;
-    std::vector<prod_bitset> depFunctionsPerLoop;
-    std::vector<prod_bitset> depFunctionsPerLoopBranch;
-    std::vector<boost::dynamic_bitset<>> depViewsPerLoop;
-    std::vector<std::vector<size_t>> depNextLoopsPerLoop;
-    
-
-    std::vector<std::unordered_map<ProductAggregate,size_t,ProductAggregate_hash>>
-    depProductToVariableMap;
-    std::vector<std::vector<ProductAggregate>> depProductToVariableRegister;
-
+    std::vector<DependentLoop> depListOfLoops;
 
     std::vector<boost::dynamic_bitset<>> outViewLoop;
     
@@ -381,7 +378,13 @@ private:
     std::vector<std::vector<std::vector<std::pair<size_t,size_t>>>>
     outViewProductRegister;
     std::vector<std::vector<AggRegTuple>> outAggregateRegister;
- 
+
+
+
+
+    std::vector<std::vector<size_t>> depAggregateRemapping;
+    std::vector<std::vector<size_t>> depLocalProductRemapping;
+
 /***************************************************x***********************/
 /**************************************************************************/
     
@@ -537,7 +540,20 @@ private:
     std::string resetRegisterArray(
         const size_t& depth, std::vector<std::vector<T>>& registerList,
         std::string registerName);
-    
+
+    prod_bitset computeDependentLoops(
+        size_t view_id, prod_bitset presentFunctions, var_bitset relationBag,
+        boost::dynamic_bitset<> contributingViews, var_bitset varOrderBitset,
+        boost::dynamic_bitset<> addedOutLoops, size_t thisLoopID);
+
+    std::pair<size_t,size_t> addDependentProductToLoop(
+        ProductAggregate& prodAgg, const size_t view_id, size_t& currentLoop,
+        const size_t& maxDepth, std::pair<size_t,size_t>& prevAgg);
+
+    std::string genDependentAggLoopString(
+        const TDNode& node, const size_t currentLoop, size_t depth,
+        const boost::dynamic_bitset<>& contributingViews, const size_t maxDepth);
+
 };
 
 #endif /* INCLUDE_CODEGEN_CPPGENERATOR_HPP_ */
