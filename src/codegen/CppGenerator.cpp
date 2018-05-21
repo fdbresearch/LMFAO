@@ -208,8 +208,8 @@ void CppGenerator::genMakeFile()
     
     std::ofstream ofs("runtime/cpp/Makefile",std::ofstream::out);
 
-    ofs << "CXXFLAG  += -std=c++11 -O2" <<
-        "\n#  -pthread -O2 -mtune=native -fassociative-math -freciprocal-math "
+    ofs << "CXXFLAG  += -std=c++11 -O2 -pthread -mtune=native -fassociative-math -freciprocal-math" <<
+        "\n# -pthread -O2 -mtune=native -fassociative-math -freciprocal-math "
         << "-fno-signed-zeros -v -ftime-report -fno-stack-protector\n\n";
 
     ofs << "lmfao : main.o "+objectList+"\n\t$(CXX) $(CXXFLAG) main.o "+objectList+
@@ -973,7 +973,11 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                     "size_t,"+viewName[viewID]+"_keyhash> "+viewName[viewID]+"_map;\n"+
                     offset(2)+"std::unordered_map<"+viewName[viewID]+"_key,"  +
                     "size_t,"+viewName[viewID]+"_keyhash>::iterator "+
-                    viewName[viewID]+"_iterator;\n";
+                    viewName[viewID]+"_iterator;\n"+
+                    offset(2)+"std::pair<std::unordered_map<"+viewName[viewID]+"_key,"  +
+                    "size_t,"+viewName[viewID]+"_keyhash>::iterator,bool> "+
+                    viewName[viewID]+"_pair;\n";
+
             }
         }
 
@@ -1000,7 +1004,10 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                 headerString += 
                     offset(2)+"std::unordered_map<"+viewName[viewID]+"_key,"  +
                     "size_t,"+viewName[viewID]+"_keyhash>::iterator "+
-                    viewName[viewID]+"_iterator;\n";
+                    viewName[viewID]+"_iterator;\n"+
+                    offset(2)+"std::pair<std::unordered_map<"+viewName[viewID]+"_key,"  +
+                    "size_t,"+viewName[viewID]+"_keyhash>::iterator,bool> "+
+                    viewName[viewID]+"_pair;\n";
             }
         }
     }
@@ -3335,80 +3342,103 @@ std::string CppGenerator::genDependentAggLoopString(
         }
         viewVars.pop_back();
 
-        size_t offDepth = numOfLoops+depth+3;
+        // size_t offDepth = numOfLoops+depth+3;
+        size_t offDepth = (depth + 1 < maxDepth ?
+                           4+depth+numOfLoops : 3+depth+numOfLoops);
+        
         if (_requireHashing[outViewID])
         {
             returnString +=
-                offset(offDepth)+viewName[outViewID]+"_iterator"+
-                " = "+viewName[outViewID]+"_map.find({"+viewVars+"});\n"+
-                offset(offDepth)+"if ("+viewName[outViewID]+"_iterator"
-                " != "+viewName[outViewID]+"_map.end())\n"+
+                offset(offDepth)+viewName[outViewID]+"_pair = "+
+                // viewName[outViewID]+"_map.insert(std::make_pair("+
+                // viewName[outViewID]+"_key("+viewVars+"),"+
+                // viewName[outViewID]+".size()));\n"+
+                viewName[outViewID]+"_map.insert({{"+viewVars+"},"+
+                viewName[outViewID]+".size()});\n"+
+                // viewName[outViewID]+"_map.emplace(std::piecewise_construct,"
+                // "std::forward_as_tuple("+viewVars+"),"+
+                // "std::forward_as_tuple("+viewName[outViewID]+".size()));\n"+
+                offset(offDepth)+"if ("+viewName[outViewID]+"_pair.second)\n"+
                 offset(offDepth)+"{\n"+
-                offset(offDepth+1)+"aggregates_"+viewName[outViewID]+
-                " = "+viewName[outViewID]+"["+viewName[outViewID]+
-                "_iterator->second].aggregates;\n"+
+                offset(offDepth+1)+viewName[outViewID]+
+                ".emplace_back("+viewVars+");\n"+
                 offset(offDepth)+"}\n"+
-                offset(offDepth)+"else\n"+
-                offset(offDepth)+"{\n"+
-                offset(offDepth+1)+"size_t idx_"+viewName[outViewID]+
-                " = "+viewName[outViewID]+".size();\n"+
-                offset(offDepth+1)+viewName[outViewID]+
-                "_map[{"+viewVars+"}] = idx_"+viewName[outViewID]+";\n"+
-                offset(offDepth+1)+viewName[outViewID]+
-                ".push_back({"+viewVars+"});\n"+
-                offset(offDepth+1)+"aggregates_"+viewName[outViewID]+
-                " = "+viewName[outViewID]+"[idx_"+viewName[outViewID]+
-                "].aggregates;\n"+
-                offset(offDepth)+"}\n";
+                offset(offDepth)+"aggregates_"+viewName[outViewID]+
+                " = "+viewName[outViewID]+"["+viewName[outViewID]+
+                "_pair.first->second].aggregates;\n";
+                // "//-----------------------------\n"+
+                // offset(offDepth)+viewName[outViewID]+"_iterator"+
+                // " = "+viewName[outViewID]+"_map.find({"+viewVars+"});\n"+
+                // offset(offDepth)+"if ("+viewName[outViewID]+"_iterator"
+                // " != "+viewName[outViewID]+"_map.end())\n"+
+                // offset(offDepth)+"{\n"+
+                // offset(offDepth+1)+"aggregates_"+viewName[outViewID]+
+                // " = "+viewName[outViewID]+"["+viewName[outViewID]+
+                // "_iterator->second].aggregates;\n"+
+                // offset(offDepth)+"}\n"+
+                // offset(offDepth)+"else\n"+
+                // offset(offDepth)+"{\n"+
+                // offset(offDepth+1)+"size_t idx_"+viewName[outViewID]+
+                // " = "+viewName[outViewID]+".size();\n"+
+                // offset(offDepth+1)+viewName[outViewID]+
+                // // "_map.emplace("+viewVars+",idx_"+viewName[outViewID]+");\n"+
+                // "_map[{"+viewVars+"}] = idx_"+viewName[outViewID]+";\n"+
+                // offset(offDepth+1)+viewName[outViewID]+
+                // ".emplace_back("+viewVars+");\n"+
+                // // ".push_back({"+viewVars+"});\n"+
+                // offset(offDepth+1)+"aggregates_"+viewName[outViewID]+
+                // " = "+viewName[outViewID]+"[idx_"+viewName[outViewID]+
+                // "].aggregates;\n"+
+                // offset(offDepth)+"}\n";
         }
         else
         {
             // just add string to push to view
             returnString += offset(offDepth)+viewName[outViewID]+
-                ".push_back({"+viewVars+"});\n"+offset(offDepth)+
+                ".emplace_back("+viewVars+");\n"+offset(offDepth)+
+                // ".push_back({"+viewVars+"});\n"+offset(offDepth)+
                 "aggregates_"+viewName[outViewID]+" = "+viewName[outViewID]+
                 ".back().aggregates;\n";
         }
 
-        // TODO: This is where we want to replace the out string with the
-        // compressed loops
-
+        
         AggregateIndexes bench, aggIdx;
         std::bitset<7> increasingIndexes;
         
         mapAggregateToIndexes(bench,aggregateComputation[outViewID][0],
-                              outViewID, maxDepth);
+                              outViewID,maxDepth);
         
-        size_t offset = 0;
+        size_t off = 0;
         for (size_t aggID = 1; aggID < aggregateComputation[outViewID].size(); ++aggID)
         {
             const AggregateTuple& tuple = aggregateComputation[outViewID][aggID];
 
             aggIdx.reset();
-
             mapAggregateToIndexes(aggIdx,tuple,outViewID,maxDepth);
 
-            if (aggIdx.isIncrement(bench,offset,increasingIndexes))
+            if (outViewID == 0)
+                std::cout << aggID << " : " << increasingIndexes << std::endl;
+
+            if (aggIdx.isIncrement(bench,off,increasingIndexes))
             {
-                ++offset;
+                ++off;
             }
             else
             {
                 // If not, output bench and all offset aggregates
                 returnString += outputFinalRegTupleString(
-                    bench,offset,increasingIndexes,offDepth);
-                        
+                    bench,off,increasingIndexes,offDepth);
+                
                 // make aggregate the bench and set offset to 0
                 bench = aggIdx;
-                offset = 0;
+                off = 0;
+                increasingIndexes.reset();
             }
-            
         }
 
         // If not, output bench and all offset
         // aggregateString
-        returnString += outputFinalRegTupleString(
-            bench,offset,increasingIndexes,offDepth);
+        returnString += outputFinalRegTupleString(bench,off,increasingIndexes,offDepth);
         
         // for(const AggregateTuple& aggTuple : aggregateComputation[outViewID])
         // {
@@ -3452,11 +3482,9 @@ std::string CppGenerator::genDependentAggLoopString(
 
         //         aggBody += "aggregateRegister["+prev+"]*";
         //     }
-
         //     // TODO:TODO:TODO: ---> make sure this is correct
         //     if (aggBody.empty())
         //         aggBody = "1*";
-
         //     returnString += aggBody;
         //     returnString.pop_back();
         //     returnString += ";\n";            
@@ -3741,9 +3769,13 @@ std::string CppGenerator::outputFinalRegTupleString(
         // Print out all aggregates individually
         for (size_t i = 0; i < numOfAggs+1; ++i)
         {
+            size_t aggID = idx.indexes[4];
+            if (increasing[4])
+                aggID += i;
+        
             // We use a mapping to the correct index
             outString += offset(stringOffset)+"aggregates_"+viewName[idx.indexes[3]]+
-                "["+std::to_string(idx.indexes[4]+i)+"] += ";
+                "["+std::to_string(aggID)+"] += ";
 
             std::string aggString = "";
             
@@ -4300,7 +4332,6 @@ void CppGenerator::mapAggregateToIndexes(
     const size_t& viewID, const size_t& maxDepth)
 {
     index.reset();
-
     
     if (aggregate.local.first < maxDepth)
     {
@@ -4318,7 +4349,6 @@ void CppGenerator::mapAggregateToIndexes(
         index.present.set(0);
         index.indexes[0] = local;        
     }
-
     
     if (aggregate.post.first < maxDepth)
     {
@@ -4346,6 +4376,9 @@ void CppGenerator::mapAggregateToIndexes(
 
     index.present.set(4);
     index.indexes[4] = aggregate.aggID;
+
+    if (viewID == 0)
+        std::cout <<  aggregate.aggID << std::endl;
 }
 
 
@@ -5311,6 +5344,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
 
     newAggregateRemapping[depth].resize(listOfLoops.size());
     localProductRemapping.resize(listOfLoops.size());
+    viewProductRemapping.resize(listOfLoops.size());
 
     size_t numAggsRegistered = 0;
     for (size_t loop = 0; loop < listOfLoops.size(); loop++)
@@ -5320,6 +5354,8 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
             newAggregateRegister[loop].size(),10000);
         localProductRemapping[loop].resize(
             localProductList[loop].size(),10000);
+        viewProductRemapping[loop].resize(
+            viewProductList[loop].size(),10000);
 
         numAggsRegistered += newAggregateRegister[loop].size();
     }
