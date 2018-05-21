@@ -19,6 +19,8 @@
 
 // #define PREVIOUS
 
+const size_t LOOPIFY_THRESHOLD = 5;
+
 namespace std
 {
 /**
@@ -112,12 +114,12 @@ struct AggRegTuple
     std::pair<size_t,size_t> previous;
     std::pair<bool,size_t> product;
     std::pair<bool,size_t> view;
+    std::pair<size_t,size_t> postLoop;
 
     bool postLoopAgg = false;
     bool preLoopAgg = false;
-    
-    std::pair<size_t,size_t> localAgg;
-    std::pair<size_t,size_t> postLoop;
+
+    size_t prevDepth = 100;
 
     bool newViewProduct = false;
     bool singleViewAgg = false;
@@ -125,7 +127,8 @@ struct AggRegTuple
 
     bool multiplyByCount = false;
     // size_t view;
-    size_t loopID;
+    // size_t loopID;
+    // std::pair<size_t,size_t> localAgg;
 
     bool operator==(const AggRegTuple &other) const
     {
@@ -133,7 +136,7 @@ struct AggRegTuple
             this->view == other.view &&
             this->viewAgg == other.viewAgg &&
             this->previous == other.previous &&
-            this->localAgg == other.localAgg &&
+            // this->localAgg == other.localAgg &&
             this->postLoop == other.postLoop &&
             this->preLoopAgg == other.preLoopAgg &&
             this->postLoopAgg == other.postLoopAgg;
@@ -154,8 +157,8 @@ struct AggRegTuple_hash
         h ^= std::hash<size_t>()(key.view.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
         h ^= std::hash<size_t>()(key.viewAgg.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
         h ^= std::hash<size_t>()(key.viewAgg.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
-        h ^= std::hash<size_t>()(key.localAgg.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
-        h ^= std::hash<size_t>()(key.localAgg.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        // h ^= std::hash<size_t>()(key.localAgg.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        // h ^= std::hash<size_t>()(key.localAgg.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
         h ^= std::hash<size_t>()(key.postLoop.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
         h ^= std::hash<size_t>()(key.postLoop.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
         return h;
@@ -220,6 +223,94 @@ struct DependentLoop
         outView.resize(numOfViews + 1);
         outView.reset();
     }
+};
+
+
+struct AggregateIndexes
+{
+    std::bitset<7> present;
+    size_t indexes[8];
+
+    void reset()
+    {
+        present.reset();
+        memset(&indexes[0], 0, 8*sizeof(size_t));
+    }
+
+    bool isIncrement(const AggregateIndexes& bench, const size_t& offset,
+                     std::bitset<7>& increasing)
+    {
+        if (present != bench.present)
+            return false;
+        
+        // If offset is zero we didn't compare any two tuples yet
+        if (offset==0)
+        {
+            // compare this and bench
+            increasing.reset();
+            for (size_t i = 0; i < 7; i++)
+            {
+                if (present[i])
+                {
+                    if (indexes[i] == bench.indexes[i] + 1)
+                    {
+                        increasing.set(i);
+                    }
+                    else if (indexes[i] != bench.indexes[i])
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+        
+        for (size_t i = 0; i < 7; i++)
+        {
+            if (present[i])
+            {
+                if (increasing[i])
+                {
+                    if (indexes[i] != bench.indexes[i] + offset + 1)
+                        return false;
+                }
+                else
+                {
+                    if (indexes[i] != bench.indexes[i])
+                        return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    // bool setIncrement(const AggregateIndexes& bench,
+    //                  const size_t& offset,
+    //                  std::bitset<5>& increasing)
+    // {
+    //     increasing.reset();
+                        
+    //     if (other.present == bench.present)
+    //         return false;
+            
+    //     for (size_t i = 0; i < 7; i++)
+    //     {
+    //         if (other.present[i])
+    //         {
+    //             if (indexes[i] == bench.indexes[i] + 1)
+    //             {
+    //                 increasing.set(i);
+    //             }
+    //             else if (indexes[i] != bench.indexes[i])
+    //             {
+    //                 return false;
+    //             }
+    //         }
+    //     }
+
+    //     return true;
+    // }
+    
 };
 
 
@@ -326,13 +417,14 @@ private:
     std::vector<std::unordered_map<prod_bitset,size_t>> localProductMap;
     std::vector<std::vector<prod_bitset>> localProductList;
     std::vector<std::vector<size_t>> localProductRemapping;
-    std::vector<std::vector<std::vector<size_t>>> newLocalProductRemapping;
+    // std::vector<std::vector<size_t>> newLocalProductRemapping;
     size_t productCounter;
     
     std::vector<std::map<std::vector<std::pair<size_t,size_t>>,size_t>> viewProductMap;
     std::vector<std::vector<std::vector<std::pair<size_t,size_t>>>> viewProductList;
     std::vector<std::vector<size_t>> viewProductRemapping;
-    std::vector<std::vector<std::vector<size_t>>> newViewProductRemapping;
+    
+    // std::vector<std::vector<size_t>> newViewProductRemapping;
     size_t viewCounter;
 
     std::vector<std::vector<size_t>> postRemapping;
@@ -554,6 +646,32 @@ private:
         const TDNode& node, const size_t currentLoop, size_t depth,
         const boost::dynamic_bitset<>& contributingViews, const size_t maxDepth);
 
+    
+    void mapAggregateToIndexes(AggregateIndexes& index, const AggRegTuple& aggregate,
+                               const size_t& depth, const size_t& loopID);
+
+    void mapAggregateToIndexes(AggregateIndexes& index,const PostAggRegTuple& aggregate,
+                               const size_t& depth, const size_t& loopID);
+
+    void mapAggregateToIndexes(AggregateIndexes& index, const AggregateTuple& aggregate,
+                               const size_t& viewID, const size_t& loopID);
+    
+    std::string outputAggRegTupleString(
+        AggregateIndexes& first, size_t offset,const std::bitset<7>& increasing,
+        size_t stringOffset);
+
+    std::string outputPostRegTupleString(
+        AggregateIndexes& first, size_t offset,const std::bitset<7>& increasing,
+        size_t stringOffset);
+
+    std::string outputFinalRegTupleString(
+        AggregateIndexes& first, size_t offset,const std::bitset<7>& increasing,
+        size_t stringOffset);
+
+    std::string genAggLoopStringCompressed(
+        const TDNode& node, const size_t loop, size_t depth,
+        const boost::dynamic_bitset<>& contributingViews,
+        const size_t numOfOutViewLoops);
 };
 
 #endif /* INCLUDE_CODEGEN_CPPGENERATOR_HPP_ */

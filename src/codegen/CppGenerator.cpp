@@ -201,7 +201,7 @@ void CppGenerator::genMakeFile()
     {
         std::string groupString = std::to_string(group);
         objectList += "computegroup"+groupString+".o ";
-        objectConstruct += "computegroup"+groupString+".o : computegroup"+
+        objectConstruct += "computegroup"+groupString+".o : ComputeGroup"+
             groupString+".cpp\n\t$(CXX) $(MULTI) $(CXXFLAG) -xc++ -c ComputeGroup"+
             groupString+".cpp -o computegroup"+groupString+".o\n\n";
     }
@@ -1784,17 +1784,14 @@ void CppGenerator::aggregateGenerator(size_t group_id, const TDNode& node)
     aggregateComputation.resize(_qc->numberOfViews());
 
     newAggregateRemapping.resize(varOrder.size());
-    newLocalProductRemapping.resize(varOrder.size());
-    newViewProductRemapping.resize(varOrder.size());
+    // localProductRemapping.resize(varOrder.size());
+    // viewProductRemapping.resize(varOrder.size());
     // TODO: TODO: TODO: TODO: TODO: check if the above is correct 
     
     for (const size_t& viewID : viewGroups[group_id])
     {
         View* view = _qc->getView(viewID);
 
-        // std::cout << "View: "<< viewID << " LevelRegister: " <<
-        //     viewLevelRegister[viewID] << std::endl;
-        // std::cout << "Number Of Aggregates: "<<  view->_aggregates.size() << std::endl;
 
         size_t numberIncomingViews =
             (view->_origin == view->_destination ? node._numOfNeighbors :
@@ -2686,9 +2683,9 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
                 // Add this product to this loop with the 'prev'Computation
                 AggRegTuple postRegTuple;
                 postRegTuple.postLoopAgg = true;
-                postRegTuple.localAgg = previousComputation; 
+                postRegTuple.previous = previousComputation; 
                 postRegTuple.postLoop = postComputation;
-
+                
                 // TODO: add the aggregate to the register!!
                 auto regit = aggregateRegisterMap[nextLoop].find(postRegTuple);
                 if (regit != aggregateRegisterMap[nextLoop].end())
@@ -2777,6 +2774,7 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
                 productToVariableRegister[prodAgg.previous.first]
                 [prodAgg.previous.second];
             regTuple.previous = prevProdAgg.correspondingLoopAgg;
+            regTuple.prevDepth = prodAgg.previous.first;
         }
         // Mutliply by count if needed
         if (!loopsOverRelation && prodAgg.multiplyByCount)
@@ -2821,7 +2819,8 @@ std::string CppGenerator::genAggLoopString(
 
         bool decomposedProduct = false;
         std::string productString = "";
-        
+
+        // We now check if parts of the product have already been computed 
         if (product.count() > 1)
         {
             prod_bitset subProduct = product;
@@ -2857,7 +2856,7 @@ std::string CppGenerator::genAggLoopString(
             if (foundSubProduct)
             {
                 std::string local = std::to_string(
-                    newLocalProductRemapping[depth][thisLoopID][subProductID]);
+                    localProductRemapping[thisLoopID][subProductID]);
 
                 productString += "localRegister["+local+"]*";
                     
@@ -2868,12 +2867,13 @@ std::string CppGenerator::genAggLoopString(
                     subProductID = local_it->second;
 
                     local = std::to_string(
-                        newLocalProductRemapping[depth][thisLoopID][subProductID]);
+                        localProductRemapping[thisLoopID][subProductID]);
                     productString += "localRegister["+local+"]";
                 }
                 else
                 {
-                    productString += genProductString(node,contributingViews,removedFunctions);
+                    productString += genProductString(
+                        node,contributingViews,removedFunctions);
                 }
 
                 decomposedProduct = true;
@@ -2888,7 +2888,7 @@ std::string CppGenerator::genAggLoopString(
             std::to_string(productCounter)+"] = "+productString + ";\n";
         
         // increment the counter and update the remapping array
-        newLocalProductRemapping[depth][thisLoopID][prodID] = productCounter;
+        localProductRemapping[thisLoopID][prodID] = productCounter;
         ++productCounter;
     }
 
@@ -2908,7 +2908,7 @@ std::string CppGenerator::genAggLoopString(
             viewProduct +";\n";
             
         // Increment the counter and update the remapping array
-        newViewProductRemapping[depth][thisLoopID][viewProd] = viewCounter;
+        viewProductRemapping[thisLoopID][viewProd] = viewCounter;
         ++viewCounter;
     }
 
@@ -2973,11 +2973,12 @@ std::string CppGenerator::genAggLoopString(
                     returnString += offset(3+depth+numOfLoops)+
                         "aggregateRegister["+std::to_string(aggregateCounter)+"] += ";
 
-                    if (regTuple.localAgg.first < listOfLoops.size())
+                    if (regTuple.previous.first < listOfLoops.size())
                     {
                         std::string local = std::to_string(
-                            newAggregateRemapping[depth][regTuple.localAgg.first]
-                            [regTuple.localAgg.second]);
+                            newAggregateRemapping[depth]
+                            [regTuple.previous.first]
+                            [regTuple.previous.second]);
                         returnString += "aggregateRegister["+local+"]*";
                     }
 
@@ -3014,7 +3015,8 @@ std::string CppGenerator::genAggLoopString(
             if (regTuple.previous.first < listOfLoops.size())
             {
                 std::string prev = std::to_string(
-                    newAggregateRemapping[depth-1][regTuple.previous.first]
+                    newAggregateRemapping[regTuple.prevDepth]
+                    [regTuple.previous.first]
                     [regTuple.previous.second]);
                 
                 returnString += "aggregateRegister["+prev+"]*";
@@ -3023,7 +3025,7 @@ std::string CppGenerator::genAggLoopString(
             if (regTuple.product.first)
             {
                 std::string local = std::to_string(
-                    newLocalProductRemapping[depth][thisLoopID][regTuple.product.second]
+                    localProductRemapping[thisLoopID][regTuple.product.second]
                     );
                 returnString += "localRegister["+local+"]*";
             }
@@ -3031,7 +3033,7 @@ std::string CppGenerator::genAggLoopString(
             if (regTuple.newViewProduct)
             {
                 std::string view = std::to_string(
-                    newViewProductRemapping[depth][thisLoopID][regTuple.viewAgg.second]);
+                    viewProductRemapping[thisLoopID][regTuple.viewAgg.second]);
                 returnString += "viewRegister["+view+"];";
             }
             else if (regTuple.singleViewAgg)
@@ -3112,7 +3114,7 @@ std::string CppGenerator::genDependentAggLoopString(
     //         "viewRegister["+std::to_string(viewCounter)+"] = "+
     //         viewProduct +";\n";
     //     // Increment the counter and update the remapping array
-    //     newViewProductRemapping[depth][thisLoopID][viewProd] = viewCounter;
+    //     viewProductRemapping[thisLoopID][viewProd] = viewCounter;
     //     ++viewCounter;
     // }
     
@@ -3221,11 +3223,12 @@ std::string CppGenerator::genDependentAggLoopString(
                     returnString += offset(3+depth+numOfLoops)+
                         "aggregateRegister["+std::to_string(aggregateCounter)+"] += ";
 
-                    if (regTuple.localAgg.first < depListOfLoops.size())
+                    if (regTuple.previous.first < depListOfLoops.size())
                     {
                         std::string local = std::to_string(
-                            newAggregateRemapping[depth][regTuple.localAgg.first]
-                            [regTuple.localAgg.second]);
+                            newAggregateRemapping[depth]
+                            [regTuple.previous.first]
+                            [regTuple.previous.second]);
                         returnString += "aggregateRegister["+local+"]*";
                     }
 
@@ -3366,63 +3369,985 @@ std::string CppGenerator::genDependentAggLoopString(
                 "aggregates_"+viewName[outViewID]+" = "+viewName[outViewID]+
                 ".back().aggregates;\n";
         }
-            
-        for(const AggregateTuple& aggTuple : aggregateComputation[outViewID])
-        {
-            returnString += offset(offDepth)+"aggregates_"+
-                viewName[outViewID]+"["+std::to_string(aggTuple.aggID)+
-                "] += ";
 
-            std::string aggBody = "";
-            if (aggTuple.local.first < maxDepth)
-            {
-                const ProductAggregate& prodAgg =
-                    productToVariableRegister[aggTuple.local.first]
-                    [aggTuple.local.second];
+        // TODO: This is where we want to replace the out string with the
+        // compressed loops
+
+        AggregateIndexes bench, aggIdx;
+        std::bitset<7> increasingIndexes;
         
-                const std::pair<size_t,size_t>& correspondingLoopAgg =
-                    prodAgg.correspondingLoopAgg;
-                    
-                std::string prev = std::to_string(
-                    newAggregateRemapping[aggTuple.local.first]
-                    [correspondingLoopAgg.first]
-                    [correspondingLoopAgg.second]);
-                
-                aggBody += "aggregateRegister["+prev+"]*";
-            }
-            if (aggTuple.post.first < maxDepth)
+        mapAggregateToIndexes(bench,aggregateComputation[outViewID][0],
+                              outViewID, maxDepth);
+        
+        size_t offset = 0;
+        for (size_t aggID = 1; aggID < aggregateComputation[outViewID].size(); ++aggID)
+        {
+            const AggregateTuple& tuple = aggregateComputation[outViewID][aggID];
+
+            aggIdx.reset();
+
+            mapAggregateToIndexes(aggIdx,tuple,outViewID,maxDepth);
+
+            if (aggIdx.isIncrement(bench,offset,increasingIndexes))
             {
-                std::string post = std::to_string(
-                    postRemapping[aggTuple.post.first]
-                    [aggTuple.post.second]);
-                aggBody += "postRegister["+post+"]*";
+                ++offset;
             }
-
-            if (aggTuple.hasDependentComputation)
+            else
             {
-                const std::pair<size_t,size_t>& correspondingLoopAgg =
-                    aggTuple.dependentProdAgg.correspondingLoopAgg;
-                
-                std::string prev = std::to_string(
-                    depAggregateRemapping[correspondingLoopAgg.first]
-                    [correspondingLoopAgg.second]);
-
-                aggBody += "aggregateRegister["+prev+"]*";
+                // If not, output bench and all offset aggregates
+                returnString += outputFinalRegTupleString(
+                    bench,offset,increasingIndexes,offDepth);
+                        
+                // make aggregate the bench and set offset to 0
+                bench = aggIdx;
+                offset = 0;
             }
-
-            // TODO:TODO:TODO: ---> make sure this is correct
-            if (aggBody.empty())
-                aggBody = "1*";
-
-            returnString += aggBody;
-            returnString.pop_back();
-            returnString += ";\n";            
+            
         }
+
+        // If not, output bench and all offset
+        // aggregateString
+        returnString += outputFinalRegTupleString(
+            bench,offset,increasingIndexes,offDepth);
+        
+        // for(const AggregateTuple& aggTuple : aggregateComputation[outViewID])
+        // {
+        //     returnString += offset(offDepth)+"aggregates_"+
+        //         viewName[outViewID]+"["+std::to_string(aggTuple.aggID)+
+        //         "] += ";
+
+        //     std::string aggBody = "";
+        //     if (aggTuple.local.first < maxDepth)
+        //     {
+        //         const ProductAggregate& prodAgg =
+        //             productToVariableRegister[aggTuple.local.first]
+        //             [aggTuple.local.second];
+        
+        //         const std::pair<size_t,size_t>& correspondingLoopAgg =
+        //             prodAgg.correspondingLoopAgg;
+                    
+        //         std::string prev = std::to_string(
+        //             newAggregateRemapping[aggTuple.local.first]
+        //             [correspondingLoopAgg.first]
+        //             [correspondingLoopAgg.second]);
+                
+        //         aggBody += "aggregateRegister["+prev+"]*";
+        //     }
+        //     if (aggTuple.post.first < maxDepth)
+        //     {
+        //         std::string post = std::to_string(
+        //             postRemapping[aggTuple.post.first]
+        //             [aggTuple.post.second]);
+        //         aggBody += "postRegister["+post+"]*";
+        //     }
+
+        //     if (aggTuple.hasDependentComputation)
+        //     {
+        //         const std::pair<size_t,size_t>& correspondingLoopAgg =
+        //             aggTuple.dependentProdAgg.correspondingLoopAgg;
+                
+        //         std::string prev = std::to_string(
+        //             depAggregateRemapping[correspondingLoopAgg.first]
+        //             [correspondingLoopAgg.second]);
+
+        //         aggBody += "aggregateRegister["+prev+"]*";
+        //     }
+
+        //     // TODO:TODO:TODO: ---> make sure this is correct
+        //     if (aggBody.empty())
+        //         aggBody = "1*";
+
+        //     returnString += aggBody;
+        //     returnString.pop_back();
+        //     returnString += ";\n";            
+        // }
 
         outViewID = depLoop.outView.find_next(outViewID);
     }
+    
     return returnString;
 }
+
+
+std::string CppGenerator::outputAggRegTupleString(
+    AggregateIndexes& idx, size_t numOfAggs, const std::bitset<7>& increasing,
+    size_t stringOffset)
+{  
+    std::string outString = "";
+    
+    if (numOfAggs > LOOPIFY_THRESHOLD)
+    {
+        outString += offset(stringOffset)+
+            "for (size_t i = 0; i < "+std::to_string(numOfAggs+1)+";++i)\n";
+        outString += offset(stringOffset+1)+
+            "aggregateRegister["+std::to_string(idx.indexes[7])+"+i] += ";
+
+        if (idx.present[0])
+        {
+            std::string k = std::to_string(idx.indexes[0]);
+            if (increasing[0])
+                k += "+i";
+            outString +="aggregateRegister["+k+"]*";
+        }
+
+        if (idx.present[1])
+        {
+            std::string k = std::to_string(idx.indexes[1]);
+            if (increasing[1])
+                k += "+i";
+            outString +="localRegister["+k+"]*";
+        }
+
+        if (idx.present[2])
+        {
+            std::string k = std::to_string(idx.indexes[2]);
+            if (increasing[2])
+                k += "+i";
+            outString +="viewRegister["+k+"]*";
+        }
+        if (idx.present[3])
+        {
+            // TODO: CHECK THAT index 4 is also presenth
+            size_t viewID = idx.indexes[3];                
+            if (increasing[3])
+            {
+                ERROR("VIEW ID SHOULD NEVER INCREASE!!! \n");
+                exit(1);
+            }
+            
+            std::string aggID = std::to_string(idx.indexes[4]);
+            if (increasing[4])
+                aggID += "+i";
+
+            outString += "aggregates_"+viewName[viewID]+"["+aggID+"]*";
+        }
+
+        if (idx.present[5])
+            outString +=  "count*";
+
+        if (idx.present[6])
+        {
+            std::string k = std::to_string(idx.indexes[6]);            
+            if (increasing[6])
+                k += "+i";
+            outString += "aggregateRegister["+k+"]*";
+        }
+
+        outString.pop_back();
+        outString += ";\n";
+    }
+    else
+    {
+        // Print out all aggregates individually
+        for (size_t i = 0; i < numOfAggs+1; ++i)
+        {
+            // We use a mapping to the correct index
+            outString += offset(stringOffset)+
+                "aggregateRegister["+std::to_string(idx.indexes[7]+i)+"] += ";
+
+            if (idx.present[0])
+            {
+                size_t k = idx.indexes[0];
+                if (increasing[0])
+                    k += i;
+                outString +="aggregateRegister["+std::to_string(k)+"]*";
+            }
+
+            if (idx.present[1])
+            {
+                size_t k = idx.indexes[1];
+                if (increasing[1])
+                    k += i;
+                outString +="localRegister["+std::to_string(k)+"]*";
+            }
+
+            if (idx.present[2])
+            {
+                size_t k = idx.indexes[2];
+                if (increasing[2])
+                    k += i;
+                outString +="viewRegister["+std::to_string(k)+"]*";
+            }
+            if (idx.present[3])
+            {
+                // TODO: CHECK THAT index 4 is also presenth
+                size_t viewID = idx.indexes[3];                
+                if (increasing[3])
+                {
+                    ERROR("VIEW ID SHOULD NEVER INCREASE!!! \n");
+                    exit(1);
+                }
+
+                size_t aggID = idx.indexes[4];
+                if (increasing[4])
+                    aggID += i;
+
+                outString += "aggregates_"+viewName[viewID]+"["+
+                    std::to_string(aggID)+"]*";
+            }
+
+            if (idx.present[5])
+                outString +=  "count*";
+
+            if (idx.present[6])
+            {
+                size_t k = idx.indexes[6];
+                if (increasing[6])
+                    k += i;
+                outString += "aggregateRegister["+std::to_string(k)+"]*";
+            }
+
+            outString.pop_back();
+            outString += ";\n";
+        }
+    }
+
+    return outString;
+}
+
+
+std::string CppGenerator::outputPostRegTupleString(
+    AggregateIndexes& idx, size_t numOfAggs, const std::bitset<7>& increasing,
+    size_t stringOffset)
+{
+    std::string outString = "";
+    
+    if (numOfAggs > LOOPIFY_THRESHOLD)
+    {
+        outString += offset(stringOffset)+
+            "for (size_t i = 0; i < "+std::to_string(numOfAggs+1)+";++i)\n";
+        outString += offset(stringOffset+1)+
+            "postRegister["+std::to_string(idx.indexes[2])+"+i] += ";
+        
+        if (idx.present[0])
+        {
+            std::string k = std::to_string(idx.indexes[0]);
+            if (increasing[0])
+                k += "+i";
+            outString +="aggregateRegister["+k+"]*";
+        }
+        else
+        {
+            ERROR("WE EXPECT LOCAL IN POST REG TO BE SET!! \n");
+            exit(1);
+        }
+
+        if (idx.present[1])
+        {
+            std::string k = std::to_string(idx.indexes[1]);
+            if (increasing[1])
+                k += "+i";
+            outString +="postRegister["+k+"]*";
+        }
+        
+        outString.pop_back();
+        outString += ";\n";
+    }
+    else
+    {
+        // Print out all aggregates individually
+        for (size_t i = 0; i < numOfAggs+1; ++i)
+        {
+            // We use a mapping to the correct index
+            outString += offset(stringOffset)+
+                "postRegister["+std::to_string(idx.indexes[2]+i)+"] += ";
+            
+            if (idx.present[0])
+            {
+                size_t k = idx.indexes[0];
+                if (increasing[0])
+                    k += i;
+                outString +="aggregateRegister["+std::to_string(k)+"]*";
+            }
+            else
+            {
+                ERROR("WE EXPECT LOCAL IN POST REG TO BE SET!! \n");
+                exit(1);
+            }
+            
+            if (idx.present[1])
+            {
+                size_t k = idx.indexes[1];
+                if (increasing[1])
+                    k += i;
+                outString +="postRegister["+std::to_string(k)+"]*";
+            }
+            
+            outString.pop_back();
+            outString += ";\n";
+        }
+    }
+
+    return outString;
+}
+
+
+std::string CppGenerator::outputFinalRegTupleString(
+    AggregateIndexes& idx, size_t numOfAggs, const std::bitset<7>& increasing,
+    size_t stringOffset)
+{
+    std::string outString = "";
+    
+    if (numOfAggs > LOOPIFY_THRESHOLD)
+    {
+        outString += offset(stringOffset)+
+            "for (size_t i = 0; i < "+std::to_string(numOfAggs+1)+";++i)\n";
+
+        std::string aggIDString = std::to_string(idx.indexes[4]);
+        if (increasing[4])
+            aggIDString += "+i";
+        
+        outString += offset(stringOffset+1)+"aggregates_"+viewName[idx.indexes[3]]+
+            "["+aggIDString+"] += ";
+
+        std::string aggString = "";
+        if (idx.present[0])
+        {
+            std::string k = std::to_string(idx.indexes[0]);
+            if (increasing[0])
+                k += "+i";
+            aggString +="aggregateRegister["+k+"]*";
+        }
+
+        if (idx.present[1])
+        {
+            std::string k = std::to_string(idx.indexes[1]);
+            if (increasing[1])
+                k += "+i";
+            aggString +="postRegister["+k+"]*";
+        }
+
+        if (idx.present[2])
+        {
+            std::string k = std::to_string(idx.indexes[2]);
+            if (increasing[2])
+                k += "+i";
+            aggString +="aggregateRegister["+k+"]*";
+        }
+
+        if (aggString.empty())
+        {
+            std::cout << "aggString is empty - compressed!\n";
+            aggString = "1*";
+        }
+        else
+            aggString.pop_back();
+        
+        outString += aggString;
+        outString += ";\n";
+    }
+    else
+    {
+        // Print out all aggregates individually
+        for (size_t i = 0; i < numOfAggs+1; ++i)
+        {
+            // We use a mapping to the correct index
+            outString += offset(stringOffset)+"aggregates_"+viewName[idx.indexes[3]]+
+                "["+std::to_string(idx.indexes[4]+i)+"] += ";
+
+            std::string aggString = "";
+            
+            if (idx.present[0])
+            {
+                size_t k = idx.indexes[0];
+                if (increasing[0])
+                    k += i;
+                aggString +="aggregateRegister["+std::to_string(k)+"]*";
+            }
+            
+            if (idx.present[1])
+            {
+                size_t k = idx.indexes[1];
+                if (increasing[1])
+                    k += i;
+                aggString +="postRegister["+std::to_string(k)+"]*";
+            }
+
+            if (idx.present[2])
+            {
+                size_t k = idx.indexes[2];
+                if (increasing[2])
+                    k += i;
+                aggString +="aggregateRegister["+std::to_string(k)+"]*";
+            }
+
+            if (aggString.empty())
+            {
+                std::cout << "aggString is empty --- non-compressed !\n";
+                aggString = "1";
+            }
+            else
+                aggString.pop_back();
+        
+            outString += aggString;
+            outString += ";\n";
+        }
+    }
+
+    return outString;
+}
+
+
+
+    
+
+
+// std::string loopifyAggregateString()
+// {
+//     size_t aggID = 1;
+
+//     size_t offset = 0;
+//     std::bitset<5> increasingIndexes;
+
+//     // TODO: need to create benchmark
+
+//     AggregateIndexes bench, other;
+//     // Turn AggRegTuple into AggregateIndexes;
+//     // this can be overloaded with the various types of registers we have
+    
+//     while (aggID < aggregateComputation[outViewID].size())
+//     {
+//         const AggRegTuple& regTuple = newAggregateRegister[thisLoopID][aggID];
+//         // TODO: check if this is post loop or not 
+
+
+//         // TODO: turn this regTuple into aggregate Index
+        
+//         if (offset == 0)
+//         {
+//             // TODO: then we compare the bench with this aggID
+
+//             // If aggID is an increment of bench we increment offset
+
+//             // TODO: Then we need to set the increment array 
+
+//             // If not an increment then we simply output bench and make aggID
+//             // the bench 
+//         }
+//         else
+//         {
+//             // TODO: check if aggID is an increment of bench
+
+//             // If so, increment offset and continue
+
+//             // If not, output bench and all offset aggregates
+//             // make aggID the bench and set offset to 0 
+//         }
+        
+//     }
+
+//     return "";
+// }
+
+
+
+std::string CppGenerator::genAggLoopStringCompressed(
+    const TDNode& node, const size_t currentLoop,size_t depth,
+    const dyn_bitset& contributingViews,const size_t numOfOutViewLoops)
+{
+    const size_t thisLoopID = currentLoop;
+    const dyn_bitset& thisLoop = listOfLoops[thisLoopID];
+    size_t numOfLoops = thisLoop.count() + numOfOutViewLoops;
+    
+    std::string returnString = "";
+    std::string depthString = std::to_string(depth);
+        
+    // Print all products for this considered loop
+    for (size_t prodID = 0; prodID < localProductList[thisLoopID].size(); ++prodID)
+    {
+        const prod_bitset& product = localProductList[thisLoopID][prodID];
+
+        bool decomposedProduct = false;
+        std::string productString = "";
+
+        // We now check if parts of the product have already been computed 
+        if (product.count() > 1)
+        {
+            prod_bitset subProduct = product;
+            prod_bitset removedFunctions;
+
+            size_t subProductID;
+
+            bool foundSubProduct = false;
+            while (!foundSubProduct && subProduct.count() > 1)
+            {
+                size_t highestPosition = 0;
+                // need to continue with this the next loop
+                for (size_t f = NUM_OF_FUNCTIONS; f > 0; f--)
+                {
+                    if (product[f])
+                    {
+                        highestPosition = f;
+                        break;
+                    }
+                }
+
+                subProduct.reset(highestPosition);
+                removedFunctions.set(highestPosition);
+
+                auto local_it = localProductMap[thisLoopID].find(subProduct);
+                if (local_it != localProductMap[thisLoopID].end())
+                {
+                    foundSubProduct = true;
+                    subProductID = local_it->second;
+                }
+            }
+
+            if (foundSubProduct)
+            {
+                std::string local = std::to_string(
+                    localProductRemapping[thisLoopID][subProductID]);
+
+                productString += "localRegister["+local+"]*";
+                    
+                auto local_it = localProductMap[thisLoopID].find(removedFunctions);
+                if (local_it != localProductMap[thisLoopID].end())
+                {
+                    foundSubProduct = false;
+                    subProductID = local_it->second;
+
+                    local = std::to_string(
+                        localProductRemapping[thisLoopID][subProductID]);
+                    productString += "localRegister["+local+"]";
+                }
+                else
+                {
+                    productString += genProductString(
+                        node,contributingViews,removedFunctions);
+                }
+
+                decomposedProduct = true;
+            }
+        }
+        
+        // We turn the product into a string
+        if (!decomposedProduct)
+            productString += genProductString(node,contributingViews,product);
+
+        returnString += offset(3+depth+numOfLoops)+"localRegister["+
+            std::to_string(productCounter)+"] = "+productString + ";\n";
+        
+        // increment the counter and update the remapping array
+        localProductRemapping[thisLoopID][prodID] = productCounter;
+        ++productCounter;
+    }
+
+    for (size_t viewProd = 0; viewProd < viewProductList[thisLoopID].size(); ++viewProd)
+    {
+        std::string viewProduct = "";
+        for (const std::pair<size_t, size_t>& viewAgg :
+                 viewProductList[thisLoopID][viewProd])
+        {
+            viewProduct += "aggregates_"+viewName[viewAgg.first]+"["+
+                std::to_string(viewAgg.second)+"]*";
+        }   
+        viewProduct.pop_back();
+
+        returnString += offset(3+depth+numOfLoops)+
+            "viewRegister["+std::to_string(viewCounter)+"] = "+
+            viewProduct +";\n";
+            
+        // Increment the counter and update the remapping array
+        viewProductRemapping[thisLoopID][viewProd] = viewCounter;
+        ++viewCounter;
+    }
+
+    
+    // Recurse to the next loop(s) if possible
+    for (size_t next=0; next < nextLoopsPerLoop[thisLoopID].size(); ++next)
+    {
+        size_t nextLoop = nextLoopsPerLoop[thisLoopID][next];
+
+        if (((listOfLoops[nextLoop] & thisLoop) == thisLoop))
+        {
+            size_t viewID = viewsPerLoop[nextLoop].find_first();
+
+            std::string closeLoopString = "";
+            if (viewID < _qc->numberOfViews())
+            {
+                returnString +=
+                    offset(3+depth+numOfLoops)+"ptr_"+viewName[viewID]+
+                    " = lowerptr_"+viewName[viewID]+"["+depthString+"];\n"+
+                    offset(3+depth+numOfLoops)+"while(ptr_"+viewName[viewID]+
+                    " <= upperptr_"+viewName[viewID]+"["+depthString+"])\n"+
+                    offset(3+depth+numOfLoops)+"{\n"+
+                    offset(4+depth+numOfLoops)+viewName[viewID]+
+                    "_tuple &"+viewName[viewID]+"Tuple = "+viewName[viewID]+
+                    "[ptr_"+viewName[viewID]+"];\n"+
+                    offset(4+depth+numOfLoops)+"double *aggregates_"+viewName[viewID]+
+                    " = "+viewName[viewID]+"Tuple.aggregates;\n";
+                
+                closeLoopString += offset(4+depth+numOfLoops)+"++ptr_"+viewName[viewID]+
+                    ";\n"+offset(3+depth+numOfLoops)+"}\n"+closeLoopString;
+            }
+            else 
+            {
+                returnString +=
+                    offset(3+depth+numOfLoops)+"ptr_"+node._name+
+                    " = lowerptr_"+node._name+"["+depthString+"];\n"+
+                    offset(3+depth+numOfLoops)+"while(ptr_"+node._name+
+                    " <= upperptr_"+node._name+"["+depthString+"])\n"+
+                    offset(3+depth+numOfLoops)+"{\n"+
+                    offset(4+depth+numOfLoops)+node._name +
+                    "_tuple &"+node._name+"Tuple = "+node._name+
+                    "[ptr_"+node._name+"];\n";
+                
+                closeLoopString = offset(4+depth+numOfLoops)+"++ptr_"+node._name+";\n"+
+                    offset(3+depth+numOfLoops)+"}\n"+closeLoopString;
+            }
+
+            returnString += genAggLoopStringCompressed(
+                node, nextLoop, depth, contributingViews, 0);
+            
+            returnString += closeLoopString;
+            
+            // After recurse, add the aggregates that have been added with post FLAG
+            AggregateIndexes bench, aggIdx;
+            std::bitset<7> increasingIndexes;
+            size_t aggID = 0, offset = 0;
+
+            bool addedAggregates = false;
+            
+            // Loop to identify the first bench
+            for (; aggID <
+                     newAggregateRegister[nextLoop].size(); ++aggID)
+            {
+                const AggRegTuple& regTuple = newAggregateRegister[nextLoop][aggID];
+        
+                if (regTuple.postLoopAgg)
+                {
+                    mapAggregateToIndexes(aggIdx,regTuple,depth,nextLoop);
+
+                    // Increment the counter and update the remapping array
+                    newAggregateRemapping[depth][nextLoop][aggID] = aggregateCounter;
+                    ++aggregateCounter;
+
+                    ++aggID; // TODO: Make sure that this is necessary!!
+                    addedAggregates = true;
+                    break;
+                }
+            }   
+            
+            // Loop over all other aggregates 
+            for (; aggID <
+                     newAggregateRegister[nextLoop].size(); ++aggID)
+            {
+                const AggRegTuple& regTuple = newAggregateRegister[nextLoop][aggID];
+        
+                if (regTuple.postLoopAgg)
+                {
+                    aggIdx.reset();
+                    
+                    mapAggregateToIndexes(aggIdx,regTuple,depth,nextLoop);
+
+                    if (aggIdx.isIncrement(bench,offset,increasingIndexes))
+                    {
+                        ++offset;
+                    }
+                    else
+                    {
+                        // If not, output bench and all offset aggregates
+                        returnString += outputAggRegTupleString(
+                            bench,offset,increasingIndexes, 3+depth+numOfLoops);
+                        
+                        // make aggregate the bench and set offset to 0
+                        bench = aggIdx;
+                        offset = 0;
+                    }
+
+                    // Increment the counter and update the remapping array
+                    newAggregateRemapping[depth][nextLoop][aggID] = aggregateCounter;
+                    ++aggregateCounter;
+                }
+            }
+
+            // Output bench -- and any further aggregates (if there were any)
+            if (addedAggregates)
+                returnString += outputAggRegTupleString(
+                    bench,offset,increasingIndexes,3+depth+numOfLoops);
+        }
+        else break;
+    }
+
+    // After recurse, add the aggregates that have been added with post FLAG
+    AggregateIndexes bench, aggIdx;
+    std::bitset<7> increasingIndexes;
+    size_t aggID = 0, offset = 0;
+    
+    bool addedAggregates = false;
+
+    // Loop to identify the first bench
+    for (; aggID <
+             newAggregateRegister[thisLoopID].size(); ++aggID)
+    {
+        const AggRegTuple& regTuple = newAggregateRegister[thisLoopID][aggID];
+        
+        if (!regTuple.postLoopAgg)
+        {
+            mapAggregateToIndexes
+                (bench,newAggregateRegister[thisLoopID][aggID],depth,thisLoopID);
+            
+            addedAggregates = true;
+
+            // Increment the counter and update the remapping array
+            newAggregateRemapping[depth][thisLoopID][aggID] = aggregateCounter;
+            ++aggregateCounter;
+
+            ++aggID;
+            break;
+        }
+    }
+
+    // Loop over all other aggregates 
+    for (; aggID <
+             newAggregateRegister[thisLoopID].size(); ++aggID)
+    {
+        const AggRegTuple& regTuple = newAggregateRegister[thisLoopID][aggID];
+        
+        if (!regTuple.postLoopAgg)
+        {
+            aggIdx.reset();
+            
+            mapAggregateToIndexes
+                (aggIdx,newAggregateRegister[thisLoopID][aggID],depth,thisLoopID);
+
+            if (aggIdx.isIncrement(bench,offset,increasingIndexes))
+            {
+                ++offset;
+            }
+            else
+            {
+                // If not, output bench and all offset aggregates
+                returnString += outputAggRegTupleString(bench,offset,increasingIndexes,
+                    3+depth+numOfLoops);
+                
+                // make aggregate the bench and set offset to 0
+                bench = aggIdx;
+                offset = 0;
+            }
+
+            // Increment the counter and update the remapping array
+            newAggregateRemapping[depth][thisLoopID][aggID] = aggregateCounter;
+            ++aggregateCounter;
+        }
+    }
+
+    // Output bench -- and any further aggregates (if there were any)
+    if (addedAggregates)
+        returnString += outputAggRegTupleString(
+            bench,offset,increasingIndexes,3+depth+numOfLoops);
+
+    // for (size_t aggID = 0; aggID < newAggregateRegister[thisLoopID].size(); ++aggID)
+    // {
+    //     const AggRegTuple& regTuple = newAggregateRegister[thisLoopID][aggID];        
+    //     if (!regTuple.postLoopAgg)
+    //     {
+    //         // We use a mapping to the correct index
+    //         returnString += offset(3+depth+numOfLoops)+
+    //             "aggregateRegister["+std::to_string(aggregateCounter)+"] += ";
+
+    //         if (regTuple.previous.first < listOfLoops.size())
+    //         {
+    //             std::string prev = std::to_string(
+    //                 newAggregateRemapping[depth-1][regTuple.previous.first]
+    //                 [regTuple.previous.second]);
+                
+    //             returnString += "aggregateRegister["+prev+"]*";
+    //         }
+            
+    //         if (regTuple.product.first)
+    //         {
+    //             std::string local = std::to_string(
+    //                 localProductRemapping[depth][thisLoopID][regTuple.product.second]
+    //                 );
+    //             returnString += "localRegister["+local+"]*";
+    //         }
+    //         if (regTuple.newViewProduct)
+    //         {
+    //             std::string view = std::to_string(
+    //                 viewProductRemapping[depth][thisLoopID][regTuple.viewAgg.second]);
+    //             returnString += "viewRegister["+view+"];";
+    //         }
+    //         else if (regTuple.singleViewAgg)
+    //         {
+    //             returnString += "aggregates_"+viewName[regTuple.viewAgg.first]+"["+
+    //                 std::to_string(regTuple.viewAgg.second)+"]*";
+    //         }
+            
+    //         if (regTuple.multiplyByCount)
+    //             returnString +=  "count*";
+
+    //         if (regTuple.postLoop.first < listOfLoops.size())
+    //         {
+    //             std::string postLoop = std::to_string(
+    //                 newAggregateRemapping[depth][regTuple.postLoop.first]
+    //                 [regTuple.postLoop.second]);
+    //             returnString += "aggregateRegister["+postLoop+"]*";
+    //         }
+            
+    //         returnString.pop_back();
+    //         returnString += ";\n";
+            
+    //         // Increment the counter and update the remapping array
+    //         newAggregateRemapping[depth][thisLoopID][aggID] = aggregateCounter;
+    //         ++aggregateCounter;
+    //     }
+    // }
+    
+    return returnString;
+}
+
+
+void CppGenerator::mapAggregateToIndexes(
+    AggregateIndexes& index, const AggRegTuple& aggregate, const size_t& depth,
+    const size_t& thisLoopID)
+{
+    index.reset();
+
+    // TODO: need depth + thisLoopID
+    if (aggregate.previous.first < listOfLoops.size())
+    {
+        // TODO: IS THIS REALLY ALWAYS DEPTH - 1 ?!?!?
+        size_t prev = newAggregateRemapping[depth-1][aggregate.previous.first]
+            [aggregate.previous.second];
+
+        index.present.set(0);
+        index.indexes[0] = prev;
+    }
+            
+    if (aggregate.product.first)
+    {
+        size_t local =
+            localProductRemapping[thisLoopID][aggregate.product.second];
+        
+        index.present.set(1);
+        index.indexes[1] = local;
+    }
+        
+    if (aggregate.newViewProduct)
+    {
+        size_t view = 
+            viewProductRemapping[thisLoopID][aggregate.viewAgg.second];
+
+        index.present.set(2);
+        index.indexes[2] = view;
+    }
+    
+    else if (aggregate.singleViewAgg)
+    {
+        index.present.set(3);
+        index.indexes[3] = aggregate.viewAgg.first;
+
+        index.present.set(4);
+        index.indexes[4] = aggregate.viewAgg.second;
+    }
+            
+    if (aggregate.multiplyByCount)
+    {
+        index.present.set(5);
+        index.indexes[5] = 1;
+    }
+
+    if (aggregate.postLoop.first < listOfLoops.size())
+    {
+        size_t postLoop = 
+            newAggregateRemapping[depth][aggregate.postLoop.first]
+            [aggregate.postLoop.second];
+
+        index.present.set(6);
+        index.indexes[6] = postLoop;
+    }
+
+    index.indexes[7] = aggregateCounter;
+}
+
+
+void CppGenerator::mapAggregateToIndexes(
+    AggregateIndexes& index, const PostAggRegTuple& aggregate,
+    const size_t& depth, const size_t& maxDepth)
+{
+    index.reset();
+
+    if (aggregate.local.first < maxDepth)
+    {
+        const ProductAggregate& prodAgg =
+            productToVariableRegister[aggregate.local.first][aggregate.local.second];
+        
+        const std::pair<size_t,size_t>& correspondingLoopAgg =
+            prodAgg.correspondingLoopAgg;
+        
+        size_t local = newAggregateRemapping[depth]
+            [correspondingLoopAgg.first]
+            [correspondingLoopAgg.second];
+        
+        index.present.set(0);
+        index.indexes[0] = local;
+    }
+            
+    if (aggregate.post.first < maxDepth)
+    {
+        size_t post = postRemapping[aggregate.post.first][aggregate.post.second];
+        
+        index.present.set(1);
+        index.indexes[1] = post;
+    }
+    
+    index.indexes[2] = postCounter;
+}
+
+void CppGenerator::mapAggregateToIndexes(
+    AggregateIndexes& index, const AggregateTuple& aggregate,
+    const size_t& viewID, const size_t& maxDepth)
+{
+    index.reset();
+
+    
+    if (aggregate.local.first < maxDepth)
+    {
+        const ProductAggregate& prodAgg =
+            productToVariableRegister[aggregate.local.first]
+            [aggregate.local.second];
+        
+        const std::pair<size_t,size_t>& correspondingLoopAgg =
+            prodAgg.correspondingLoopAgg;
+                    
+        size_t local = newAggregateRemapping[aggregate.local.first]
+            [correspondingLoopAgg.first]
+            [correspondingLoopAgg.second];
+
+        index.present.set(0);
+        index.indexes[0] = local;        
+    }
+
+    
+    if (aggregate.post.first < maxDepth)
+    {
+        size_t post = postRemapping[aggregate.post.first][aggregate.post.second];
+        
+        index.present.set(1);
+        index.indexes[1] = post;
+    }
+
+    if (aggregate.hasDependentComputation)
+    {
+        const std::pair<size_t,size_t>& correspondingLoopAgg =
+            aggregate.dependentProdAgg.correspondingLoopAgg;
+                
+        size_t depComp = 
+            depAggregateRemapping[correspondingLoopAgg.first]
+            [correspondingLoopAgg.second];
+
+        index.present.set(2);
+        index.indexes[2] = depComp;        
+    }
+
+    index.present.set(3);
+    index.indexes[3] = viewID;
+
+    index.present.set(4);
+    index.indexes[4] = aggregate.aggID;
+}
+
 
 
 
@@ -3723,6 +4648,7 @@ std::pair<size_t,size_t> CppGenerator::addDependentProductToLoop(
 
             regTuple.preLoopAgg = true;
             regTuple.previous = prevAgg;
+            regTuple.prevDepth = viewLevelRegister[view_id];
             
             auto regit = aggregateRegisterMap[thisLoopID].find(regTuple);
             if (regit != aggregateRegisterMap[thisLoopID].end())
@@ -3798,8 +4724,9 @@ std::pair<size_t,size_t> CppGenerator::addDependentProductToLoop(
                     // Add this product to this loop with the 'prev'Computation
                     AggRegTuple postRegTuple;
                     postRegTuple.postLoopAgg = true;
-                    postRegTuple.localAgg = previousLoopComp; 
+                    postRegTuple.previous = previousLoopComp; 
                     postRegTuple.postLoop = postComputation;
+                    postRegTuple.prevDepth = viewLevelRegister[view_id];
 
                     // TODO: add the aggregate to the register!!
                     auto regit = aggregateRegisterMap[nextLoopID].find(postRegTuple);
@@ -3834,6 +4761,7 @@ std::pair<size_t,size_t> CppGenerator::addDependentProductToLoop(
             regTuple.viewAgg = regTupleView;
             regTuple.singleViewAgg = singleViewAgg;
             regTuple.postLoop = previousLoopComp;
+            
             regTuple.previous = prevAgg;
             
             auto regit = aggregateRegisterMap[thisLoopID].find(regTuple);
@@ -4382,8 +5310,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
     registerAggregatesToLoops(depth,group_id);
 
     newAggregateRemapping[depth].resize(listOfLoops.size());
-    newLocalProductRemapping[depth].resize(listOfLoops.size());
-
+    localProductRemapping.resize(listOfLoops.size());
 
     size_t numAggsRegistered = 0;
     for (size_t loop = 0; loop < listOfLoops.size(); loop++)
@@ -4391,7 +5318,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
         // updating the remapping arrays 
         newAggregateRemapping[depth][loop].resize(
             newAggregateRegister[loop].size(),10000);
-        newLocalProductRemapping[depth][loop].resize(
+        localProductRemapping[loop].resize(
             localProductList[loop].size(),10000);
 
         numAggsRegistered += newAggregateRegister[loop].size();
@@ -4406,7 +5333,6 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
             std::to_string(aggregateCounter)+"], 0, sizeof(double) * "+
             std::to_string(numAggsRegistered)+");\n";
     }
-    
     
     // We add the definition of the Tuple references and aggregate pointers
     // TODO: This could probably be simplified
@@ -4431,7 +5357,8 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
 
     size_t loopID = 0;
     dyn_bitset contributingViews(_qc->numberOfViews()+1);
-    returnString += genAggLoopString(node,loopID,depth,contributingViews,0);
+    returnString += genAggLoopStringCompressed(node,loopID,depth,contributingViews,0);
+    // returnString += genAggLoopString(node,loopID,depth,contributingViews,0);
     
     // then you would need to go to next variable
     if (depth+1 < varOrder.size())
@@ -4451,45 +5378,89 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
 
     size_t postOff = (depth+1 < varOrder.size() ? 4+depth : 3+depth);
 
-    for (const PostAggRegTuple& tuple : postRegisterList[depth])
+    // for (const PostAggRegTuple& tuple : postRegisterList[depth])
+    // {
+    //     const ProductAggregate& prodAgg =
+    //         productToVariableRegister[tuple.local.first][tuple.local.second];
+        
+    //     const std::pair<size_t,size_t>& correspondingLoopAgg =
+    //         prodAgg.correspondingLoopAgg;
+
+    //     // if (group_id == 3 && depth == 0)
+    //     //     std::cout << "************************************ " <<
+    //     //         correspondingLoopAgg.first << "  " <<
+    //     //         correspondingLoopAgg.second << std::endl;
+        
+    //     std::string local = std::to_string(
+    //         newAggregateRemapping[depth][correspondingLoopAgg.first]
+    //         [correspondingLoopAgg.second]);
+
+    //     returnString += offset(postOff)+"postRegister["+std::to_string(postCounter)+
+    //         "] += aggregateRegister["+local+"]";
+
+    //     if (tuple.post.first < varOrder.size())
+    //     {
+    //         std::string post = std::to_string(
+    //             postRemapping[tuple.post.first][tuple.post.second]);
+
+    //         returnString += " * postRegister["+post+"];\n";
+    //     }
+    //     else
+    //          returnString += ";\n";
+        
+    //     postRemapping[depth].push_back(postCounter);
+    //     ++postCounter;
+    // }
+
+    if (postRegisterList[depth].size() > 0)
     {
-        const ProductAggregate& prodAgg =
-            productToVariableRegister[tuple.local.first][tuple.local.second];
+        AggregateIndexes bench, aggIdx;
+        std::bitset<7> increasingIndexes;
         
-        const std::pair<size_t,size_t>& correspondingLoopAgg =
-            prodAgg.correspondingLoopAgg;
+        mapAggregateToIndexes(bench,postRegisterList[depth][0],depth,varOrder.size());
 
-        // if (group_id == 3 && depth == 0)
-        //     std::cout << "************************************ " <<
-        //         correspondingLoopAgg.first << "  " <<
-        //         correspondingLoopAgg.second << std::endl;
-        
-        std::string local = std::to_string(
-            newAggregateRemapping[depth][correspondingLoopAgg.first]
-            [correspondingLoopAgg.second]);
-
-        returnString += offset(postOff)+"postRegister["+std::to_string(postCounter)+
-            "] += aggregateRegister["+local+"]";
-
-        if (tuple.post.first < varOrder.size())
-        {
-            std::string post = std::to_string(
-                postRemapping[tuple.post.first][tuple.post.second]);
-
-            returnString += " * postRegister["+post+"];\n";
-        }
-        else
-             returnString += ";\n";
-        
         postRemapping[depth].push_back(postCounter);
         ++postCounter;
+
+        size_t offset = 0;
+        for (size_t aggID = 1; aggID < postRegisterList[depth].size(); ++aggID)
+        {
+            const PostAggRegTuple& tuple = postRegisterList[depth][aggID];
+
+            aggIdx.reset();
+            
+            mapAggregateToIndexes(aggIdx,tuple,depth,varOrder.size());
+
+            if (aggIdx.isIncrement(bench,offset,increasingIndexes))
+            {
+                ++offset;
+            }
+            else
+            {
+                // If not, output bench and all offset aggregates
+                returnString += outputPostRegTupleString(
+                    bench,offset,increasingIndexes, postOff);
+                        
+                // make aggregate the bench and set offset to 0
+                bench = aggIdx;
+                offset = 0;
+            }
+
+            postRemapping[depth].push_back(postCounter);
+            ++postCounter;
+        }
+
+        // If not, output bench and all offset aggregates
+        returnString += outputPostRegTupleString(
+            bench,offset,increasingIndexes, postOff);
     }
     
     registerDependentComputationToLoops(depth, group_id);
 
     depAggregateRemapping.resize(depListOfLoops.size());
     depLocalProductRemapping.resize(depListOfLoops.size());
-
+    
+    size_t depNumAggsRegistered = 0;
     for (size_t loop = 0; loop < depListOfLoops.size(); loop++)
     {
         // updating the remapping arrays 
@@ -4498,14 +5469,14 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
         depLocalProductRemapping[loop].resize(
             localProductList[loop].size(),10000);
 
-        numAggsRegistered += newAggregateRegister[loop].size();
+        depNumAggsRegistered += newAggregateRegister[loop].size();
     }
     
-    if (numAggsRegistered > 0)
+    if (depNumAggsRegistered > 0)
     {
         returnString += offset(3 + depth)+"memset(&aggregateRegister["+
             std::to_string(aggregateCounter)+"], 0, sizeof(double) * "+
-            std::to_string(numAggsRegistered)+");\n";
+            std::to_string(depNumAggsRegistered)+");\n";
     }
 
     size_t depLoopID = 0;
