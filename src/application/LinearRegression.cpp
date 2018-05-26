@@ -258,15 +258,10 @@ void LinearRegression::loadFeatures()
         /* Clear string stream. */
         ssLine.clear();
     }
-
-
-    cout << _features << "\n";
-    cout << _categoricalFeatures << "\n";
 }
 
 
 void LinearRegression::computeGradient()
 {
     _compiler->compile();
-    
 }

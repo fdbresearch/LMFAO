@@ -14,6 +14,7 @@
 #include <TreeDecomposition.h>
 
 #define BUF_SIZE 1024
+// #define PRINT_TD
 
 static const char NAME_SEPARATOR_CHAR = ':';
 static const char ATTRIBUTE_SEPARATOR_CHAR = ',';
@@ -194,9 +195,10 @@ void TreeDecomposition::buildFromFile(std::string fileName)
 
         if (i != stoul(index))
             ERROR("Inconsistent index specified in your DTree config file.\n");
-        
-        DINFO( index << " " << name << " " << attrs << "\n");
 
+#ifdef PRINT_TD
+        DINFO( index << " " << name << " " << attrs << "\n");
+#endif
         this->_relations[i] = new TDNode(name, i);
         this->_relationsMap[name] = i;
 
@@ -231,7 +233,9 @@ void TreeDecomposition::buildFromFile(std::string fileName)
         getline(ssLine, node1, EDGE_SEPARATOR_CHAR);
         getline(ssLine, node2, PARAMETER_SEPARATOR_CHAR);
 
+#ifdef PRINT_TD
         DINFO( node1 << " - " << node2 << "\n");
+#endif
 
         int n1 = _relationsMap[node1];
         int n2 = _relationsMap[node2];
@@ -241,18 +245,48 @@ void TreeDecomposition::buildFromFile(std::string fileName)
 
         ssLine.clear();
     }
-
+    
     for (size_t i = 0; i < _numOfRelations; i++)
     {
         _relations[i]->_numOfNeighbors = _relations[i]->_neighbors.size();
         _relations[i]->_neighborSchema = new var_bitset[_relations[i]->_numOfNeighbors];
         
         if (_relations[i]->_numOfNeighbors == 1)
-            _leafNodes.push_back(_relations[i]->_id);    
-    }
+            _leafNodes.push_back(_relations[i]->_id);
 
-    // We are computing the schema! 
+
+        /* Extract node information for each relation. */
+        while (getline(input, line))
+        {
+            if (line[0] == COMMENT_CHAR || line == "")
+                continue;
+
+            break;
+        }
+
+        ssLine << line;
+
+        getline(ssLine, name, PARAMETER_SEPARATOR_CHAR);
+        getline(ssLine, attrs, PARAMETER_SEPARATOR_CHAR);
+
+#ifdef PRINT_TD        
+        DINFO( name << " - " << attrs << "\n");
+#endif
+        int relID = _relationsMap[name];
+        size_t threads = std::stoi(attrs);
+
+        if (relID == -1)
+            ERROR("The relation "+name+" was not found\n");
+        
+        if (threads > 1)
+        {
+            this->_relations[relID]->_threads = threads;
+        }
+        
+        ssLine.clear();
+    }
     
+    // We are computing the schema!    
     this->_root = _relations[0];
     var_bitset rootSchemaBitset = _root->_bag;
     
@@ -280,8 +314,6 @@ void TreeDecomposition::buildFromFile(std::string fileName)
     //         std::cout <<getRelation(i)->_neighborSchema[c] << " | ";
     //     std::cout << "\n";
     // }
-        
-    DINFO("Schema computed! \n");
 }
 
 

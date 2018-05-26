@@ -51,30 +51,11 @@ public:
     std::bitset<multifaq::params::NUM_OF_VARIABLES> _bag;
     
     //! Bitset that indicates schema of subtree root at neighbors 
-    std::bitset<multifaq::params::NUM_OF_VARIABLES>* _neighborSchema = nullptr; 
-
-/****TODO: EVERYTHING IN BETWEEN SHOULD PROBABLY BE REMOVED ***/ 
-    // //! Number of children of current node.
-    // int _numOfChildren;
-
-    // //! Pointer to the first child.
-    // TDNode* _firstChild;
-
-    // //! Pointer to the last child.
-    // TDNode* _lastChild;
-
-    // //! Pointer to next (from current) child inside its parent (sibling).
-    // TDNode* _next;
-
-    // // Pointer to previous (from current) child inside it's parent (sibling)
-    // TDNode* _prev;
-
-    // // Bag of this TD node.
-    // std::set<int> _bag;
-    // //! Array of schema of children
-    // std::set<int>* _childSchema = nullptr; 
-/****TODO: EVERYTHING IN BETWEEN SHOULD PROBABLY BE REMOVED ***/
+    std::bitset<multifaq::params::NUM_OF_VARIABLES>* _neighborSchema = nullptr;
     
+    //! Number of threads for this relations 
+    size_t _threads = 1;
+
     /**
      * Adds node to child list by appending to the end of linked list.
      */

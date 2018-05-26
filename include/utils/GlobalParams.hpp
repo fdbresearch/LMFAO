@@ -23,6 +23,7 @@ namespace multifaq
  * defined in a source file. */
 #else
         const size_t NUM_OF_FUNCTIONS = 300;
+        // const size_t NUM_OF_FUNCTIONS = 15;
 #endif
 
 /* Compile time constant: can be used directly to enable loop unrolling and
@@ -43,6 +44,7 @@ namespace multifaq
  * defined in a source file. */
 #else
         const size_t NUM_OF_PRODUCTS = 200;
+        // const size_t NUM_OF_PRODUCTS = 20;
 #endif
 
 /* Compile time constant: can be used directly to enable loop unrolling and

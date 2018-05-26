@@ -337,13 +337,10 @@ private:
     std::vector<size_t>* variableOrder = nullptr;
     std::vector<var_bitset> variableOrderBitset;
 
-    // TODO: RENAME 
-    std::vector<size_t>* viewsPerVarInfo = nullptr;
     
     //TODO: this could be part of the view
     std::vector<size_t>* incomingViews = nullptr;
-
-
+    
     // keeps track of where we can output tuples to the view
     size_t* viewLevelRegister;
 
@@ -352,9 +349,6 @@ private:
     std::vector<size_t>* groupViewsPerVarInfo = nullptr;
     std::vector<var_bitset> groupVariableOrderBitset;
     bool* _requireHashing = nullptr;
-
-    // For topological order 
-    std::vector<size_t>* viewsPerNode = nullptr;
 
     // For groups of views that can be computed together
     std::vector<std::vector<size_t>> viewGroups;
@@ -471,9 +465,6 @@ private:
     outViewProductRegister;
     std::vector<std::vector<AggRegTuple>> outAggregateRegister;
 
-
-
-
     std::vector<std::vector<size_t>> depAggregateRemapping;
     std::vector<std::vector<size_t>> depLocalProductRemapping;
 
@@ -481,11 +472,12 @@ private:
 /**************************************************************************/
     
     /* TODO: Technically there is no need to pre-materialise this! */
-    void createVariableOrder();
     void createGroupVariableOrder();
     void createRelationSortingOrder(TDNode* node, const size_t& parent_id);
 
-    void createTopologicalOrder();
+    void computeViewOrdering();
+
+    void computeParallelizeGroup();
 
     void genDataHandler();
     void genComputeGroupHeaderSource(size_t group);
@@ -519,7 +511,7 @@ private:
     
     std::string genLoadRelationFunction();
     
-    std::string genComputeViewFunction(size_t view_id);
+    // std::string genComputeViewFunction(size_t view_id);
 
     std::string genComputeGroupFunction(size_t view_id);
 
@@ -528,17 +520,11 @@ private:
     std::string genPointerArrays(const std::string& rel, std::string& numOfJoinVars,
                                  bool parallelize);
 
-    /* TODO: Simplify this to avoid sort for cases with few views! */
-    std::string genRelationOrdering(const std::string& rel_name,
-                                    const size_t& depth,
-                                    const size_t& view_id);
-    /* TODO: Simplify this to avoid sort for cases with few views! */
     std::string genGroupRelationOrdering(const std::string& rel_name,
                                          const size_t& depth,
                                          const size_t& group_id);
     
-    std::string genLeapfrogJoinCode(size_t view_id, size_t depth);
-    std::string genGroupLeapfrogJoinCode(size_t view_id, const TDNode& node,
+    std::string genGroupLeapfrogJoinCode(size_t group_id, const TDNode& node,
                                          size_t depth);
     
     // One Generic Case for Seek Value 
@@ -556,6 +542,10 @@ private:
     std::string updateRanges(size_t depth, const std::string& rel_name,
                              const std::string& attr_name, bool parallel);
     
+    std::string genProductString(
+        const TDNode& node, const boost::dynamic_bitset<>& contributingViews,
+        const prod_bitset& product);
+
     std::string getFunctionString(Function* f, std::string& fvars);
 
     std::string genSortFunction(const size_t& rel_id);
@@ -565,6 +555,7 @@ private:
                                   size_t depth, bool parallel); 
     
     std::string genRunFunction();
+    
     std::string genRunMultithreadedFunction();
 
     bool resortRelation(const size_t& rel, const size_t& view);
@@ -605,33 +596,11 @@ private:
     //     const TDNode* node, boost::dynamic_bitset<> consideredLoops,
     //     size_t depth, size_t group_id);
 
-    std::string genAggregateString(
-        const std::vector<std::string>& aggRegister,
-        const std::vector<boost::dynamic_bitset<>>& loopReg,
-        boost::dynamic_bitset<> consideredLoops,
-        boost::dynamic_bitset<>& addedAggs, size_t depth);
 
-    std::string genFinalAggregateString(
-        const std::vector<std::string>& aggRegister,
-        const std::vector<boost::dynamic_bitset<>>& loopReg,
-        boost::dynamic_bitset<> consideredLoops,
-        boost::dynamic_bitset<>& addedAggs, size_t depth,
-        std::vector<size_t>& includableViews,
-        boost::dynamic_bitset<>& addedViews,size_t offDepth);
-
-    std::string genAggLoopString(
-        const TDNode& node, const size_t loop, size_t depth,
-        const boost::dynamic_bitset<>& contributingViews,
-        const size_t numOfOutViewLoops);
-
-    std::string genProductString(
-        const TDNode& node, const boost::dynamic_bitset<>& contributingViews,
-        const prod_bitset& product);
-
-    template<typename T>
-    std::string resetRegisterArray(
-        const size_t& depth, std::vector<std::vector<T>>& registerList,
-        std::string registerName);
+    // template<typename T>
+    // std::string resetRegisterArray(
+    //     const size_t& depth, std::vector<std::vector<T>>& registerList,
+    //     std::string registerName);
 
     prod_bitset computeDependentLoops(
         size_t view_id, prod_bitset presentFunctions, var_bitset relationBag,
@@ -668,10 +637,56 @@ private:
         AggregateIndexes& first, size_t offset,const std::bitset<7>& increasing,
         size_t stringOffset);
 
+    // // TODO: We should really only keep one 
+    // std::string genAggLoopString(
+    //     const TDNode& node, const size_t loop, size_t depth,
+    //     const boost::dynamic_bitset<>& contributingViews,
+    //     const size_t numOfOutViewLoops);
+    
     std::string genAggLoopStringCompressed(
         const TDNode& node, const size_t loop, size_t depth,
         const boost::dynamic_bitset<>& contributingViews,
         const size_t numOfOutViewLoops);
+
+#ifdef OLD
+    // TODO: RENAME 
+    std::vector<size_t>* viewsPerVarInfo = nullptr;
+
+    // For topological order 
+    std::vector<size_t>* viewsPerNode = nullptr;
+
+    template<typename T>
+    std::string resetRegisterArray(
+        const size_t& depth, std::vector<std::vector<T>>& registerList,
+        std::string registerName);
+
+        
+    std::string genComputeViewFunction(size_t view_id);
+    
+
+    std::string genRelationOrdering(const std::string& rel_name,
+                                    const size_t& depth,
+                                    const size_t& view_id);
+
+    std::string genAggregateString(
+        const std::vector<std::string>& aggRegister,
+        const std::vector<boost::dynamic_bitset<>>& loopReg,
+        boost::dynamic_bitset<> consideredLoops,
+        boost::dynamic_bitset<>& addedAggs, size_t depth);
+
+    std::string genFinalAggregateString(
+        const std::vector<std::string>& aggRegister,
+        const std::vector<boost::dynamic_bitset<>>& loopReg,
+        boost::dynamic_bitset<> consideredLoops,
+        boost::dynamic_bitset<>& addedAggs, size_t depth,
+        std::vector<size_t>& includableViews,
+        boost::dynamic_bitset<>& addedViews,size_t offDepth);
+
+    std::string genLeapfrogJoinCode(size_t view_id, size_t depth);
+
+    void createVariableOrder();
+
+#endif
 };
 
 #endif /* INCLUDE_CODEGEN_CPPGENERATOR_HPP_ */

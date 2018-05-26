@@ -45,8 +45,6 @@ void CovarianceMatrix::run()
     loadFeatures();
     modelToQueries();
     _compiler->compile();
-
-    std::cout << "At end of application->run()\n";
 }
 
 void CovarianceMatrix::modelToQueries()
