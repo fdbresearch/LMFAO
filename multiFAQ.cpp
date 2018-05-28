@@ -37,10 +37,10 @@ int main(int argc, char *argv[])
       ("model",
        boost::program_options::value<std::string>()->default_value("reg"),
        "operation to be computed: reg (default), or regtree")
-       /* Option for code generator. */
+       /* Option for co generator. */
       ("codegen",
-       boost::program_options::value<std::string>()->default_value("mem"),
-       "operation to be computed: mem (default), or sql");
+       boost::program_options::value<std::string>()->default_value("cpp"),
+       "operation to be computed: cpp (default), or sql");
       // /* Option for number of threads used for F cofactor calculation; default
       //  * set to number of hardware thread contexts. */
       // ("threads",
@@ -118,7 +118,8 @@ int main(int argc, char *argv[])
 #endif
 
    /* Launch program. */
-   int result = launcher->launch(vm["model"].as<std::string>(), vm["codegen"].as<std::string>());
+   int result = launcher->launch(vm["model"].as<std::string>(),
+                                 vm["codegen"].as<std::string>());
    
 #ifdef BENCH
    int64_t end = std::chrono::duration_cast<std::chrono::milliseconds>(

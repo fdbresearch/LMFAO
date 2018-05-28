@@ -20,7 +20,10 @@
 #define BENCH_INDIVIDUAL
 
 #define USE_MULTIOUTPUT_OPERATOR
+
 //#define ENABLE_RESORT_RELATIONS
+
+#define COMPRESS_AGGREGATES
 
 #ifdef ENABLE_RESORT_RELATIONS
 #undef USE_MULTIOUTPUT_OPERATOR
@@ -34,8 +37,6 @@ const bool GROUP_VIEWS = true;
 #else
 const bool GROUP_VIEWS = false;
 #endif
-
-#define COMPRESS_AGGREGATES
 
 const bool PARALLELIZE_GROUPS = false;
 
@@ -179,6 +180,9 @@ void CppGenerator::genComputeGroupHeaderSource(size_t group)
 void CppGenerator::genMainFunction()
 {
     std::ofstream ofs("runtime/cpp/main.cpp",std::ofstream::out);
+
+    ofs << "#ifdef TESTING \n"+offset(1)+"#include <iomanip>\n"+
+        "#endif\n";
     
     ofs << "#include \"DataHandler.hpp\"\n";
     for (size_t group = 0; group < viewGroups.size(); ++group)
@@ -201,15 +205,16 @@ void CppGenerator::genMainFunction()
         ofs << genSortFunction(relID) << std::endl;
     
     ofs << genRunFunction() << std::endl;
-    ofs << genRunMultithreadedFunction() << "}\n\n";
+    ofs << genRunMultithreadedFunction()  << std::endl;
+    ofs << genTestFunction() << "}\n\n";
  
     ofs << "int main(int argc, char *argv[])\n{\n#ifndef MULTITHREAD\n"+
         offset(1)+"std::cout << \"run lmfao\" << std::endl;\n"+
         offset(1)+"lmfao::run();\n"+"#else\n"+
         offset(1)+"std::cout << \"run multithreaded lmfao\" << std::endl;\n"+
-        offset(1)+"lmfao::runMultithreaded();\n"+
+        offset(1)+"lmfao::runMultithreaded();\n#endif\n"+
+        "#ifdef TESTING\n"+offset(1)+"lmfao::ouputViewsForTesting();\n"+
         "#endif\n"+offset(1)+"return 0;\n};\n";
-
     ofs.close();
 }
 
@@ -223,7 +228,7 @@ void CppGenerator::genMakeFile()
         std::string groupString = std::to_string(group);
         objectList += "computegroup"+groupString+".o ";
         objectConstruct += "computegroup"+groupString+".o : ComputeGroup"+
-            groupString+".cpp\n\t$(CXX) $(MULTI) $(CXXFLAG) -xc++ -c ComputeGroup"+
+            groupString+".cpp\n\t$(CXX) $(FLAG) $(CXXFLAG) -xc++ -c ComputeGroup"+
             groupString+".cpp -o computegroup"+groupString+".o\n\n";
     }
     
@@ -237,15 +242,18 @@ void CppGenerator::genMakeFile()
         "-o lmfao\n\n";
 
     ofs << "main.o : main.cpp\n"
-        << "\t$(CXX) $(MULTI) $(CXXFLAG) -xc++ -c main.cpp -o main.o\n\n"
+        << "\t$(CXX) $(FLAG) $(CXXFLAG) -xc++ -c main.cpp -o main.o\n\n"
         << "datahandler.o : DataHandler.hpp\n"
-        << "\t$(CXX) $(MULTI) $(CXXFLAG) -xc++ -c DataHandler.hpp -o datahandler.o\n\n";
+        << "\t$(CXX) $(FLAG) $(CXXFLAG) -xc++ -c DataHandler.hpp -o datahandler.o\n\n";
 
     ofs << objectConstruct;
 
     ofs << ".PHONY : multithread\n"
-        << "multi : MULTI = -DMULTITHREAD\n"
+        << "multi : FLAG = -DMULTITHREAD\n"
         << "multi : lmfao\n\n"
+        << ".PHONY : testing\n"
+        << "test : FLAG = -DTESTING\n"
+        << "test : lmfao\n\n"
         << ".PHONY : clean\n"
         << "clean :\n"
 	<< "\trm *.o lmfao";
@@ -438,17 +446,17 @@ void CppGenerator::computeViewOrdering()
     }
 
     /**************** PRINT OUT **********************/
-    std::cout << "Ordered View List: ";
+    DINFO("Ordered View List: ");
     for (size_t& i : orderedViewList)
-        std::cout << i << ", ";
-    std::cout << std::endl;
-    std::cout << "View Groups: ";
+        DINFO(i << ", ");
+    DINFO(std::endl);
+    DINFO("View Groups: ");
     for (auto& group : viewGroups) {
         for (auto& i : group)
-            std::cout << i << "  ";
-        std::cout << "|";
+            DINFO(i << "  ");
+        DINFO("|");
     }
-    std::cout << std::endl;
+    DINFO(std::endl);
     /**************** PRINT OUT **********************/
 }
 
@@ -1152,11 +1160,47 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
         if (viewLevelRegister[viewID] == varOrder.size())
         {
             // just add string to push to view
-            outputString += offset(2)+viewName[viewID]+
-                ".push_back({});\n"+offset(2)+
-                "aggregates_"+viewName[viewID]+" = "+viewName[viewID]+
-                ".back().aggregates;\n";
+            outputString += offset(2)+viewName[viewID]+".emplace_back();\n"+
+                offset(2)+"aggregates_"+viewName[viewID]+" = "+
+                viewName[viewID]+".back().aggregates;\n";
 
+
+#ifdef COMPRESS_AGGREGATES
+            AggregateIndexes bench, aggIdx;
+            std::bitset<7> increasingIndexes;
+        
+            mapAggregateToIndexes(bench,aggregateComputation[viewID][0],
+                                  viewID,varOrder.size());
+        
+            size_t off = 0;
+            for (size_t aggID = 1; aggID < aggregateComputation[viewID].size(); ++aggID)
+            {
+                const AggregateTuple& tuple = aggregateComputation[viewID][aggID];
+
+                aggIdx.reset();
+                mapAggregateToIndexes(aggIdx,tuple,viewID,varOrder.size());
+
+                if (aggIdx.isIncrement(bench,off,increasingIndexes))
+                {
+                    ++off;
+                }
+                else
+                {
+                    // If not, output bench and all offset aggregates
+                    outputString += outputFinalRegTupleString(
+                        bench,off,increasingIndexes,2);
+                
+                    // make aggregate the bench and set offset to 0
+                    bench = aggIdx;
+                    off = 0;
+                    increasingIndexes.reset();
+                }
+            }
+
+            // If not, output bench and all offset
+            // aggregateString
+            outputString += outputFinalRegTupleString(bench,off,increasingIndexes,2);
+#else
             for (const AggregateTuple& aggTuple : aggregateComputation[viewID]) 
             {
                 outputString += offset(2)+"aggregates_"+viewName[aggTuple.viewID]+"["+
@@ -1176,10 +1220,11 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
         
                 outputString.pop_back();
                 outputString += ";\n";    
-            }
-            
+            }  
+#endif
         }        
     }
+    
     returnString += outputString;
 
     // // Add the aggregates for the case where the view has no free variables
@@ -1188,8 +1233,6 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
     //     if (viewLevelRegister[viewID] == varOrder.size())
     //         returnString += finalAggregateString[viewLevelRegister[viewID]];
     // }
-    
-// #endif
     
     if (!_parallelizeGroup[group_id])
     {
@@ -2214,7 +2257,10 @@ void CppGenerator::registerAggregatesToVariables(
             AggregateTuple aggComputation;
             aggComputation.viewID = view_id;
             aggComputation.aggID = agg_id;
-            aggComputation.local = localComputation[prodID];
+            if (viewLevelRegister[view_id] != varOrder.size()) 
+                aggComputation.local = localComputation[prodID];
+            else
+                 aggComputation.local = {varOrder.size(), 0};
             aggComputation.post = localAggReg[prodID];
             aggComputation.dependentComputation = dependentComputation[prodID];
             aggComputation.dependentProdAgg = prodAgg;
@@ -2976,7 +3022,7 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
 
 std::string CppGenerator::genDependentAggLoopString(
     const TDNode& node, const size_t currentLoop,size_t depth,
-    const dyn_bitset& contributingViews, const size_t maxDepth)
+    const dyn_bitset& contributingViews, const size_t maxDepth,std::string& resetString)
 {
     const size_t thisLoopID = currentLoop;
 
@@ -2986,8 +3032,9 @@ std::string CppGenerator::genDependentAggLoopString(
     // std::cout << "currentLoop: " << thisLoop << std::endl;
     
     size_t numOfLoops = thisLoop.count();
-    
+
     std::string returnString = "";
+
     std::string depthString = std::to_string(depth);
         
     // Print all products for this considered loop
@@ -3060,7 +3107,7 @@ std::string CppGenerator::genDependentAggLoopString(
             
             returnString.pop_back();
             returnString += ";\n";
-            
+
             // Increment the counter and update the remapping array
             depAggregateRemapping[thisLoopID][aggID] = aggregateCounter;
             ++aggregateCounter;
@@ -3077,10 +3124,11 @@ std::string CppGenerator::genDependentAggLoopString(
         {
             size_t viewID = nextDepLoop.loopVariable;
 
-            std::string closeLoopString = "";
+            std::string resetAggregates = "";
+            std::string loopString = "", closeLoopString = "";
             if (viewID < _qc->numberOfViews())
             {
-                returnString +=
+                loopString +=
                     offset(3+depth+numOfLoops)+"ptr_"+viewName[viewID]+
                     " = lowerptr_"+viewName[viewID]+"["+depthString+"];\n"+
                     offset(3+depth+numOfLoops)+"while(ptr_"+viewName[viewID]+
@@ -3097,7 +3145,7 @@ std::string CppGenerator::genDependentAggLoopString(
             }
             else 
             {
-                returnString +=
+                loopString +=
                     offset(3+depth+numOfLoops)+"ptr_"+node._name+
                     " = lowerptr_"+node._name+"["+depthString+"];\n"+
                     offset(3+depth+numOfLoops)+"while(ptr_"+node._name+
@@ -3112,11 +3160,10 @@ std::string CppGenerator::genDependentAggLoopString(
             }
 
             // std::cout<< "Call genDependentAggLoopString from 1 \n";
+            loopString += genDependentAggLoopString(
+                node, nextLoop, depth, contributingViews, maxDepth, resetAggregates);
             
-            returnString += genDependentAggLoopString(
-                node, nextLoop, depth, contributingViews, maxDepth);
-            
-            returnString += closeLoopString;
+            returnString += resetAggregates+loopString+closeLoopString;
 
             // After recurse, add the aggregates that have been added with post FLAG
             for (size_t aggID = 0; aggID <
@@ -3126,10 +3173,14 @@ std::string CppGenerator::genDependentAggLoopString(
         
                 if (regTuple.postLoopAgg)
                 {
+
+                    // TODO: TODO:  Make sure this is correct -- Can we use
+                    // equality here?
+
                     // We use a mapping to the correct index
                     returnString += offset(3+depth+numOfLoops)+
-                        "aggregateRegister["+std::to_string(aggregateCounter)+"] += ";
-
+                        "aggregateRegister["+std::to_string(aggregateCounter)+"] = ";
+                    
                     if (regTuple.previous.first < depListOfLoops.size())
                     {
                         std::string local = std::to_string(
@@ -3158,6 +3209,9 @@ std::string CppGenerator::genDependentAggLoopString(
         }
         else break;
     }
+
+
+    size_t startingOffset = aggregateCounter;
 
     for (size_t aggID = 0; aggID < newAggregateRegister[thisLoopID].size(); ++aggID)
     {
@@ -3209,6 +3263,14 @@ std::string CppGenerator::genDependentAggLoopString(
         }
     }
 
+    if (aggregateCounter > startingOffset)
+    {
+        size_t resetOffset = (numOfLoops == 0 ? 3+depth : 2+depth+numOfLoops);
+        resetString += offset(resetOffset)+"memset(&aggregateRegister["+
+            std::to_string(startingOffset)+"], 0, sizeof(double) * "+
+            std::to_string(aggregateCounter-startingOffset)+");\n";
+    }
+    
     size_t outViewID = depLoop.outView.find_first();
     while (outViewID != boost::dynamic_bitset<>::npos)
     {
@@ -3400,7 +3462,7 @@ std::string CppGenerator::genDependentAggLoopString(
 
 std::string CppGenerator::outputAggRegTupleString(
     AggregateIndexes& idx, size_t numOfAggs, const std::bitset<7>& increasing,
-    size_t stringOffset)
+    size_t stringOffset, bool postLoop)
 {  
     std::string outString = "";
     
@@ -3408,8 +3470,13 @@ std::string CppGenerator::outputAggRegTupleString(
     {
         outString += offset(stringOffset)+
             "for (size_t i = 0; i < "+std::to_string(numOfAggs+1)+";++i)\n";
-        outString += offset(stringOffset+1)+
-            "aggregateRegister["+std::to_string(idx.indexes[7])+"+i] += ";
+
+        if (postLoop)
+            outString += offset(stringOffset+1)+
+                "aggregateRegister["+std::to_string(idx.indexes[7])+"+i] = ";
+        else 
+            outString += offset(stringOffset+1)+
+                "aggregateRegister["+std::to_string(idx.indexes[7])+"+i] += ";
 
         if (idx.present[0])
         {
@@ -3471,8 +3538,12 @@ std::string CppGenerator::outputAggRegTupleString(
         for (size_t i = 0; i < numOfAggs+1; ++i)
         {
             // We use a mapping to the correct index
-            outString += offset(stringOffset)+
-                "aggregateRegister["+std::to_string(idx.indexes[7]+i)+"] += ";
+            if (postLoop)
+                outString += offset(stringOffset)+
+                    "aggregateRegister["+std::to_string(idx.indexes[7]+i)+"] = ";
+            else
+                outString += offset(stringOffset)+
+                    "aggregateRegister["+std::to_string(idx.indexes[7]+i)+"] += ";
 
             if (idx.present[0])
             {
@@ -3723,7 +3794,8 @@ std::string CppGenerator::outputFinalRegTupleString(
 
 std::string CppGenerator::genAggLoopStringCompressed(
     const TDNode& node, const size_t currentLoop,size_t depth,
-    const dyn_bitset& contributingViews,const size_t numOfOutViewLoops)
+    const dyn_bitset& contributingViews,const size_t numOfOutViewLoops,
+    std::string& resetString)
 {
     const size_t thisLoopID = currentLoop;
     const dyn_bitset& thisLoop = listOfLoops[thisLoopID];
@@ -3844,10 +3916,10 @@ std::string CppGenerator::genAggLoopStringCompressed(
         {
             size_t viewID = viewsPerLoop[nextLoop].find_first();
 
-            std::string closeLoopString = "";
+            std::string loopString = "", closeLoopString = "";
             if (viewID < _qc->numberOfViews())
             {
-                returnString +=
+                loopString +=
                     offset(3+depth+numOfLoops)+"ptr_"+viewName[viewID]+
                     " = lowerptr_"+viewName[viewID]+"["+depthString+"];\n"+
                     offset(3+depth+numOfLoops)+"while(ptr_"+viewName[viewID]+
@@ -3864,7 +3936,7 @@ std::string CppGenerator::genAggLoopStringCompressed(
             }
             else 
             {
-                returnString +=
+                loopString +=
                     offset(3+depth+numOfLoops)+"ptr_"+node._name+
                     " = lowerptr_"+node._name+"["+depthString+"];\n"+
                     offset(3+depth+numOfLoops)+"while(ptr_"+node._name+
@@ -3878,17 +3950,19 @@ std::string CppGenerator::genAggLoopStringCompressed(
                     offset(3+depth+numOfLoops)+"}\n"+closeLoopString;
             }
 
-            returnString += genAggLoopStringCompressed(
-                node, nextLoop, depth, contributingViews, 0);
-            
-            returnString += closeLoopString;
+            std::string resetAggregates = "";
+
+            loopString += genAggLoopStringCompressed(
+                node, nextLoop, depth, contributingViews, 0, resetAggregates);
+
+            returnString += resetAggregates + loopString + closeLoopString;
 
 #ifdef COMPRESS_AGGREGATES
 
             // After recurse, add the aggregates that have been added with post FLAG
             AggregateIndexes bench, aggIdx;
             std::bitset<7> increasingIndexes;
-            size_t aggID = 0, offset = 0;
+            size_t aggID = 0, off = 0;
 
             bool addedAggregates = false;
 
@@ -3924,19 +3998,19 @@ std::string CppGenerator::genAggLoopStringCompressed(
                     
                     mapAggregateToIndexes(aggIdx,regTuple,depth,nextLoop);
 
-                    if (aggIdx.isIncrement(bench,offset,increasingIndexes))
+                    if (aggIdx.isIncrement(bench,off,increasingIndexes))
                     {
-                        ++offset;
+                        ++off;
                     }
                     else
                     {
                         // If not, output bench and all offset aggregates
                         returnString += outputAggRegTupleString(
-                            bench,offset,increasingIndexes, 3+depth+numOfLoops);
+                            bench,off,increasingIndexes, 3+depth+numOfLoops,true);
                         
                         // make aggregate the bench and set offset to 0
                         bench = aggIdx;
-                        offset = 0;
+                        off = 0;
                     }
 
                     // Increment the counter and update the remapping array
@@ -3948,7 +4022,7 @@ std::string CppGenerator::genAggLoopStringCompressed(
             // Output bench -- and any further aggregates (if there were any)
             if (addedAggregates)
                 returnString += outputAggRegTupleString(
-                    bench,offset,increasingIndexes,3+depth+numOfLoops);
+                    bench,off,increasingIndexes,3+depth+numOfLoops,true);
 #else
             // here we output the aggregates uncompressed -TODO: we could probably
             // remove this and incorporate it in the previous part
@@ -3963,7 +4037,7 @@ std::string CppGenerator::genAggLoopStringCompressed(
                 {
                     // We use a mapping to the correct index
                     returnString += offset(3+depth+numOfLoops)+
-                        "aggregateRegister["+std::to_string(aggregateCounter)+"] += ";
+                        "aggregateRegister["+std::to_string(aggregateCounter)+"] = ";
 
                     if (regTuple.previous.first < listOfLoops.size())
                     {
@@ -3994,14 +4068,15 @@ std::string CppGenerator::genAggLoopStringCompressed(
         }
         else break;
     }
-
-
+    
+    size_t startingOffset = aggregateCounter;
+    
 #ifdef COMPRESS_AGGREGATES
     
     // After recurse, add the aggregates that have been added with post FLAG
     AggregateIndexes bench, aggIdx;
     std::bitset<7> increasingIndexes;
-    size_t aggID = 0, offset = 0;
+    size_t aggID = 0, off = 0;
     
     bool addedAggregates = false;
 
@@ -4040,19 +4115,19 @@ std::string CppGenerator::genAggLoopStringCompressed(
             mapAggregateToIndexes
                 (aggIdx,newAggregateRegister[thisLoopID][aggID],depth,thisLoopID);
 
-            if (aggIdx.isIncrement(bench,offset,increasingIndexes))
+            if (aggIdx.isIncrement(bench,off,increasingIndexes))
             {
-                ++offset;
+                ++off;
             }
             else
             {
                 // If not, output bench and all offset aggregates
-                returnString += outputAggRegTupleString(bench,offset,increasingIndexes,
-                    3+depth+numOfLoops);
+                returnString += outputAggRegTupleString(bench,off,increasingIndexes,
+                                                        3+depth+numOfLoops,false);
                 
                 // make aggregate the bench and set offset to 0
                 bench = aggIdx;
-                offset = 0;
+                off = 0;
             }
 
             // Increment the counter and update the remapping array
@@ -4064,7 +4139,7 @@ std::string CppGenerator::genAggLoopStringCompressed(
     // Output bench -- and any further aggregates (if there were any)
     if (addedAggregates)
         returnString += outputAggRegTupleString(
-            bench,offset,increasingIndexes,3+depth+numOfLoops);
+            bench,off,increasingIndexes,3+depth+numOfLoops,false);
 
 #else
     
@@ -4128,6 +4203,14 @@ std::string CppGenerator::genAggLoopStringCompressed(
         }
     }
 #endif
+
+    if (aggregateCounter > startingOffset)
+    {
+        size_t resetOffset = (numOfLoops == 0 ? 3+depth : 2+depth+numOfLoops);
+        resetString += offset(resetOffset)+"memset(&aggregateRegister["+
+            std::to_string(startingOffset)+"], 0, sizeof(double) * "+
+            std::to_string(aggregateCounter-startingOffset)+");\n";
+    }
     
     return returnString;
 }
@@ -4143,8 +4226,11 @@ void CppGenerator::mapAggregateToIndexes(
     if (aggregate.previous.first < listOfLoops.size())
     {
         // TODO: IS THIS REALLY ALWAYS DEPTH - 1 ?!?!?
-        size_t prev = newAggregateRemapping[depth-1][aggregate.previous.first]
+        size_t prev = newAggregateRemapping[aggregate.prevDepth]
+            [aggregate.previous.first]
             [aggregate.previous.second];
+        // size_t prev = newAggregateRemapping[depth-1][aggregate.previous.first]
+        //     [aggregate.previous.second];
 
         index.present.set(0);
         index.indexes[0] = prev;
@@ -5034,7 +5120,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
             std::to_string(aggregateCounter)+"], 0, sizeof(double) * "+
             std::to_string(numAggsRegistered)+");\n";
     }
-    
+   
     // We add the definition of the Tuple references and aggregate pointers
     // TODO: This could probably be simplified
     returnString += offset(3+depth)+relName +"_tuple &"+node._name+"Tuple = "+
@@ -5058,18 +5144,19 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
 
     size_t loopID = 0;
     dyn_bitset contributingViews(_qc->numberOfViews()+1);
-    returnString += genAggLoopStringCompressed(node,loopID,depth,contributingViews,0);
+
+    std::string resetString = "", loopString = "";
+    loopString += genAggLoopStringCompressed(
+        node,loopID,depth,contributingViews,0,resetString);
     // returnString += genAggLoopString(node,loopID,depth,contributingViews,0);
+
+    returnString += resetString + loopString;
     
     // then you would need to go to next variable
     if (depth+1 < varOrder.size())
     {
         // leapfrogJoin for next join variable 
         returnString += genGroupLeapfrogJoinCode(group_id, node, depth+1);
-
-        // The computation below is only done if we have satisfying join values 
-        returnString += offset(3+depth)+"if (addTuple["+depthString+"]) \n"+
-            offset(3+depth)+"{\n";
     }
     else
     {
@@ -5079,6 +5166,8 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
 
     size_t postOff = (depth+1 < varOrder.size() ? 4+depth : 3+depth);
 
+    std::string postComputationString = "";
+    
     // for (const PostAggRegTuple& tuple : postRegisterList[depth])
     // {
     //     const ProductAggregate& prodAgg =
@@ -5139,7 +5228,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
             else
             {
                 // If not, output bench and all offset aggregates
-                returnString += outputPostRegTupleString(
+                postComputationString += outputPostRegTupleString(
                     bench,offset,increasingIndexes, postOff);
                         
                 // make aggregate the bench and set offset to 0
@@ -5152,7 +5241,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
         }
 
         // If not, output bench and all offset aggregates
-        returnString += outputPostRegTupleString(
+        postComputationString += outputPostRegTupleString(
             bench,offset,increasingIndexes, postOff);
     }
     
@@ -5173,21 +5262,32 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
         depNumAggsRegistered += newAggregateRegister[loop].size();
     }
     
-    if (depNumAggsRegistered > 0)
-    {
-        returnString += offset(3 + depth)+"memset(&aggregateRegister["+
-            std::to_string(aggregateCounter)+"], 0, sizeof(double) * "+
-            std::to_string(depNumAggsRegistered)+");\n";
-    }
+    // if (depNumAggsRegistered > 0)
+    // {
+    //     returnString += offset(3 + depth)+"memset(&aggregateRegister["+
+    //         std::to_string(aggregateCounter)+"], 0, sizeof(double) * "+
+    //         std::to_string(depNumAggsRegistered)+");\n";
+    // }
+    resetString = "";
+    loopString = "";
 
     size_t depLoopID = 0;
     dyn_bitset depContributingViews(_qc->numberOfViews()+1);
-    returnString += genDependentAggLoopString(
-        node,depLoopID,depth,depContributingViews,varOrder.size());
+    loopString += genDependentAggLoopString(
+        node,depLoopID,depth,depContributingViews,varOrder.size(),resetString);
+    
+    postComputationString += resetString+loopString;
 
-    if (depth+1 < varOrder.size())
+    if (depth+1 < varOrder.size() && !postComputationString.empty())
+        // The computation below is only done if we have satisfying join values 
+        returnString += offset(3+depth)+"if (addTuple["+depthString+"]) \n"+
+            offset(3+depth)+"{\n";
+
+    returnString += postComputationString;
+
+    if (depth+1 < varOrder.size() && !postComputationString.empty())
         returnString += offset(3+depth)+"}\n";
-
+    
 #endif
     
 #ifdef PREVIOUS 
@@ -6048,7 +6148,7 @@ std::string CppGenerator::getFunctionString(Function* f, std::string& fvars)
     case Operation::lr_cont_parameter :
         return "(0.15*"+fvars+")";
     case Operation::lr_cat_parameter :
-        return "(0.15*"+fvars+")"; // "_param["+fvars+"]"; // // TODO: THIS NEEDS TO BE A
+        return "(0.15)"; // "_param["+fvars+"]"; // // TODO: THIS NEEDS TO BE A
                           // CATEGORICAL PARAMETER - Index?!
     default : return "f("+fvars+")";
     }
@@ -6130,8 +6230,9 @@ std::string CppGenerator::genRunFunction()
 }
 
 std::string CppGenerator::genRunMultithreadedFunction()
-{    
-    std::string returnString = offset(1)+"void runMultithreaded()\n"+
+{
+    std::string returnString = "#ifdef MULTITHREAD\n"+
+        offset(1)+"void runMultithreaded()\n"+
         offset(1)+"{\n";
 
     returnString += offset(2)+
@@ -6256,7 +6357,7 @@ std::string CppGenerator::genRunMultithreadedFunction()
             viewName[view]+".size() << std::endl;\n";
     }
     
-    return returnString+offset(1)+"}\n";
+    return returnString+offset(1)+"}\n#endif\n";
 }
 
 
@@ -6313,6 +6414,45 @@ std::string CppGenerator::genFindUpperBound(const std::string& rel_name,
 
     return returnString;
 }
+
+std::string CppGenerator::genTestFunction()
+{
+    std::string returnString = "#ifdef TESTING\n"+
+        offset(1)+"void ouputViewsForTesting()\n"+
+        offset(1)+"{\n"+offset(2)+"std::ofstream ofs(\"test.out\");\n"+
+        offset(2)+"ofs << std::fixed << std::setprecision(2);\n";
+    
+    for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
+    {
+        View* view = _qc->getView(viewID);
+
+        std::string fields = "";
+        for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+        {
+            if (view->_fVars[var])
+            {
+                Attribute* attr = _td->getAttribute(var);
+                fields += " << tuple."+attr->_name+" <<\"|\"";
+            }
+        }
+
+        for (size_t agg = 0; agg < view->_aggregates.size(); ++agg)
+            fields += " << tuple.aggregates["+std::to_string(agg)+"] << \"|\"";
+
+        fields.pop_back();
+        fields.pop_back();
+        fields.pop_back();
+        
+        returnString += offset(2)+"for (size_t i=0; i < "+viewName[viewID]+
+            ".size(); ++i)\n"+offset(2)+"{\n"+offset(3)+
+            viewName[viewID]+"_tuple& tuple = "+viewName[viewID]+"[i];\n"+
+            offset(3)+"ofs "+fields+"\"\\n\";\n"+offset(2)+"}\n";
+    }
+
+    returnString += offset(2)+"ofs.close();\n"+offset(1)+"}\n"+"#endif\n";
+    return returnString;
+}
+
 
 
 #ifdef OLD

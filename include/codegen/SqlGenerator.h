@@ -28,6 +28,12 @@ public:
 
     void generateCode();
 
+    size_t numberOfGroups()
+    {
+        return 0;
+    }
+    
+
 private:
 
     std::string _pathToData;
@@ -42,9 +48,15 @@ private:
     
     void generateLoadQuery();
 
+    void generateJoinQuery();
+
     void generateLmfaoQuery();
 
-    void generateNaiveQueries();
+    void generateOutputQueries();
+
+    // void generateNaiveQueries();
+
+    void generateAggregateQueries();
     
     inline std::string getFunctionString(size_t fid);
 

@@ -9,6 +9,7 @@
 
 #include <fstream>
 #include <string>
+#include <unordered_map>
 
 #include <LinearRegression.h>
 #include <SqlGenerator.h>
@@ -39,17 +40,17 @@ void SqlGenerator::generateCode()
     DINFO("Starting SQL - Generator \n");
 
     generateLoadQuery();
+    generateJoinQuery();
     generateLmfaoQuery();
-    generateNaiveQueries();
+    generateAggregateQueries();
+    generateOutputQueries();
 }
 
 
 void SqlGenerator::generateLmfaoQuery()
 {
-#ifdef PREVIOUS
     string returnString = "";
     
-    int viewIdx = 0;
     for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
     {
         View* v = _qc->getView(viewID);
@@ -65,118 +66,83 @@ void SqlGenerator::generateLmfaoQuery()
         for (size_t i = 0; i < NUM_OF_VARIABLES; ++i)
             if (v->_fVars.test(i))
                 fvars +=  _td->getAttribute(i)->_name + ",";
-        if (!fvars.empty())
-            fvars.pop_back();
-
+       
         string aggregateString = "";
         for (size_t aggNo = 0; aggNo < v->_aggregates.size(); ++aggNo)
         {
             Aggregate* aggregate = v->_aggregates[aggNo];
 
             string agg = "";
-            size_t aggIdx = 0, incomingCounter = 0;
-            for (size_t i = 0; i < aggregate->_n; ++i)
+            size_t incomingCounter = 0;
+            for (size_t i = 0; i < aggregate->_agg.size(); ++i)
             {
                 string localAgg = "";
-                while (aggIdx < aggregate->_m[i])
-                {
-                    const prod_bitset& product = aggregate->_agg[aggIdx];
-                    for (size_t f = 0; f < NUM_OF_FUNCTIONS; ++f)
-                    {  
-                        if (product.test(f))
-                            localAgg += getFunctionString(f)+"*";
-                    }
-                    if (!localAgg.empty())
-                        localAgg.pop_back();
-                    localAgg += "+";
-                    ++aggIdx;
+                const prod_bitset& product = aggregate->_agg[i];
+                for (size_t f = 0; f < NUM_OF_FUNCTIONS; ++f)
+                {  
+                    if (product.test(f))
+                        localAgg += getFunctionString(f)+"*";
                 }
-                if (!localAgg.empty())
-                    localAgg.pop_back();
 
+                agg += localAgg;
+                
                 string viewAgg = "";
-                while(incomingCounter < aggregate->_o[i])
+                for (int n = 0; n < numberIncomingViews; ++n)
                 {
-                    for (int n = 0; n < numberIncomingViews; ++n)
-                    {
-                        size_t viewID = aggregate->_incoming[incomingCounter];
-                        size_t aggID = aggregate->_incoming[incomingCounter+1]; 
+                    std::pair<size_t,size_t> viewAggID =
+                        aggregate->_incoming[incomingCounter];
                     
-                        viewAgg += "agg_"+to_string(viewID)+"_"+to_string(aggID)+"*";
-                        viewBitset[viewID] = 1;                    
-                        incomingCounter += 2;
-                    }
-                    
-                    if (!viewAgg.empty())
-                        viewAgg.pop_back();
-                    viewAgg += "+";
+                    viewAgg += "agg_"+to_string(viewAggID.first)+"_"+
+                        to_string(viewAggID.second)+"*";
+                    viewBitset[viewAggID.first] = 1;
+                    ++incomingCounter;
                 }
 
-                if (!viewAgg.empty())
-                {          
-                    viewAgg.pop_back();
-           
-                    if (localAgg.size() > 0)
-                        agg += "("+localAgg+")*("+viewAgg+")+";
-                    else
-                        agg += viewAgg+"+";
-                }
-                else   
-                    agg += localAgg+"+";
+                agg += viewAgg;
 
-
-                // auto it = aggregateSection.find(viewBitset);
-                // if (it != aggregateSection.end())
-                //     it->second += aggregateString;
-                // else
-                //     aggregateSection[viewBitset] = aggregateString;
+                if (!agg.empty())
+                {
+                    agg.pop_back();
+                    agg += "+";
+                }              
             }
-            
-            agg.pop_back();
+
             if (agg.empty())
                 agg = "1";
+            else
+                agg.pop_back();
 
-            aggregateString += "\nSUM("+agg+") AS agg_"+to_string(viewIdx)+
+            aggregateString += "\nSUM("+agg+") AS agg_"+to_string(viewID)+
                 "_"+to_string(aggNo)+",";
         }
 
         aggregateString.pop_back();
 
+        
+        returnString += "CREATE TABLE view_"+to_string(viewID)+" AS\nSELECT "+fvars+
+            aggregateString+"\nFROM "+_td->getRelation(v->_origin)->_name+" ";
+        for (size_t id = 0; id < _qc->numberOfViews(); ++id)
+            if (viewBitset[id])
+                returnString += "NATURAL JOIN view_"+to_string(id)+" ";
+
         if (!fvars.empty())
         {
-            returnString += "CREATE VIEW view_"+to_string(viewIdx)+" AS\nSELECT "+fvars+
-                ","+aggregateString+"\nFROM "+_td->getRelation(v->_origin)->_name+" ";
-            for (size_t id = 0; id < _qc->numberOfViews(); ++id)
-                if (viewBitset[id])
-                    returnString += "NATURAL JOIN view_"+to_string(id)+" ";
-            returnString += "\nGROUP BY "+fvars+";\n\n";
+            fvars.pop_back();
+            returnString += "\nGROUP BY "+fvars;
         }
-        else
-        {
-            returnString += "CREATE VIEW view_"+to_string(viewIdx)+" AS\nSELECT "+
-                aggregateString+"\nFROM "+_td->getRelation(v->_origin)->_name.c_str();
-            for (size_t id = 0; id < _qc->numberOfViews(); ++id)
-                if (viewBitset[id])
-                    returnString += "NATURAL JOIN view_"+to_string(id)+" ";  
-            returnString += ";\n\n";
-        }
-        ++viewIdx;
+        
+        returnString += ";\n\n";
     }
 
     std::ofstream ofs("runtime/sql/lmfao.sql", std::ofstream::out);
     ofs << returnString;
     ofs.close();
-
-    DINFO(returnString);   
-#endif
+    // DINFO(returnString);   
 }
 
-
-void SqlGenerator::generateNaiveQueries()
+void SqlGenerator::generateJoinQuery()
 {
-#ifdef PREVIOUS
-    string joinString = "", aggregateString = "", fVarString = "",
-        attributeString  = "";
+    string joinString = "", attributeString  = "";
     
     for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
     {    
@@ -189,12 +155,125 @@ void SqlGenerator::generateNaiveQueries()
         attributeString += _td->getAttribute(var)->_name + ",";
     attributeString.pop_back();
 
-    std::ofstream ofs("runtime/sql/flat_join.sql", std::ofstream::out);
+    std::ofstream ofs("runtime/sql/join.sql", std::ofstream::out);
     ofs << "SELECT "+attributeString+"\nFROM "+joinString+";\n";
     ofs.close();
-    //  DINFO("SELECT "+attributeString+"\nFROM "+joinString+";\n\n");
+}
+
+// void SqlGenerator::generateNaiveQueries()
+// {
+// #ifdef PREVIOUS
+//     string joinString = "", aggregateString = "", fVarString = "",
+//         attributeString  = "";
+//     for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
+//     {    
+//         joinString += _td->getRelation(rel)->_name;
+//         if (rel + 1 < _td->numberOfRelations())
+//             joinString += " NATURAL JOIN ";
+//     }
+//     for (size_t var = 0; var < _td->numberOfAttributes(); ++var)
+//         attributeString += _td->getAttribute(var)->_name + ",";
+//     attributeString.pop_back();
+//     std::ofstream ofs("runtime/sql/flat_join.sql", std::ofstream::out);
+//     ofs << "SELECT "+attributeString+"\nFROM "+joinString+";\n";
+//     ofs.close();
+//     //  DINFO("SELECT "+attributeString+"\nFROM "+joinString+";\n\n");
+//     if (_model == LinearRegressionModel)
+//     {
+//         // Add parameters to the join string !
+//         var_bitset features = _app->getFeatures();
+//         const var_bitset categoricalFeatures =
+//             static_pointer_cast<LinearRegression>(_app)->
+//             getCategoricalFeatures();
+//         std::string catParams = "", contParams = "";
+//         for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+//         {
+//             if (features[var])
+//             {
+//                 Attribute* attr = _td->getAttribute(var);
+//                 if (categoricalFeatures[var])
+//                     catParams += " NATURAL JOIN "+attr->_name+"_param";
+//                 else
+//                     contParams += ","+attr->_name+"_param";
+//             }
+//         }
+//         joinString += catParams + contParams;
+//     }
+//     ofs.open("runtime/sql/aggjoin_naive.sql", std::ofstream::out);
+//     for (size_t queryID = 0; queryID < _qc->numberOfQueries(); ++queryID)
+//     {
+//         Query* query = _qc->getQuery(queryID);
+//         aggregateString = "", fVarString = "";
+//         for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+//         {
+//             if (query->_fVars[var])
+//                 fVarString += _td->getAttribute(var)->_name + ",";
+//         }
+//         std::string aggregateString = "";
+//         for (size_t agg = 0; agg < query->_aggregates.size(); ++agg)
+//         {
+//             Aggregate* aggregate = query->_aggregates[agg];
+//             size_t aggIdx = 0;
+//             for (size_t i = 0; i < aggregate->_n; i++)
+//             {
+//                 while (aggIdx < aggregate->_m[i])
+//                 {
+//                     const prod_bitset prod = aggregate->_agg[aggIdx];
+//                     for (size_t f = 0; f < NUM_OF_FUNCTIONS; f++)
+//                     {
+//                         if (prod.test(f))
+//                         {
+//                             aggregateString += getFunctionString(f)+"*";
+//                         }
+//                     }
+//                     aggregateString.pop_back();
+//                     aggregateString += "+";
+//                     ++aggIdx;
+//                 }
+//             }
+//             aggregateString.pop_back();
+//             aggregateString += ",";
+//         }
+//         aggregateString.pop_back();
+//         if (aggregateString.empty())
+//             aggregateString = "1";
+        
+//         ofs << "SELECT "+fVarString+"SUM("+aggregateString+")\nFROM "+joinString;
+//         if (!fVarString.empty())
+//         {
+//             fVarString.pop_back();
+//             ofs << "\nGROUP BY "+fVarString;
+//         }
+//         ofs << ";\n";
+        
+//         //   DINFO("SELECT "+fVarString+aggregateString+"\nFROM "+joinString+";\n");
+//     }
+//     ofs.close();
+// #endif
+// }
+
+
+
+void SqlGenerator::generateAggregateQueries()
+{
+    string joinString = "", attributeString  = "";
     
-    if (_model == LinearRegressionModel)
+    for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
+    {    
+        joinString += _td->getRelation(rel)->_name;
+        if (rel + 1 < _td->numberOfRelations())
+            joinString += " NATURAL JOIN ";
+    }
+    
+    // for (size_t var = 0; var < _td->numberOfAttributes(); ++var)
+    //     attributeString += _td->getAttribute(var)->_name + ",";
+    // attributeString.pop_back();
+    
+    //********** TODO: TODO: ********** 
+    // technically we need to join in the parameters
+    // for now we just fix the params
+    //********** TODO: TODO: ********** 
+    if (false && _model == LinearRegressionModel)
     {
         // Add parameters to the join string !
         var_bitset features = _app->getFeatures();
@@ -220,69 +299,77 @@ void SqlGenerator::generateNaiveQueries()
         joinString += catParams + contParams;
     }
 
-    ofs.open("runtime/sql/aggjoin_naive.sql", std::ofstream::out);
-    
+    unordered_map<var_bitset,string> fVarAggregateMap;
     for (size_t queryID = 0; queryID < _qc->numberOfQueries(); ++queryID)
     {
         Query* query = _qc->getQuery(queryID);
-        aggregateString = "", fVarString = "";
-
-        for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
-        {
-            if (query->_fVars[var])
-                fVarString += _td->getAttribute(var)->_name + ",";
-        }
-
+        
         std::string aggregateString = "";
         for (size_t agg = 0; agg < query->_aggregates.size(); ++agg)
         {
             Aggregate* aggregate = query->_aggregates[agg];
             
             size_t aggIdx = 0;
-            for (size_t i = 0; i < aggregate->_n; i++)
+
+            string sumString = "";
+            for (size_t i = 0; i < aggregate->_agg.size(); i++)
             {
-                while (aggIdx < aggregate->_m[i])
+                const prod_bitset prod = aggregate->_agg[aggIdx];
+
+                string prodString = "";
+                for (size_t f = 0; f < NUM_OF_FUNCTIONS; f++)
                 {
-                    const prod_bitset prod = aggregate->_agg[aggIdx];
-                    
-                    for (size_t f = 0; f < NUM_OF_FUNCTIONS; f++)
+                    if (prod.test(f))
                     {
-                        if (prod.test(f))
-                        {
-                            aggregateString += getFunctionString(f)+"*";
-                        }
+                        prodString += getFunctionString(f)+"*";
                     }
-
-                    aggregateString.pop_back();
-                    aggregateString += "+";
-                    ++aggIdx;
                 }
-            }
-            aggregateString.pop_back();
-            aggregateString += ",";
-        }
-        aggregateString.pop_back();
 
-        if (aggregateString.empty())
-            aggregateString = "1";
+                if (!prodString.empty())
+                    prodString.pop_back();
+                else
+                    prodString += "1";
+                
+                sumString += prodString+"+";
+                ++aggIdx;
+            }
+            sumString.pop_back();
+            aggregateString += "SUM("+sumString+"),";
+        }
+
+        auto it_pair = fVarAggregateMap.insert({query->_fVars,""});
+        it_pair.first->second += aggregateString;        
+    }
+
+    ofstream ofs("runtime/sql/aggregates.sql", std::ofstream::out);
+
+    for (auto& fvarAggPair : fVarAggregateMap)
+    {
+        string fVarString = "";
         
-        ofs << "SELECT "+fVarString+"SUM("+aggregateString+")\nFROM "+joinString;
+        for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+        {
+            if (fvarAggPair.first[var])
+                fVarString += _td->getAttribute(var)->_name + ",";
+        }
+
+        fvarAggPair.second.pop_back();
+        
+        ofs << "SELECT "+fVarString+fvarAggPair.second+"\nFROM "+joinString;
         if (!fVarString.empty())
         {
             fVarString.pop_back();
             ofs << "\nGROUP BY "+fVarString;
         }
-        ofs << ";\n";
-        
-        //   DINFO("SELECT "+fVarString+aggregateString+"\nFROM "+joinString+";\n");
+        ofs << ";\n\n";
     }
+
     ofs.close();
-#endif
 }
+
 
 void SqlGenerator::generateLoadQuery()
 {
-#ifdef PREVIOUS
     string load = "", drop = "";
     
     for (size_t relID = 0; relID < _td->numberOfRelations(); ++relID)
@@ -304,7 +391,7 @@ void SqlGenerator::generateLoadQuery()
         load.pop_back();
         load += ");\n";
 
-        load += "\\COPY "+relName+" FROM '"+_pathToData+"/"+relName+".tbl\' "+
+        load += "\\COPY "+relName+" FROM \'../../"+_pathToData+"/"+relName+".tbl\' "+
                 "DELIMITER \'|\' CSV;\n";
     }
 
@@ -314,14 +401,51 @@ void SqlGenerator::generateLoadQuery()
     // DINFO(drop + load);
     
     for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
-        drop +=  "DROP VIEW IF EXISTS V"+std::to_string(viewID)+";\n";
+        drop +=  "DROP TABLE IF EXISTS view_"+std::to_string(viewID)+";\n";
     
     ofs.open("runtime/sql/drop_data.sql", std::ofstream::out);
     ofs << drop;
     ofs.close();
     // DINFO(drop);
-#endif
+// #endif
 }
+
+
+void SqlGenerator::generateOutputQueries()
+{
+    ofstream ofs("runtime/sql/output.sql");
+    
+    for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
+    {
+        View* view = _qc->getView(viewID);
+        std::string fields = "";
+        for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+        {
+            if (view->_fVars[var])
+            {
+                Attribute* attr = _td->getAttribute(var);
+                fields += attr->_name+",";
+            }
+        }
+        std::string orderby = "";
+        if (!fields.empty())
+        {
+            orderby += " ORDER BY "+fields;
+            orderby.pop_back();
+        }
+
+        for (size_t agg = 0; agg < view->_aggregates.size(); ++agg)
+            fields += "CAST(agg_"+std::to_string(viewID)+"_"+std::to_string(agg)+
+                " AS decimal(53,2)),";
+
+        fields.pop_back();
+        
+        ofs << "\\COPY (SELECT "+fields+" FROM view_"+to_string(viewID)+orderby+
+            ") TO PROGRAM \'cat - >> test.out\' CSV DELIMITER \'|\';\n\n";
+    }
+    ofs.close();
+}
+
 
 inline string SqlGenerator::typeToStr(Type type)
 {
@@ -372,13 +496,19 @@ inline string SqlGenerator::getFunctionString(size_t fid)
         return "f_"+to_string(fid);
     case Operation::exponential :
         return "f_"+to_string(fid);
+    // case Operation::lr_cont_parameter :
+    //     return "("+fvars+"_param*"+fvars+")";
+    // case Operation::lr_cat_parameter :
+    //     return "("+fvars+"_param)";
     case Operation::lr_cont_parameter :
-        return "("+fvars+"_param*"+fvars+")";
+        return "(0.15*"+fvars+")";
     case Operation::lr_cat_parameter :
-        return "("+fvars+"_param)";
+        return "(0.15)";
     default : return "f_"+to_string(fid);
     }
 
-    return " ";        
-};
+    return " ";
+}
+
+
 

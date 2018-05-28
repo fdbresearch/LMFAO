@@ -27,6 +27,8 @@ public:
      * Runs the data processing task.
      */
     virtual void generateCode() = 0;
+
+    virtual size_t numberOfGroups() = 0;
     
 };
 

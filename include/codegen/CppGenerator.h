@@ -11,6 +11,7 @@
 #define INCLUDE_CODEGEN_CPPGENERATOR_H_
 
 #include <boost/dynamic_bitset.hpp>
+#include <cstring>
 
 #include <CodeGenerator.hpp>
 #include <Launcher.h>
@@ -324,6 +325,11 @@ public:
     ~CppGenerator();
 
     void generateCode();
+
+    size_t numberOfGroups()
+    {
+        return viewGroups.size();
+    };
     
 private:
     std::string _pathToData;
@@ -483,7 +489,7 @@ private:
     void genComputeGroupHeaderSource(size_t group);
     void genMakeFile();
     void genMainFunction();
-
+    
     prod_bitset computeLoopMasks(
         prod_bitset presentFunctions, boost::dynamic_bitset<> consideredLoops,
         const var_bitset& varOrderBitset, const var_bitset& relationBag,
@@ -558,6 +564,9 @@ private:
     
     std::string genRunMultithreadedFunction();
 
+    std::string genTestFunction();
+    
+
     bool resortRelation(const size_t& rel, const size_t& view);
 
     bool resortView(const size_t& incView, const size_t& view);
@@ -613,7 +622,8 @@ private:
 
     std::string genDependentAggLoopString(
         const TDNode& node, const size_t currentLoop, size_t depth,
-        const boost::dynamic_bitset<>& contributingViews, const size_t maxDepth);
+        const boost::dynamic_bitset<>& contributingViews, const size_t maxDepth,
+        std::string& resetString);
 
     
     void mapAggregateToIndexes(AggregateIndexes& index, const AggRegTuple& aggregate,
@@ -627,7 +637,7 @@ private:
     
     std::string outputAggRegTupleString(
         AggregateIndexes& first, size_t offset,const std::bitset<7>& increasing,
-        size_t stringOffset);
+        size_t stringOffset, bool postLoop);
 
     std::string outputPostRegTupleString(
         AggregateIndexes& first, size_t offset,const std::bitset<7>& increasing,
@@ -646,7 +656,7 @@ private:
     std::string genAggLoopStringCompressed(
         const TDNode& node, const size_t loop, size_t depth,
         const boost::dynamic_bitset<>& contributingViews,
-        const size_t numOfOutViewLoops);
+        const size_t numOfOutViewLoops, std::string& resetString);
 
 #ifdef OLD
     // TODO: RENAME 

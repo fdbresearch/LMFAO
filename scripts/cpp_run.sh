@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd runtime/inmemory/
+cd runtime/cpp/
 
 version=$1
 

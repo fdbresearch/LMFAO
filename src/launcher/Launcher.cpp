@@ -54,16 +54,17 @@ Model Launcher::getModel()
 
 int Launcher::launch(const string& model, const string& codeGenerator)
 {
-#ifdef BENCH
-    int64_t start = duration_cast<milliseconds>(
-        system_clock::now().time_since_epoch()).count();
-#endif
     
     /* Build tree decompostion. */
     _treeDecomposition.reset(new TreeDecomposition(_pathToFiles + TREEDECOMP_CONF));
 
     DINFO("Built the TD. \n");
-    
+
+#ifdef BENCH
+    int64_t start = duration_cast<milliseconds>(
+        system_clock::now().time_since_epoch()).count();
+#endif
+
     _compiler.reset(new QueryCompiler(_treeDecomposition));
 
     if (model.compare("reg") == 0)
@@ -97,12 +98,7 @@ int Launcher::launch(const string& model, const string& codeGenerator)
     }
     _application->run();
     
-#ifdef BENCH
-    int64_t startLoading = duration_cast<milliseconds>(
-        system_clock::now().time_since_epoch()).count();
-#endif
-    
-    if (codeGenerator.compare("mem") == 0)
+    if (codeGenerator.compare("cpp") == 0)
         _codeGenerator.reset(
             new CppGenerator(_pathToFiles, shared_from_this()));
     else if (codeGenerator.compare("sql") == 0)
@@ -117,32 +113,28 @@ int Launcher::launch(const string& model, const string& codeGenerator)
     _codeGenerator->generateCode();
     
 #ifdef BENCH
-    int64_t endLoading = duration_cast<milliseconds>(
-        system_clock::now().time_since_epoch()).count() - startLoading;
+    int64_t processingTime = duration_cast<milliseconds>(
+        system_clock::now().time_since_epoch()).count() - start;
+
+    size_t numOfViews = _compiler->numberOfViews();    
+    size_t numOfQueries = _compiler->numberOfQueries();
+
+    size_t numOfGroups = _codeGenerator->numberOfGroups();
     
     /* Write loading times times to times file */
-    ofstream ofs("times.txt", std::ofstream::out | std::ofstream::app);
+    ofstream ofs("compiler-data.out", std::ofstream::out);// | std::ofstream::app);
     
     if (ofs.is_open())
-        ofs << "loading: \t"+to_string(endLoading) + "\n";
+        ofs << numOfQueries <<"\t"<< numOfViews <<"\t"<< numOfGroups <<"\t"
+            << processingTime << std::endl;
     else
-        cout << "Unable to open times.txt \n";
+        cout << "Unable to open compiler-data.out \n";
     
     ofs.close();
 #endif
     
     BINFO(
-	"WORKER - data loading: " + to_string(endLoading) + "ms.\n");
-
-    // if(NUM_OF_ATTRIBUTES != _dataHandler->getNamesMapping().size()) {
-    // ERROR("NUM_OF_ATTRIBUTES and number of attributes specified in
-    // schema.conf inconsistent. Aborting.\n") exit(1);}
+	"Time for Compiler: " + to_string(processingTime) + "ms.\n");
     
-    BINFO(
-        "MAIN - initialisation of DFDB: " + to_string(
-            duration_cast<milliseconds>(
-                system_clock::now().time_since_epoch()).count() - start) + "ms.\n");
-
     return EXIT_SUCCESS;
 }
-
