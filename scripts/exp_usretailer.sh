@@ -5,7 +5,8 @@ do
     cp data/usretailer/features"$v".conf data/usretailer/features.conf
     ./multifaq --path data/usretailer/ --model covar
 
-    echo "usretailer - features$v - covar" >> ../experiments.log
+    echo "usretailer - features$v - covar" >> runtime/experiments.log
+    cat compile-data.out >> runtime/experiments.log
     
     ## TODO: Output the information we need from multifaq to experiments 
     
