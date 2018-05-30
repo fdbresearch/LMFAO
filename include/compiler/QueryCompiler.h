@@ -127,8 +127,8 @@ struct Function
 
     ~Function()
     {
-        if (_parameter != nullptr)
-            delete[] _parameter;
+        // if (_parameter != nullptr)
+        //     delete[] _parameter;
     }
     
 };

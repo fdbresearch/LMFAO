@@ -3629,7 +3629,7 @@ std::string CppGenerator::outputPostRegTupleString(
         else
         {
             ERROR("WE EXPECT LOCAL IN POST REG TO BE SET!! \n");
-            exit(1);
+            //            exit(1);
         }
 
         if (idx.present[1])
@@ -3808,7 +3808,9 @@ std::string CppGenerator::genAggLoopStringCompressed(
     for (size_t prodID = 0; prodID < localProductList[thisLoopID].size(); ++prodID)
     {
         const prod_bitset& product = localProductList[thisLoopID][prodID];
-
+        
+        // std::cout << product << std::endl;
+        
         bool decomposedProduct = false;
         std::string productString = "";
 
@@ -3827,13 +3829,13 @@ std::string CppGenerator::genAggLoopStringCompressed(
                 // need to continue with this the next loop
                 for (size_t f = NUM_OF_FUNCTIONS; f > 0; f--)
                 {
-                    if (product[f])
+                    if (subProduct[f])
                     {
                         highestPosition = f;
                         break;
                     }
                 }
-
+                
                 subProduct.reset(highestPosition);
                 removedFunctions.set(highestPosition);
 
@@ -3845,6 +3847,7 @@ std::string CppGenerator::genAggLoopStringCompressed(
                     subProductID = local_it->second;
                 }
             }
+            
 
             if (foundSubProduct)
             {
@@ -6148,8 +6151,16 @@ std::string CppGenerator::getFunctionString(Function* f, std::string& fvars)
     case Operation::lr_cont_parameter :
         return "(0.15*"+fvars+")";
     case Operation::lr_cat_parameter :
-        return "(0.15)"; // "_param["+fvars+"]"; // // TODO: THIS NEEDS TO BE A
+        return "(0.15)";  // "_param["+fvars+"]"; // // TODO: THIS NEEDS TO BE A
                           // CATEGORICAL PARAMETER - Index?!
+        case Operation::indicator_eq : 
+            return "("+fvars+" == "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
+        case Operation::indicator_lt : 
+            return "("+fvars+" < "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
+        case Operation::indicator_neq : 
+            return "("+fvars+" != "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
+        case Operation::indicator_gt : 
+            return "("+fvars+" > "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
     default : return "f("+fvars+")";
     }
 }

@@ -22,7 +22,7 @@ namespace multifaq
 /* Runtime variable: can be used across different compilation units; must be
  * defined in a source file. */
 #else
-        const size_t NUM_OF_FUNCTIONS = 300;
+        const size_t NUM_OF_FUNCTIONS = 1500;
         // const size_t NUM_OF_FUNCTIONS = 15;
 #endif
 

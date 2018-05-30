@@ -87,6 +87,11 @@ private:
 
     std::vector<std::vector<double>> _thresholds;
 
+    size_t* _queryRootIndex = nullptr;
+
+    /* We can have a candidate mask for each feature. */
+    std::vector<prod_bitset> _candidateMask;
+
 };
 
 #endif /* INCLUDE_APP_REGRESSION_TREE_H_ */

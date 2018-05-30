@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
       /* Option for machine learning model. */
       ("model",
        boost::program_options::value<std::string>()->default_value("reg"),
-       "operation to be computed: reg (default), or regtree")
+       "operation to be computed: reg (default), or rtree")
        /* Option for co generator. */
       ("codegen",
        boost::program_options::value<std::string>()->default_value("cpp"),

@@ -14,7 +14,7 @@
 #include <Launcher.h>
 #include <CovarianceMatrix.h>
 
-// #define DEGREE_TWO
+#define DEGREE_TWO
 
 static const std::string FEATURE_CONF = "/features.conf";
 
@@ -484,9 +484,9 @@ void CovarianceMatrix::modelToQueries()
             _compiler->addQuery(quartic);
 
             /********** PRINT OUT ********/
-            // std::cout << _td->getAttribute(var)->_name + "*" +
-            //     _td->getAttribute(var)->_name + "*" +_td->getAttribute(var)->_name +
-            //     "*" +_td->getAttribute(var)->_name << std::endl;
+            std::cout << _td->getAttribute(var)->_name + "*" +
+                _td->getAttribute(var)->_name + "*" +_td->getAttribute(var)->_name +
+                "*" +_td->getAttribute(var)->_name << std::endl;
             // std::cout << quartic->_rootID << std::endl;
             /********** PRINT OUT ********/
             
