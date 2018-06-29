@@ -629,6 +629,7 @@ std::string CppGenerator::genHeader()
         "#define INCLUDE_"+s+"_HPP_\n\n"+
         "#include <algorithm>\n"+
         "#include <chrono>\n"+
+        "#include <cstring>\n"+
         "#include <fstream>\n"+
         "#include <iostream>\n" +
         "#include <unordered_map>\n" +
