@@ -512,6 +512,8 @@ private:
     std::string genHeader();
 
     std::string genTupleStructs();
+
+    std::string genTupleStructConstructors();
     
     std::string genCaseIdentifiers();
     

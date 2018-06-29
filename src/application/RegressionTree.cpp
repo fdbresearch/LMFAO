@@ -57,9 +57,9 @@ void RegressionTree::run()
 
     /* Create EmptyNode? */
     RegTreeNode* root = new RegTreeNode();
-    root->_conditions.set(5);
-    root->_conditions.set(9);
-    root->_conditions.set(15);
+    // root->_conditions.set(5);
+    // root->_conditions.set(9);
+    // root->_conditions.set(15);
     
     splitNodeQueries(root);
     _compiler->compile();
@@ -70,23 +70,23 @@ void RegressionTree::run()
     // 4. repeat from 1
     
     /* The regression tree is iterative */
-    while (!_activeNodes.empty()) 
-    {
-        RegTreeNode* node = _activeNodes.front();
-        _activeNodes.pop();
+    // while (!_activeNodes.empty()) 
+    // {
+    //     RegTreeNode* node = _activeNodes.front();
+    //     _activeNodes.pop();
         
-        splitNodeQueries(node);
-        _compiler->compile();
+    //     splitNodeQueries(node);
+    //     _compiler->compile();
 
-        /* Compute the queries */
+    //     /* Compute the queries */
         
-        /* For each of them find minimum candidates */
-        /* Then the optimal split  */
-        // TODO: how do we do this?!?!
+    //     /* For each of them find minimum candidates */
+    //     /* Then the optimal split  */
+    //     // TODO: how do we do this?!?!
 
-        /* split node and add them to active nodes if they satisfy the minimum
-         * threshold condition */
-    }
+    //     /* split node and add them to active nodes if they satisfy the minimum
+    //      * threshold condition */
+    // }
 }
 
 void RegressionTree::computeCandidates()
@@ -245,7 +245,6 @@ void RegressionTree::splitNodeQueries(RegTreeNode* node)
         
                 /* Q_C */
                 aggC->_agg.push_back(node->_conditions);
-                aggC->_agg[0].set(1);
                             
                 /* Q_L */
                 aggL->_agg.push_back(node->_conditions);
@@ -293,12 +292,12 @@ void RegressionTree::splitNodeQueries(RegTreeNode* node)
                     Query* query = new Query();
 
                     query->_rootID = _queryRootIndex[var];  
-                    query->_aggregates = {aggC,aggL,aggQ};
+                    query->_aggregates = {aggC,aggL,aggQ}; // TODO: Do we need
+                                                           // to keep these sep?
                     
                     _compiler->addQuery(query);
                 }
             }
-            
         }
     }    
 }

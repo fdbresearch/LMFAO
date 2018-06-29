@@ -16,6 +16,7 @@ using namespace std;
 using namespace multifaq::params;
 
 #define PRINT_OUT_COMPILER
+// #define PRINT_OUT_COMPILER_EXTENDED
 
 QueryCompiler::QueryCompiler(shared_ptr<TreeDecomposition> td) : _td(td)
 {
@@ -34,39 +35,39 @@ void QueryCompiler::compile()
     DINFO("Compiling the queries into views - number of queries: " + 
           to_string(_queryList.size())+"\n");
 
-#ifdef PRINT_OUT_COMPILER
-    // printf("Print list of queries to be computed: \n");
-    // int qID = 0;
-    // for (Query* q : _queryList)
-    // {
-    //     printf("%d (%s): ", qID++, _td->getRelation(q->_rootID)->_name.c_str());
-    //     for (size_t i = 0; i < NUM_OF_VARIABLES; i++)
-    //         if(q->_fVars.test(i)) printf(" %s ",_td->getAttribute(i)->_name.c_str());
-    //     printf(" || ");
+#ifdef PRINT_OUT_COMPILER_EXTENDED
+    printf("Print list of queries to be computed: \n");
+    int qID = 0;
+    for (Query* q : _queryList)
+    {
+        printf("%d (%s): ", qID++, _td->getRelation(q->_rootID)->_name.c_str());
+        for (size_t i = 0; i < NUM_OF_VARIABLES; i++)
+            if(q->_fVars.test(i)) printf(" %s ",_td->getAttribute(i)->_name.c_str());
+        printf(" || ");
         
-    //     for (size_t aggNum = 0; aggNum < q->_aggregates.size(); ++aggNum)
-    //     {
-    //         Aggregate* agg = q->_aggregates[aggNum];
-    //         size_t aggIdx = 0;
-    //         for (size_t i = 0; i < agg->_agg.size(); i++)
-    //         {
-    //             const auto &prod = agg->_agg[aggIdx];
-    //             for (size_t f = 0; f < NUM_OF_FUNCTIONS; f++)
-    //                 if (prod.test(f))
-    //                 {
-    //                     Function* func = getFunction(f);
-    //                     printf(" f_%lu(", f);
-    //                     for (size_t i = 0; i < NUM_OF_VARIABLES; i++)
-    //                         if (func->_fVars.test(i))
-    //                             printf(" %s ", _td->getAttribute(i)->_name.c_str());
-    //                     printf(" )");
-    //                 }
-    //                 ++aggIdx;
-    //             printf(" - ");
-    //         }
-    //     }
-    //     printf("\n");
-    //}
+        for (size_t aggNum = 0; aggNum < q->_aggregates.size(); ++aggNum)
+        {
+            Aggregate* agg = q->_aggregates[aggNum];
+            size_t aggIdx = 0;
+            for (size_t i = 0; i < agg->_agg.size(); i++)
+            {
+                const auto &prod = agg->_agg[aggIdx];
+                for (size_t f = 0; f < NUM_OF_FUNCTIONS; f++)
+                    if (prod.test(f))
+                    {
+                        Function* func = getFunction(f);
+                        printf(" f_%lu(", f);
+                        for (size_t i = 0; i < NUM_OF_VARIABLES; i++)
+                            if (func->_fVars.test(i))
+                                printf(" %s ", _td->getAttribute(i)->_name.c_str());
+                        printf(" )");
+                    }
+                    ++aggIdx;
+                printf(" - ");
+            }
+        }
+        printf("\n");
+    }
 #endif
     
     for (Query* q : _queryList)
@@ -92,11 +93,11 @@ void QueryCompiler::compile()
         for (size_t i = 0; i < NUM_OF_VARIABLES; i++)
             if (v->_fVars.test(i)) printf(" %s ", _td->getAttribute(i)->_name.c_str());
         printf(" || ");
-        
+
         std::string aggString = "";
         // for (size_t aggNum = 0; aggNum < v->_aggregates.size(); ++aggNum)
         // {
-        //     aggString += " ("+to_string(aggNum)+") : ";
+        //     aggString += "\n("+to_string(aggNum)+") : ";
         //     Aggregate* agg = v->_aggregates[aggNum];
         //     size_t aggIdx = 0;
         //     for (size_t i = 0; i < agg->_agg.size(); i++)
@@ -119,7 +120,7 @@ void QueryCompiler::compile()
         //     aggString.pop_back();
         //     aggString += "   ||   ";
         // }
-        printf("%s\n", aggString.c_str());
+        printf("%s -- %lu \n\n", aggString.c_str(),v->_aggregates.size());
     }
 #endif /* Printout */
 

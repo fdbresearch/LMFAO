@@ -6,7 +6,7 @@ do
     ./multifaq --path data/usretailer/ --model covar
 
     echo "usretailer - features$v - covar" >> runtime/experiments.log
-    cat compile-data.out >> runtime/experiments.log
+    cat compiler-data.out >> runtime/experiments.log
     
     ## TODO: Output the information we need from multifaq to experiments 
     

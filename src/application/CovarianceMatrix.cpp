@@ -14,7 +14,7 @@
 #include <Launcher.h>
 #include <CovarianceMatrix.h>
 
-#define DEGREE_TWO
+// #define DEGREE_TWO
 
 static const std::string FEATURE_CONF = "/features.conf";
 

@@ -135,20 +135,16 @@ void CppGenerator::generateCode()
 
 void CppGenerator::genDataHandler()
 {
-    std::ofstream ofs("runtime/cpp/DataHandler.hpp", std::ofstream::out);
+    std::ofstream ofs("runtime/cpp/DataHandler.h", std::ofstream::out);
+
     ofs << genHeader()
         << genTupleStructs()
         << genCaseIdentifiers() << std::endl;
-
-#ifndef OPTIMIZED
-    for (size_t view = 0; view < _qc->numberOfViews(); ++view)
-        ofs << genComputeViewFunction(view) << std::endl;
-
-    ofs << genRunFunction() << std::endl;
-    ofs << genRunMultithreadedFunction() << std::endl;
-#endif
-    
     ofs <<  "}\n\n#endif /* INCLUDE_DATAHANDLER_HPP_*/\n";    
+    ofs.close();
+
+    ofs.open("runtime/cpp/DataHandler.cpp", std::ofstream::out);
+    ofs << genTupleStructConstructors() << std::endl;
     ofs.close();
 }
 
@@ -160,7 +156,7 @@ void CppGenerator::genComputeGroupHeaderSource(size_t group)
 
     ofs << "#ifndef INCLUDE_COMPUTEGROUP"+std::to_string(group)+"_HPP_\n"+
         "#define INCLUDE_COMPUTEGROUP"+std::to_string(group)+"_HPP_\n\n"+
-        "#include \"DataHandler.hpp\"\n\nnamespace lmfao\n{\n"+
+        "#include \"DataHandler.h\"\n\nnamespace lmfao\n{\n"+
         offset(1)+"void computeGroup"+std::to_string(group)+"();\n"+
         "}\n\n#endif /* INCLUDE_COMPUTEGROUP"+std::to_string(group)+"_HPP_*/\n";
     ofs.close();
@@ -181,14 +177,17 @@ void CppGenerator::genMainFunction()
 {
     std::ofstream ofs("runtime/cpp/main.cpp",std::ofstream::out);
 
-    ofs << "#ifdef TESTING \n"+offset(1)+"#include <iomanip>\n"+
-        "#endif\n";
+    ofs << "#ifdef TESTING \n"+offset(1)+"#include <iomanip>\n"+"#endif\n";
     
-    ofs << "#include \"DataHandler.hpp\"\n";
+    ofs << "#include \"DataHandler.h\"\n";
     for (size_t group = 0; group < viewGroups.size(); ++group)
         ofs << "#include \"ComputeGroup"+std::to_string(group)+".h\"\n";
   
-    ofs << "\nnamespace lmfao\n{\n";
+    ofs << "\nnamespace lmfao\n{\n"+
+        offset(1)+"//const std::string PATH_TO_DATA = \"/Users/Maximilian/Documents/"+
+        "Oxford/LMFAO/"+_pathToData+"\";\n"+
+        offset(1)+"const std::string PATH_TO_DATA = \"../../"+_pathToData+"\";\n\n";
+
     for (size_t relID = 0; relID < _td->numberOfRelations(); ++relID)
     {
         const std::string& relName = _td->getRelation(relID)->_name;
@@ -221,7 +220,7 @@ void CppGenerator::genMainFunction()
 
 void CppGenerator::genMakeFile()
 {
-    std::string objectList = "";
+    std::string objectList = "main.o datahandler.o ";
     std::string objectConstruct = "";
     for (size_t group = 0; group < viewGroups.size(); ++group)
     {
@@ -238,13 +237,12 @@ void CppGenerator::genMakeFile()
         "\n# -pthread -O2 -mtune=native -fassociative-math -freciprocal-math "
         << "-fno-signed-zeros -v -ftime-report -fno-stack-protector\n\n";
 
-    ofs << "lmfao : main.o "+objectList+"\n\t$(CXX) $(CXXFLAG) main.o "+objectList+
-        "-o lmfao\n\n";
+    ofs << "lmfao : "+objectList+"\n\t$(CXX) $(CXXFLAG) "+objectList+"-o lmfao\n\n";
 
     ofs << "main.o : main.cpp\n"
         << "\t$(CXX) $(FLAG) $(CXXFLAG) -xc++ -c main.cpp -o main.o\n\n"
-        << "datahandler.o : DataHandler.hpp\n"
-        << "\t$(CXX) $(FLAG) $(CXXFLAG) -xc++ -c DataHandler.hpp -o datahandler.o\n\n";
+        << "datahandler.o : DataHandler.cpp\n"
+        << "\t$(CXX) $(FLAG) $(CXXFLAG) -xc++ -c DataHandler.cpp -o datahandler.o\n\n";
 
     ofs << objectConstruct;
 
@@ -636,15 +634,7 @@ std::string CppGenerator::genHeader()
         "#include <unordered_map>\n" +
         "#include <thread>\n" +
         "#include <vector>\n\n" +
-        "#include <boost/spirit/include/qi.hpp>\n"+
-        "#include <boost/spirit/include/phoenix_core.hpp>\n"+
-        "#include <boost/spirit/include/phoenix_operator.hpp>\n\n"
-        "using namespace std::chrono;\n"+
-        "namespace qi = boost::spirit::qi;\n"+
-        "namespace phoenix = boost::phoenix;\n\n"+
-        "//const std::string PATH_TO_DATA = \"/Users/Maximilian/Documents/"+
-        "Oxford/LMFAO/"+_pathToData+"\";\n\n"+
-        "const std::string PATH_TO_DATA = \"../../"+_pathToData+"\";\n\n"+
+        "using namespace std::chrono;\n\n"+
         "namespace lmfao\n{\n";
 }
 
@@ -659,37 +649,18 @@ std::string CppGenerator::genTupleStructs()
         const std::string& relName = rel->_name;
         const var_bitset& bag = rel->_bag;
 
-        attrConversion = "", attrConstruct = "", attrAssign = "";
         tupleStruct += offset(1)+"struct "+relName+"_tuple\n"+
             offset(1)+"{\n"+offset(2);
 
-        attrParse = offset(3)+"qi::phrase_parse(tuple.begin(),tuple.end(),";
-        
-        size_t field = 0;
         for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
         {
             if (bag[var])
             {
                 Attribute* att = _td->getAttribute(var);
                 tupleStruct += typeToStr(att->_type)+" "+att->_name+";\n"+offset(2);
-                attrConstruct += typeToStr(att->_type)+" "+att->_name+",";
-                attrAssign += offset(3)+"this->"+ att->_name + " = "+att->_name+";\n";
-
-                attrParse += "\n"+offset(4)+"qi::"+typeToStr(att->_type)+
-                    "_[phoenix::ref("+att->_name+") = qi::_1]>>";
-                ++field;
             }
         }
-        attrConstruct.pop_back();
-        attrParse.pop_back();
-        attrParse.pop_back();
-        attrParse += ",\n"+offset(4)+"\'|\');\n";
-
-        tupleStruct += relName+"_tuple() {} \n"+offset(2)+
-            relName+"_tuple(const std::string& tuple)\n"+offset(2)+
-            "{\n"+attrParse+offset(2)+"}\n"+offset(2)+
-            relName+"_tuple("+attrConstruct+")\n"+offset(2)+
-            "{\n"+attrAssign+offset(2)+"}\n"+offset(1)+"};\n\n"+
+        tupleStruct += relName+"_tuple(const std::string& tuple);\n"+offset(1)+"};\n\n"+
             offset(1)+"extern std::vector<"+rel->_name+"_tuple> "+rel->_name+";\n\n";
     }
 
@@ -697,10 +668,10 @@ std::string CppGenerator::genTupleStructs()
     {
         View* view = _qc->getView(viewID);
 
-        attrConstruct = "", attrAssign = "";
+        attrConstruct = "";
+        
         tupleStruct += offset(1)+"struct "+viewName[viewID]+"_tuple\n"+
             offset(1)+"{\n";
-        
 
         for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
         {
@@ -708,11 +679,9 @@ std::string CppGenerator::genTupleStructs()
             {
                 Attribute* att = _td->getAttribute(var);
                 tupleStruct += offset(2)+typeToStr(att->_type)+" "+att->_name+";\n";
-                attrConstruct += typeToStr(att->_type)+" "+att->_name+",";
-                attrAssign += offset(3)+"this->"+ att->_name + " = "+att->_name+";\n";
+                attrConstruct += "const "+typeToStr(att->_type)+"& "+att->_name+",";
             }
         }
-
 
         tupleStruct += offset(2)+"double aggregates["+
             std::to_string(view->_aggregates.size())+"] = {};\n";
@@ -720,19 +689,88 @@ std::string CppGenerator::genTupleStructs()
         if (!attrConstruct.empty())
         {
             attrConstruct.pop_back();
-            tupleStruct += offset(2)+viewName[viewID]+"_tuple() {} \n"+
-                offset(2) +viewName[viewID]+"_tuple("+attrConstruct+")\n"+
-                offset(2)+"{\n"+attrAssign+offset(2)+"}\n"+offset(1)+"};\n\n"+
+            tupleStruct += offset(2)+viewName[viewID]+"_tuple("+
+                attrConstruct+");\n"+offset(1)+"};\n\n"+
                 offset(1)+"extern std::vector<"+viewName[viewID]+"_tuple> "+
                 viewName[viewID]+";\n\n";
         }
         else
-            tupleStruct += offset(2)+viewName[viewID]+"_tuple() {} \n"+offset(1)+
+            tupleStruct += offset(2)+viewName[viewID]+"_tuple();\n"+offset(1)+
                 "};\n\n"+offset(1)+"extern std::vector<"+viewName[viewID]+"_tuple> "+
                 viewName[viewID]+";\n\n";
     }
     return tupleStruct;
 }
+
+std::string CppGenerator::genTupleStructConstructors()
+{
+    std::string tupleStruct = offset(0)+"#include \"DataHandler.h\"\n"+
+        "#include <boost/spirit/include/qi.hpp>\n"+
+        "#include <boost/spirit/include/phoenix_core.hpp>\n"+
+        "#include <boost/spirit/include/phoenix_operator.hpp>\n\n"+
+        "namespace qi = boost::spirit::qi;\n"+
+        "namespace phoenix = boost::phoenix;\n\n"+
+        "namespace lmfao\n{\n";
+    
+    std::string attrConstruct = "", attrAssign = "";
+    
+    for (size_t relID = 0; relID < _td->numberOfRelations(); ++relID)
+    {
+        TDNode* rel = _td->getRelation(relID);
+        const std::string& relName = rel->_name;
+        const var_bitset& bag = rel->_bag;
+
+        attrConstruct = offset(2)+"qi::phrase_parse(tuple.begin(),tuple.end(),";
+        // size_t field = 0;
+        for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+        {
+            if (bag[var])
+            {
+                Attribute* att = _td->getAttribute(var);
+                attrConstruct += "\n"+offset(3)+"qi::"+typeToStr(att->_type)+
+                    "_[phoenix::ref("+att->_name+") = qi::_1]>>";
+            }
+        }
+        // attrConstruct.pop_back();
+        attrConstruct.pop_back();
+        attrConstruct.pop_back();
+        attrConstruct += ",\n"+offset(3)+"\'|\');\n"+offset(1);
+
+        tupleStruct += offset(1)+relName+"_tuple::"+relName+
+            "_tuple(const std::string& tuple)\n"+offset(1)+"{\n"+attrConstruct+"}\n\n";
+    }
+
+    for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
+    {
+        View* view = _qc->getView(viewID);
+
+        attrConstruct = "", attrAssign = "";
+
+        for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+        {
+            if (view->_fVars[var])
+            {
+                Attribute* att = _td->getAttribute(var);
+                attrConstruct += "const "+typeToStr(att->_type)+"& "+att->_name+",";
+                attrAssign += att->_name+"("+att->_name+"),";
+            }
+        }        
+        if (!attrConstruct.empty())
+        {
+            attrAssign.pop_back();
+            attrConstruct.pop_back();
+            
+            tupleStruct +=  offset(1)+viewName[viewID]+"_tuple::"+
+                viewName[viewID]+"_tuple("+attrConstruct+") : "+
+                attrAssign+"{}\n\n";
+        }
+        else
+            tupleStruct += offset(1)+viewName[viewID]+"_tuple::"+
+                viewName[viewID]+"_tuple(){}\n\n";
+    }
+    return tupleStruct+"}\n";
+}
+
     
 std::string CppGenerator::genCaseIdentifiers()
 {
@@ -3626,11 +3664,11 @@ std::string CppGenerator::outputPostRegTupleString(
                 k += "+i";
             outString +="aggregateRegister["+k+"]*";
         }
-        else
-        {
-            ERROR("WE EXPECT LOCAL IN POST REG TO BE SET!! \n");
-            //            exit(1);
-        }
+        // else
+        // {
+        //     ERROR("WE EXPECT LOCAL IN POST REG TO BE SET!! \n");
+        //     //  exit(1);
+        // }
 
         if (idx.present[1])
         {
@@ -6153,14 +6191,14 @@ std::string CppGenerator::getFunctionString(Function* f, std::string& fvars)
     case Operation::lr_cat_parameter :
         return "(0.15)";  // "_param["+fvars+"]"; // // TODO: THIS NEEDS TO BE A
                           // CATEGORICAL PARAMETER - Index?!
-        case Operation::indicator_eq : 
-            return "("+fvars+" == "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
-        case Operation::indicator_lt : 
-            return "("+fvars+" < "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
-        case Operation::indicator_neq : 
-            return "("+fvars+" != "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
-        case Operation::indicator_gt : 
-            return "("+fvars+" > "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
+    case Operation::indicator_eq : 
+        return "("+fvars+" == "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
+    case Operation::indicator_lt : 
+        return "("+fvars+" < "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
+    case Operation::indicator_neq : 
+        return "("+fvars+" != "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
+    case Operation::indicator_gt : 
+        return "("+fvars+" > "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
     default : return "f("+fvars+")";
     }
 }

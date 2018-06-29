@@ -44,3 +44,10 @@ todo.md
 build/
 build/*
 runtime/
+
+src/codegen/previous_versions/*
+*.html
+*.org
+*#
+compile_commands.json
+compiler-data.out
