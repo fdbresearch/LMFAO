@@ -10,6 +10,8 @@ cat compiler-data.out >> runtime/"$LOG_FILE"
 
 cd runtime/cpp/
 
+rm times.txt
+
 # make LMFAO 
 /usr/bin/time -f "%e " -o "time_to_compile.txt" make -j
 

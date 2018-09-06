@@ -17,12 +17,28 @@ psql -d vldb18 -f load_data.sql
 
 ## RUN JOIN EXPERIMENTS
 
-echo "Run lmfao.sql - $DATASET - covar " >> ../"$LOG_FILE"
+rm times.txt 
 
-for i in 1 #{1..5}
+echo "Run join.sql - $DATASET - covar " >> ../"$LOG_FILE"
+
+for i in {1..3}
 do
       echo "Run $i lmfao.sql - $DATASET - covar "
-      rm ../joinresult.txt
+      /usr/bin/time -f "%e %P %I %O" -o "times.txt" -a psql -d vldb18 -f join.sql
+      psql -d vldb18 -f lmfao_cleanup.sql
+done
+
+cat times.txt >> ../"$LOG_FILE"
+    
+awk -f ../../scripts/awk_average.awk times.txt >> ../"$LOG_FILE"
+
+rm times.txt 
+
+echo "Run lmfao.sql - $DATASET - covar " >> ../"$LOG_FILE"
+
+for i in {1..3}
+do
+      echo "Run $i lmfao.sql - $DATASET - covar "
       /usr/bin/time -f "%e %P %I %O" -o "times.txt" -a psql -d vldb18 -f lmfao.sql
       psql -d vldb18 -f lmfao_cleanup.sql
 done
@@ -35,10 +51,9 @@ rm times.txt
 
 echo "Run aggregates.sql - $DATASET - covar " >> ../"$LOG_FILE"
 
-for i in 1 #{1..5}
+for i in {1..3}
 do
       echo "Run $i aggregates.sql - $DATASET - covar"
-      rm ../joinresult.txt
       /usr/bin/time -f "%e %P %I %O" -o "times.txt" -a psql -d vldb18 -f aggregates.sql > /dev/null
 done
 
