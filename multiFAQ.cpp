@@ -34,13 +34,15 @@ int main(int argc, char *argv[])
       ("path", boost::program_options::value<std::string>(),
        "set path for data and configuration files - required.")
       /* Option for machine learning model. */
-      ("model",
-       boost::program_options::value<std::string>()->default_value("reg"),
-       "operation to be computed: reg (default), or rtree")
-       /* Option for co generator. */
-      ("codegen",
-       boost::program_options::value<std::string>()->default_value("cpp"),
-       "operation to be computed: cpp (default), or sql");
+      ("model", boost::program_options::value<std::string>()->default_value("reg"),
+       "operation to be computed: reg (default), covar, or rtree")
+      /* Option for code generator. */
+      ("codegen", boost::program_options::value<std::string>()->default_value("cpp"),
+       "open for code generation: cpp (default), or sql")
+      /* Option for parallellization. */
+      ("parallel", boost::program_options::value<std::string>()->default_value("none"),
+       "options for parallelization: none, task, domain, or both");
+   
       // /* Option for number of threads used for F cofactor calculation; default
       //  * set to number of hardware thread contexts. */
       // ("threads",
@@ -53,7 +55,6 @@ int main(int argc, char *argv[])
       // /* Option for IP address to current node. */
       // ("ip", boost::program_options::value<std::string>()->default_value(""),
       //  "set IP of the current node; do not set for automatic resolution of address.");
-
 
    /* Register previous options and do command line parsing. */
    boost::program_options::variables_map vm;
@@ -94,7 +95,7 @@ int main(int argc, char *argv[])
       if (!boost::filesystem::is_directory(pathString))
       {
          ERROR(
-            "Provided path is not a directory. \n");
+             "Provided path is not a directory. \n");
          return EXIT_FAILURE;   
       }
    }
@@ -119,7 +120,8 @@ int main(int argc, char *argv[])
 
    /* Launch program. */
    int result = launcher->launch(vm["model"].as<std::string>(),
-                                 vm["codegen"].as<std::string>());
+                                 vm["codegen"].as<std::string>(),
+                                 vm["parallel"].as<std::string>());
    
 #ifdef BENCH
    int64_t end = std::chrono::duration_cast<std::chrono::milliseconds>(

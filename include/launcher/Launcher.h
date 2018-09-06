@@ -42,7 +42,8 @@ public:
     /**
      * Launches the database operations.
      */
-    int launch(const std::string& model, const std::string& codeGenerator);
+    int launch(const std::string& model, const std::string& codeGenerator,
+               const std::string& parallel);
 
     // /**
     //  * Returns a pointer to the DataHandler module.
@@ -90,6 +91,7 @@ private:
     std::string _pathToFiles;
 
     Model _model;
+
 };
 
 #endif // INCLUDE_RUN_LAUNCHER_H_

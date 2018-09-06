@@ -38,7 +38,7 @@ const bool GROUP_VIEWS = true;
 const bool GROUP_VIEWS = false;
 #endif
 
-const bool PARALLELIZE_GROUPS = false;
+// const bool PARALLELIZE_GROUPS = true;
 
 using namespace multifaq::params;
 
@@ -69,9 +69,10 @@ CppGenerator::~CppGenerator()
     delete[] viewLevelRegister;
 }
 
-void CppGenerator::generateCode()
+void CppGenerator::generateCode(const ParallelizationType parallelization_type)
 {
     DINFO("Start generate C++ code. \n");
+    
     sortOrders = new size_t*[_td->numberOfRelations() + _qc->numberOfViews()];
     viewName = new std::string[_qc->numberOfViews()];
     viewLevelRegister  = new size_t[_qc->numberOfViews()];
@@ -114,7 +115,10 @@ void CppGenerator::generateCode()
     
     createGroupVariableOrder();
 
-    computeParallelizeGroup();
+    bool domainParallelism = parallelization_type == DOMAIN_PARALLELIZATION ||
+        parallelization_type == BOTH_PARALLELIZATION;
+
+    computeParallelizeGroup(domainParallelism);
     
 #ifdef OLD
     createVariableOrder();
@@ -124,9 +128,13 @@ void CppGenerator::generateCode()
     
 #ifdef OPTIMIZED
     for (size_t group = 0; group < viewGroups.size(); ++group)
-        genComputeGroupHeaderSource(group);
-    
-    genMainFunction();
+        genComputeGroupFiles(group);
+
+
+    bool taskParallelism = parallelization_type == TASK_PARALLELIZATION ||
+        parallelization_type == BOTH_PARALLELIZATION;
+
+    genMainFunction(taskParallelism);
     
     genMakeFile();
 #endif
@@ -149,16 +157,36 @@ void CppGenerator::genDataHandler()
 }
 
 
-void CppGenerator::genComputeGroupHeaderSource(size_t group)
+void CppGenerator::genComputeGroupFiles(size_t group)
 {
     std::ofstream ofs("runtime/cpp/ComputeGroup"+std::to_string(group)+".h",
                       std::ofstream::out);
 
     ofs << "#ifndef INCLUDE_COMPUTEGROUP"+std::to_string(group)+"_HPP_\n"+
         "#define INCLUDE_COMPUTEGROUP"+std::to_string(group)+"_HPP_\n\n"+
-        "#include \"DataHandler.h\"\n\nnamespace lmfao\n{\n"+
-        offset(1)+"void computeGroup"+std::to_string(group)+"();\n"+
-        "}\n\n#endif /* INCLUDE_COMPUTEGROUP"+std::to_string(group)+"_HPP_*/\n";
+        "#include \"DataHandler.h\"\n\nnamespace lmfao\n{\n";
+    if (_parallelizeGroup[group])
+    {
+        ofs << offset(1)+"void computeGroup"+std::to_string(group)+"(";
+
+        for (const size_t& viewID : viewGroups[group])
+        {
+            ofs << "std::vector<"+viewName[viewID]+"_tuple>& "+viewName[viewID]+",";
+            if (_requireHashing[viewID])
+            {
+                ofs << "std::unordered_map<"+viewName[viewID]+"_key,"+
+                    "size_t, "+viewName[viewID]+"_keyhash>& "+viewName[viewID]+"_map,";
+            }
+        }
+        ofs << "size_t lowerptr, size_t upperptr);\n";
+        ofs << offset(1)+"void computeGroup"+std::to_string(group)+"Parallelized();\n";
+    }
+    else
+    {
+        ofs << offset(1)+"void computeGroup"+std::to_string(group)+"();\n"; 
+    }
+    
+    ofs << "}\n\n#endif /* INCLUDE_COMPUTEGROUP"+std::to_string(group)+"_HPP_*/\n";
     ofs.close();
         
     ofs.open("runtime/cpp/ComputeGroup"+std::to_string(group)+".cpp",
@@ -173,7 +201,7 @@ void CppGenerator::genComputeGroupHeaderSource(size_t group)
 }
 
 
-void CppGenerator::genMainFunction()
+void CppGenerator::genMainFunction(bool parallelize)
 {
     std::ofstream ofs("runtime/cpp/main.cpp",std::ofstream::out);
 
@@ -203,8 +231,8 @@ void CppGenerator::genMainFunction()
     for (size_t relID = 0; relID < _td->numberOfRelations(); ++relID)
         ofs << genSortFunction(relID) << std::endl;
     
-    ofs << genRunFunction() << std::endl;
-    ofs << genRunMultithreadedFunction()  << std::endl;
+    ofs << genRunFunction(parallelize) << std::endl;
+    // ofs << genRunMultithreadedFunction() << std::endl;
     ofs << genTestFunction() << "}\n\n";
  
     ofs << "int main(int argc, char *argv[])\n{\n#ifndef MULTITHREAD\n"+
@@ -817,12 +845,12 @@ std::string CppGenerator::genLoadRelationFunction()
 
 
 
-void CppGenerator::computeParallelizeGroup()
+void CppGenerator::computeParallelizeGroup(bool paralleize_groups)
 {
     _parallelizeGroup = new bool[viewGroups.size()]();
     _threadsPerGroup = new size_t[viewGroups.size()]();
 
-    if (!PARALLELIZE_GROUPS)
+    if (!paralleize_groups)
         return;
     
     for (size_t gid = 0; gid < viewGroups.size(); ++gid)
@@ -833,19 +861,7 @@ void CppGenerator::computeParallelizeGroup()
         {
             _parallelizeGroup[gid] = true;            
             _threadsPerGroup[gid] = 8;
-        }
-        
-        // if (node->_name == "Inventory")
-        // {
-        //     _parallelizeGroup[gid] = true;
-        //     _threadsPerGroup[gid] = 8;
-        // }
-        // else
-        // {
-        //     _parallelizeGroup[gid] = false;
-        //     _threadsPerGroup[gid] = 0;
-        // }
-        // _parallelizeGroup[gid] = false;
+        }        
     }
 }
 
@@ -853,8 +869,6 @@ void CppGenerator::computeParallelizeGroup()
 
 std::string CppGenerator::genComputeGroupFunction(size_t group_id)
 {
-    // std::cout << "Begining of Compute Group Frunction: " << group_id << std::endl;    
-    
     const std::vector<size_t>& varOrder = groupVariableOrder[group_id];
     const var_bitset& varOrderBitset = groupVariableOrderBitset[group_id];
     const std::vector<size_t>& viewsPerVar = groupViewsPerVarInfo[group_id];
@@ -2591,7 +2605,7 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
             std::vector<std::pair<size_t, size_t>> viewReg;
 
             size_t viewID = viewsForThisLoop.find_first();
-            if (viewID != boost::dynamic_bitset<>::npos)
+            while (viewID != boost::dynamic_bitset<>::npos)
             {
                 for (const std::pair<size_t, size_t>& viewAgg : prodAgg.viewAggregate)
                 {
@@ -2604,7 +2618,6 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
 
                 viewID = viewsPerLoop[currentLoop].find_next(viewID);
             }
-        
             auto viewit = viewProductMap[currentLoop].find(viewReg);
             if (viewit != viewProductMap[currentLoop].end())
             {
@@ -3766,7 +3779,7 @@ std::string CppGenerator::outputFinalRegTupleString(
 
         if (aggString.empty())
         {
-            std::cout << "aggString is empty - compressed!\n";
+            // std::cout << "aggString is empty - compressed!\n";
             aggString = "1*";
         }
         else
@@ -3816,7 +3829,7 @@ std::string CppGenerator::outputFinalRegTupleString(
 
             if (aggString.empty())
             {
-                std::cout << "aggString is empty --- non-compressed !\n";
+                // std::cout << "aggString is empty --- non-compressed !\n";
                 aggString = "1";
             }
             else
@@ -3931,8 +3944,7 @@ std::string CppGenerator::genAggLoopStringCompressed(
     for (size_t viewProd = 0; viewProd < viewProductList[thisLoopID].size(); ++viewProd)
     {
         std::string viewProduct = "";
-        for (const std::pair<size_t, size_t>& viewAgg :
-                 viewProductList[thisLoopID][viewProd])
+        for (const std::pair<size_t, size_t>& viewAgg : viewProductList[thisLoopID][viewProd])
         {
             viewProduct += "aggregates_"+viewName[viewAgg.first]+"["+
                 std::to_string(viewAgg.second)+"]*";
@@ -3942,7 +3954,7 @@ std::string CppGenerator::genAggLoopStringCompressed(
         returnString += offset(3+depth+numOfLoops)+
             "viewRegister["+std::to_string(viewCounter)+"] = "+
             viewProduct +";\n";
-            
+
         // Increment the counter and update the remapping array
         viewProductRemapping[thisLoopID][viewProd] = viewCounter;
         ++viewCounter;
@@ -6204,14 +6216,14 @@ std::string CppGenerator::getFunctionString(Function* f, std::string& fvars)
     }
 }
 
-std::string CppGenerator::genRunFunction()
-{    
+std::string CppGenerator::genRunFunction(bool parallelize)
+{
     std::string returnString = offset(1)+"void run()\n"+
         offset(1)+"{\n";
     
     returnString += offset(2)+"int64_t startLoading = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count();\n\n"+
-        "loadRelations();\n\n"+
+        offset(2)+"loadRelations();\n\n"+
         offset(2)+"int64_t loadTime = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count()-startLoading;\n"+
         offset(2)+"std::cout << \"Data loading: \"+"+
@@ -6224,14 +6236,31 @@ std::string CppGenerator::genRunFunction()
     returnString += offset(2)+"int64_t startSorting = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count();\n\n";
 
-    for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
+    if (!parallelize)
     {
-        TDNode* node = _td->getRelation(rel);
-        returnString += offset(2)+"sort"+node->_name+"();\n";
+        for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
+        {
+            TDNode* node = _td->getRelation(rel);
+            returnString += offset(2)+"sort"+node->_name+"();\n";
+        }
     }
-    // returnString += offset(2)+"sortRelations();\n\n";
+    else
+    {
+        for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
+        {
+            TDNode* node = _td->getRelation(rel);
+            returnString += offset(2)+"std::thread sort"+node->_name+
+                "Thread(sort"+node->_name+");\n";
+        }
+
+        for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
+        {
+            TDNode* node = _td->getRelation(rel);
+            returnString += offset(2)+"sort"+node->_name+"Thread.join();\n";
+        }
+    }
     
-    returnString += offset(2)+"int64_t sortingTime = duration_cast<milliseconds>("+
+    returnString += "\n"+offset(2)+"int64_t sortingTime = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count()-startSorting;\n"+
         offset(2)+"std::cout << \"Data sorting: \" + "+
         "std::to_string(sortingTime)+\"ms.\\n\";\n\n"+
@@ -6243,31 +6272,72 @@ std::string CppGenerator::genRunFunction()
     returnString += offset(2)+"int64_t startProcess = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count();\n\n";
 
-#ifndef OPTIMIZED    
-    for (size_t view = 0; view < _qc->numberOfViews(); ++view)
-        returnString += offset(2)+"computeView"+std::to_string(view)+"();\n";
-#else
-    for (size_t group = 0; group < viewGroups.size(); ++group)
+// #ifndef OPTIMIZED    
+//     for (size_t view = 0; view < _qc->numberOfViews(); ++view)
+//         returnString += offset(2)+"computeView"+std::to_string(view)+"();\n";
+// #else
+    if (!parallelize)
     {
-        if (_parallelizeGroup[group])
-            returnString += offset(2)+"computeGroup"+std::to_string(group)+
-                "Parallelized();\n";
-        else
+        for (size_t group = 0; group < viewGroups.size(); ++group)
+        {
+            // if (_parallelizeGroup[group])
+            //     returnString += offset(2)+"computeGroup"+std::to_string(group)+
+            //         "Parallelized();\n";
+            // else
+            //     returnString +=
+            //     offset(2)+"computeGroup"+std::to_string(group)+"();\n";
+            
             returnString += offset(2)+"computeGroup"+std::to_string(group)+"();\n";
+        }
     }
-#endif
+    else
+    {
+        std::vector<bool> joinedGroups(viewGroups.size());
     
-    returnString += "\n"+offset(2)+"std::cout << \"Data process: \"+"+
-        "std::to_string(duration_cast<milliseconds>("+
-        "system_clock::now().time_since_epoch()).count()-startProcess)+\"ms.\\n\";\n\n";
+        for (size_t group = 0; group < viewGroups.size(); ++group)
+        {
+            for (const size_t& viewID : groupIncomingViews[group])
+            {
+                // find group that contains this view!
+                size_t otherGroup = viewToGroupMapping[viewID];
+                if (!joinedGroups[otherGroup])
+                {
+                    returnString += offset(2)+"group"+std::to_string(otherGroup)+
+                        "Thread.join();\n";
+                    joinedGroups[otherGroup] = 1;
+                }
+            }
 
-    returnString += offset(2)+"int64_t processTime = duration_cast<milliseconds>("+
+            // if (_parallelizeGroup[group])            
+            //     returnString += offset(2)+"std::thread group"+std::to_string(group)+
+            //         "Thread(computeGroup"+std::to_string(group)+"Parallelized);\n";
+            // else
+            //     returnString += offset(2)+"std::thread group"+std::to_string(group)+
+            //         "Thread(computeGroup"+std::to_string(group)+");\n";
+
+            returnString += offset(2)+"std::thread group"+std::to_string(group)+
+                    "Thread(computeGroup"+std::to_string(group)+");\n";            
+        }
+
+        for (size_t group = 0; group < viewGroups.size(); ++group)
+        {
+            if (!joinedGroups[group])
+                returnString += offset(2)+"group"+std::to_string(group)+
+                    "Thread.join();\n";
+        }
+    }
+// #endif
+    
+    // returnString += "\n"+offset(2)+"std::cout << \"Data process: \"+"+
+    //     "std::to_string(duration_cast<milliseconds>("+
+    //     "system_clock::now().time_since_epoch()).count()-startProcess)+\"ms.\\n\";\n\n";
+
+    returnString += "\n"+offset(2)+"int64_t processTime = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count()-startProcess;\n"+
         offset(2)+"std::cout << \"Data process: \"+"+
         "std::to_string(processTime)+\"ms.\\n\";\n"+
-        offset(2)+"ofs.open(\"times.txt\",std::ofstream::out | "+
-        "std::ofstream::app);\n"+
-            offset(2)+"ofs << \"\\t\" << processTime << std::endl;\n"+
+        offset(2)+"ofs.open(\"times.txt\",std::ofstream::out | std::ofstream::app);\n"+
+        offset(2)+"ofs << \"\\t\" << processTime << std::endl;\n"+
         offset(2)+"ofs.close();\n\n";
 
     for (size_t view = 0; view < _qc->numberOfViews(); ++view)
@@ -6350,25 +6420,10 @@ std::string CppGenerator::genRunMultithreadedFunction()
     }
     
 #else
-
     std::vector<bool> joinedGroups(viewGroups.size());
-
-    // for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
-    // {
-    //     TDNode* node = _td->getRelation(rel);
-    //     returnString += offset(2)+"std::thread sort"+node->_name+
-    //         "Thread(sort"+node->_name+");\n";
-    // }
     
     for (size_t group = 0; group < viewGroups.size(); ++group)
     {
-        // TDNode* relation = _td->getRelation(_qc->getView(viewGroups[group][0])->_origin);
-        // if (!joinedRelations[relation->_id])
-        // {
-        //     returnString += offset(2)+"sort"+relation->_name+"Thread.join();\n";
-        //     joinedRelations[relation->_id] = 1;
-        // }
-
         for (const size_t& viewID : groupIncomingViews[group])
         {
             // find group that contains this view!

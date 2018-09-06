@@ -26,7 +26,8 @@ public:
     
     ~SqlGenerator();
 
-    void generateCode();
+    // void generateCode();
+    void generateCode(const ParallelizationType parallel);
 
     size_t numberOfGroups()
     {

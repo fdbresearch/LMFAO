@@ -11,6 +11,14 @@
 #ifndef INCLUDE_CODEGEN_CODEGENERATOR_HPP_
 #define INCLUDE_CODEGEN_CODEGENERATOR_HPP_
 
+enum ParallelizationType 
+{
+    NO_PARALLELIZATION,
+    TASK_PARALLELIZATION,
+    DOMAIN_PARALLELIZATION,
+    BOTH_PARALLELIZATION
+};
+
 /**
  * Abstract class to provide a uniform interface used to process the received data.
  */
@@ -26,7 +34,8 @@ public:
     /**
      * Runs the data processing task.
      */
-    virtual void generateCode() = 0;
+    // virtual void generateCode() = 0;
+    virtual void generateCode(const ParallelizationType parallel) = 0;
 
     virtual size_t numberOfGroups() = 0;
     

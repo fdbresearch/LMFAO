@@ -35,7 +35,7 @@ SqlGenerator::~SqlGenerator()
 {
 }
 
-void SqlGenerator::generateCode()
+void SqlGenerator::generateCode(const ParallelizationType parallelization_type)
 {
     DINFO("Starting SQL - Generator \n");
 
@@ -399,12 +399,18 @@ void SqlGenerator::generateLoadQuery()
     ofs << drop + load;
     ofs.close();
     // DINFO(drop + load);
-    
+
+    string drop_views = "";
+
     for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
-        drop +=  "DROP TABLE IF EXISTS view_"+std::to_string(viewID)+";\n";
+        drop_views +=  "DROP TABLE IF EXISTS view_"+std::to_string(viewID)+";\n";
+
+    ofs.open("runtime/sql/lmfao_cleanup.sql", std::ofstream::out);
+    ofs << drop_views;
+    ofs.close();
     
     ofs.open("runtime/sql/drop_data.sql", std::ofstream::out);
-    ofs << drop;
+    ofs << drop + drop_views;
     ofs.close();
     // DINFO(drop);
 // #endif

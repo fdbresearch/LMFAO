@@ -52,9 +52,9 @@ Model Launcher::getModel()
     return _model;
 }
 
-int Launcher::launch(const string& model, const string& codeGenerator)
-{
-    
+int Launcher::launch(const string& model, const string& codeGenerator,
+                     const string& parallel)
+{   
     /* Build tree decompostion. */
     _treeDecomposition.reset(new TreeDecomposition(_pathToFiles + TREEDECOMP_CONF));
 
@@ -109,8 +109,19 @@ int Launcher::launch(const string& model, const string& codeGenerator)
         ERROR("The code generator "+codeGenerator+" is not supported. \n");
         exit(1);
     }
+
+    ParallelizationType parallelization_type = NO_PARALLELIZATION;
+    if (parallel.compare("task") == 0)
+        parallelization_type = TASK_PARALLELIZATION;
+    else if (parallel.compare("domain") == 0)
+        parallelization_type = DOMAIN_PARALLELIZATION;
+    else if (parallel.compare("both") == 0)
+        parallelization_type = BOTH_PARALLELIZATION;
+    else if (parallel.compare("none") != 0)
+        ERROR("ERROR - We only support task and/or domain parallelism. "<<
+              "We continue single threaded.\n\n");
     
-    _codeGenerator->generateCode();
+    _codeGenerator->generateCode(parallelization_type);
     
 #ifdef BENCH
     int64_t processingTime = duration_cast<milliseconds>(

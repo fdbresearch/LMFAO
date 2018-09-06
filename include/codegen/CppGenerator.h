@@ -324,7 +324,7 @@ public:
 
     ~CppGenerator();
 
-    void generateCode();
+    void generateCode(const ParallelizationType parallelization_type);
 
     size_t numberOfGroups()
     {
@@ -341,9 +341,9 @@ private:
     std::shared_ptr<QueryCompiler> _qc;
     
     std::vector<size_t>* variableOrder = nullptr;
+    
     std::vector<var_bitset> variableOrderBitset;
 
-    
     //TODO: this could be part of the view
     std::vector<size_t>* incomingViews = nullptr;
     
@@ -483,12 +483,12 @@ private:
 
     void computeViewOrdering();
 
-    void computeParallelizeGroup();
+    void computeParallelizeGroup(bool paralleize_groups);
 
     void genDataHandler();
-    void genComputeGroupHeaderSource(size_t group);
+    void genComputeGroupFiles(size_t group);
     void genMakeFile();
-    void genMainFunction();
+    void genMainFunction(bool parallelize);
     
     prod_bitset computeLoopMasks(
         prod_bitset presentFunctions, boost::dynamic_bitset<> consideredLoops,
@@ -562,7 +562,7 @@ private:
                                   const std::string& attrName,
                                   size_t depth, bool parallel); 
     
-    std::string genRunFunction();
+    std::string genRunFunction(bool parallelize);
     
     std::string genRunMultithreadedFunction();
 

@@ -77,6 +77,99 @@ void CovarianceMatrix::modelToQueries()
         }
     }
 
+#ifndef DEGREE_TWO
+    for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+    {
+        if (!_features[var])
+            continue;
+        
+        prod_bitset prod_linear_v1;
+        prod_bitset prod_quad_v1;
+
+        size_t v1_root = _td->_root->_id;
+        size_t cont_var_root = _td->_root->_id;
+
+        if (!_categoricalFeatures[var])
+        {
+            // Linear function per Feature 
+            prod_linear_v1.set(featureToFunction[var]);
+ 
+            Aggregate* agg_linear = new Aggregate();
+            agg_linear->_agg.push_back(prod_linear_v1);
+            
+            Query* linear = new Query();
+            linear->_aggregates.push_back(agg_linear);
+            linear->_rootID = cont_var_root;
+            _compiler->addQuery(linear);
+            
+            // Quadratic function for each feature
+            prod_quad_v1.set(quadFeatureToFunction[var]);
+            
+            Aggregate* agg_quad = new Aggregate();
+            agg_quad->_agg.push_back(prod_quad_v1);
+            
+            Query* quad = new Query();
+            quad->_aggregates.push_back(agg_quad);
+            quad->_rootID = cont_var_root;            
+            _compiler->addQuery(quad);
+        }
+        else
+        {
+            v1_root = _queryRootIndex[var];
+
+            Aggregate* agg_linear = new Aggregate();
+            agg_linear->_agg.push_back(prod_linear_v1);
+            
+            Query* linear = new Query();
+            linear->_aggregates.push_back(agg_linear);
+            linear->_fVars.set(var);
+            linear->_rootID = _queryRootIndex[var];
+            _compiler->addQuery(linear);
+        }
+        
+
+        for (size_t var2 = var+1; var2 < NUM_OF_VARIABLES; ++var2)
+        {
+            if (_features[var2])
+            {
+                //*****************************************//
+                
+                prod_bitset prod_quad_v2 = prod_linear_v1;
+                
+                Aggregate* agg_quad_v2 = new Aggregate();
+                
+                Query* quad_v2 = new Query();
+                quad_v2->_rootID = v1_root;
+                
+                if (_categoricalFeatures[var])
+                {
+                    quad_v2->_fVars.set(var);
+                }
+                
+                if (_categoricalFeatures[var2])
+                {
+                    quad_v2->_fVars.set(var2);
+                    // If both varaibles are categoricalVars - we choose the
+                    // var2 as the root
+                    //TODO: We should use the root that is highest to the
+                    // original root 
+                    quad_v2->_rootID = _queryRootIndex[var2];
+                }
+                else
+                {
+                    // create prod_quad_v2 of both var and var2
+                    prod_quad_v2.set(featureToFunction[var2]);                    
+                }
+                agg_quad_v2->_agg.push_back(prod_quad_v2);
+                
+                quad_v2->_aggregates.push_back(agg_quad_v2);
+                _compiler->addQuery(quad_v2);
+            }
+        }
+    }
+
+#else
+    
     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
     {
         if (_features.test(var) && !_categoricalFeatures.test(var))
@@ -99,109 +192,6 @@ void CovarianceMatrix::modelToQueries()
         }
     }
 
-#ifndef DEGREE_TWO
-    for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
-    {
-        if (!_features[var])
-            continue;
-        
-        prod_bitset prod_linear_v1;
-        prod_bitset prod_quad_v1;
-
-        size_t v1_root = _td->_root->_id;
-
-        if (!_categoricalFeatures[var])
-        {
-            // linear function ...
-            prod_linear_v1.set(featureToFunction[var]);
-            
-            // Aggregate* agg_linear = new Aggregate(1);
-            // agg_linear->_agg.push_back(prod_linear_v1);
-            // agg_linear->_m[0] = 1;
-
-            Aggregate* agg_linear = new Aggregate();
-            agg_linear->_agg.push_back(prod_linear_v1);
-            
-            Query* linear = new Query();
-            linear->_aggregates.push_back(agg_linear);
-            linear->_rootID = _td->_root->_id;
-            // linear->_rootID = _queryRootIndex[var];
-            _compiler->addQuery(linear);
-            
-            // quadratic function ...
-            prod_quad_v1.set(quadFeatureToFunction[var]);
-
-            // Aggregate* agg_quad = new Aggregate(1);
-            // agg_quad->_agg.push_back(prod_quad_v1);
-            // agg_quad->_m[0] = 1;
-            Aggregate* agg_quad = new Aggregate();
-            agg_quad->_agg.push_back(prod_quad_v1);
-            
-            Query* quad = new Query();
-            quad->_aggregates.push_back(agg_quad);
-            quad->_rootID = _td->_root->_id;
-            // quad->_rootID = _queryRootIndex[var];
-            _compiler->addQuery(quad);
-        }
-        else
-        {
-            v1_root = _queryRootIndex[var];
-
-            // Aggregate* agg_linear = new Aggregate(1);
-            // agg_linear->_agg.push_back(prod_linear_v1);
-            // agg_linear->_m[0] = 1;
-            Aggregate* agg_linear = new Aggregate();
-            agg_linear->_agg.push_back(prod_linear_v1);
-            
-            Query* linear = new Query();
-            linear->_aggregates.push_back(agg_linear);
-            linear->_fVars.set(var);
-            linear->_rootID = _queryRootIndex[var];
-            _compiler->addQuery(linear);
-        }
-        
-
-        for (size_t var2 = var+1; var2 < NUM_OF_VARIABLES; ++var2)
-        {
-            if (_features[var2])
-            {
-                //*****************************************//
-                
-                prod_bitset prod_quad_v2 = prod_linear_v1;
-                
-                // Aggregate* agg_quad_v2 = new Aggregate(1);
-                // agg_quad_v2->_m[0] = 1;
-                Aggregate* agg_quad_v2 = new Aggregate();
-                
-                Query* quad_v2 = new Query();
-                quad_v2->_rootID = v1_root;
-                
-                if (_categoricalFeatures[var])
-                {
-                    quad_v2->_fVars.set(var);
-                }
-                
-                if (_categoricalFeatures[var2])
-                {
-                    quad_v2->_fVars.set(var2);
-                    // If both varaibles are categoricalVars - we choose the
-                    // var2 as the root 
-                    quad_v2->_rootID = _queryRootIndex[var2];
-                }
-                else
-                {
-                    // create prod_quad_v2 of both var and var2
-                    prod_quad_v2.set(featureToFunction[var2]);                    
-                }
-                agg_quad_v2->_agg.push_back(prod_quad_v2);
-                
-                quad_v2->_aggregates.push_back(agg_quad_v2);
-                _compiler->addQuery(quad_v2);
-            }
-        }
-    }
-
-#else
 
     // TODO: TODO: add count function for intercept
     
@@ -839,6 +829,11 @@ void CovarianceMatrix::modelToQueries()
 
 }
 
+
+
+
+
+
 void CovarianceMatrix::loadFeatures()
 {
     _queryRootIndex = new size_t[NUM_OF_VARIABLES]();
@@ -885,9 +880,6 @@ void CovarianceMatrix::loadFeatures()
 
     assert(parsingSuccess && "The parsing of the features file has failed.");
     
-    // std::vector<int> linearContinuousFeatures;
-    // std::vector<int> linearCategoricalFeatures;
-
     /* Read in the features. */
     for (int featureNo = 0; featureNo < numOfFeatures; ++featureNo)
     {
@@ -934,17 +926,60 @@ void CovarianceMatrix::loadFeatures()
             exit(1);
         }
 
+        _isFeature.set(attributeID);
         _features.set(attributeID);
+
+        Feature f;
 
         if (categorical)
         {
             _categoricalFeatures.set(attributeID);
             _queryRootIndex[attributeID] = rootID;
+
+            f.head.set(attributeID);
+            _isCategoricalFeature.set(attributeID);
         }
         else
-            _queryRootIndex[attributeID] = 2; //_td->_root->_id;            
+        {
+            _queryRootIndex[attributeID] = _td->_root->_id;
+
+            ++f.body[attributeID];
+        }
+
+        _listOfFeatures.push_back(f);
         
         /* Clear string stream. */
         ssLine.clear();
     }
 }
+
+
+
+// void CovarianceMatrix::generateParameters()
+// {
+    // For each query that we return we need to create a parameter
+
+    // continuous parameters are scalars
+
+    // categorical parameters are arrays of tuples (potentially even only arrays
+    // of parameters)
+
+    // --> We could have all params in one array, if we can identify the correct
+    // --> indexes
+
+    // LATEST:
+    // We should go over the features and generate the parameters they need
+    // For that I should keep track of the query that defines the aggregate for
+    // the intercept of the is feature (this will give us the cardinality of the
+    // parameters)
+    
+    // Then for each index in the covariance matrix, generate a 'query' that
+    // multiplies the view with the parameters
+
+    // Then group views by predicates
+
+    // Turn each group into an MO-Operation
+    
+    // TODO: Simplify the modelToQueries function! --> define a 'feature' which
+    // can then be combined into a query --> ensure that repeated queries are shared
+// }
