@@ -20,6 +20,13 @@
 #include <TDNode.hpp>
 #include <TreeDecomposition.h>
 
+struct Feature
+{
+    var_bitset head;
+    size_t body[multifaq::params::NUM_OF_VARIABLES] = {};
+};
+
+
 /**
  * Abstract class to provide a uniform interface used to process the received data.
  */
@@ -45,7 +52,11 @@ public:
 protected:
 
     var_bitset _features;
-    
+
+    var_bitset _isFeature;
+    var_bitset _isCategoricalFeature;
+
+    std::vector<Feature> _listOfFeatures;
 };
 
 #endif /* INCLUDE_APPLICATION_APPLICATION_HPP_ */
