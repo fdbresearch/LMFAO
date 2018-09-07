@@ -150,13 +150,19 @@ void SqlGenerator::generateJoinQuery()
         if (rel + 1 < _td->numberOfRelations())
             joinString += " NATURAL JOIN ";
     }
-    
+
+    // TODO: This should only output the features not all variables. 
     for (size_t var = 0; var < _td->numberOfAttributes(); ++var)
         attributeString += _td->getAttribute(var)->_name + ",";
     attributeString.pop_back();
 
     std::ofstream ofs("runtime/sql/join.sql", std::ofstream::out);
-    ofs << "SELECT "+attributeString+"\nFROM "+joinString+";\n";
+    ofs << "CREATE TABLE joinres AS (SELECT "+attributeString+
+        "\nFROM "+joinString+");\n";
+    ofs.close();
+
+    ofs.open("runtime/sql/export.sql", std::ofstream::out);
+    ofs << "\\COPY joinres TO \'joinresult.txt\' CSV DELIMITER '|';\n";
     ofs.close();
 }
 
@@ -412,8 +418,6 @@ void SqlGenerator::generateLoadQuery()
     ofs.open("runtime/sql/drop_data.sql", std::ofstream::out);
     ofs << drop + drop_views;
     ofs.close();
-    // DINFO(drop);
-// #endif
 }
 
 
