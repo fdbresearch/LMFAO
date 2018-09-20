@@ -20,7 +20,7 @@ psql -d vldb18 -f load_data.sql
 rm times.txt 
 rm export_times.txt 
 
-echo "Run join.sql - $DATASET - join " >> ../"$LOG_FILE"
+echo "$DATASET - join " >> ../"$LOG_FILE"
 
 for i in {1..3}
 do

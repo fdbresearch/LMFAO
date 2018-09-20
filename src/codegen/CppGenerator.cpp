@@ -39,7 +39,6 @@ const bool GROUP_VIEWS = false;
 #endif
 
 // const bool PARALLELIZE_GROUPS = true;
-
 using namespace multifaq::params;
 
 typedef boost::dynamic_bitset<> dyn_bitset;
@@ -167,19 +166,21 @@ void CppGenerator::genComputeGroupFiles(size_t group)
         "#include \"DataHandler.h\"\n\nnamespace lmfao\n{\n";
     if (_parallelizeGroup[group])
     {
-        ofs << offset(1)+"void computeGroup"+std::to_string(group)+"(";
+        // ofs << offset(1)+"void computeGroup"+std::to_string(group)+"(";
 
-        for (const size_t& viewID : viewGroups[group])
-        {
-            ofs << "std::vector<"+viewName[viewID]+"_tuple>& "+viewName[viewID]+",";
-            if (_requireHashing[viewID])
-            {
-                ofs << "std::unordered_map<"+viewName[viewID]+"_key,"+
-                    "size_t, "+viewName[viewID]+"_keyhash>& "+viewName[viewID]+"_map,";
-            }
-        }
-        ofs << "size_t lowerptr, size_t upperptr);\n";
-        ofs << offset(1)+"void computeGroup"+std::to_string(group)+"Parallelized();\n";
+        // for (const size_t& viewID : viewGroups[group])
+        // {
+        //     ofs << "std::vector<"+viewName[viewID]+"_tuple>& "+viewName[viewID]+",";
+        //     if (_requireHashing[viewID])
+        //     {
+        //         ofs << "std::unordered_map<"+viewName[viewID]+"_key,"+
+        //             "size_t, "+viewName[viewID]+"_keyhash>& "+viewName[viewID]+"_map,";
+        //     }
+        // }
+        // ofs << "size_t lowerptr, size_t upperptr);\n";
+        // ofs << offset(1)+"void
+        // computeGroup"+std::to_string(group)+"Parallelized();\n";
+         ofs << offset(1)+"void computeGroup"+std::to_string(group)+"();\n";
     }
     else
     {
@@ -261,7 +262,7 @@ void CppGenerator::genMakeFile()
     
     std::ofstream ofs("runtime/cpp/Makefile",std::ofstream::out);
 
-    ofs << "CXXFLAG  += -std=c++11 -O2 -pthread -mtune=native" <<
+    ofs << "CXXFLAG  += -std=c++11 -O3 -pthread -mtune=native" <<
         "\n# -pthread -O2 -mtune=native -fassociative-math -freciprocal-math "
         << "-fno-signed-zeros -v -ftime-report -fno-stack-protector\n\n";
 
@@ -956,7 +957,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
     }
     else
     {
-        headerString += "(";
+        headerString += "Parallelized(";
         for (const size_t& viewID : viewGroups[group_id])
         {
             headerString += "std::vector<"+viewName[viewID]+"_tuple>& "+
@@ -1357,7 +1358,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
         returnString += offset(1)+"}\n";
 
         returnString += offset(1)+"void computeGroup"+std::to_string(group_id)+
-            "Parallelized()\n"+offset(1)+"{\n";
+            "()\n"+offset(1)+"{\n";
 
         for (const size_t& viewID : viewGroups[group_id])
         {
@@ -1390,7 +1391,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                 std::to_string(t+1)+"/"+
                 std::to_string(_threadsPerGroup[group_id])+")) - 1;\n"+
                 offset(2)+"std::thread thread"+std::to_string(t)+
-                "(computeGroup"+std::to_string(group_id)+",";
+                "(computeGroup"+std::to_string(group_id)+"Parallelized,";
             
             for (const size_t& viewID : viewGroups[group_id])
             {
@@ -6438,7 +6439,7 @@ std::string CppGenerator::genRunMultithreadedFunction()
 
         if (_parallelizeGroup[group])            
             returnString += offset(2)+"std::thread group"+std::to_string(group)+
-                "Thread(computeGroup"+std::to_string(group)+"Parallelized);\n";
+                "Thread(computeGroupParallelized"+std::to_string(group)+");\n";
         else
          returnString += offset(2)+"std::thread group"+std::to_string(group)+
                 "Thread(computeGroup"+std::to_string(group)+");\n";
@@ -6530,6 +6531,9 @@ std::string CppGenerator::genTestFunction()
     for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
     {
         View* view = _qc->getView(viewID);
+
+        if (view->_origin != view->_destination)
+            continue;
 
         std::string fields = "";
         for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
