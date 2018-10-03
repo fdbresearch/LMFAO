@@ -211,7 +211,8 @@ void CppGenerator::genMainFunction(bool parallelize)
     ofs << "#include \"DataHandler.h\"\n";
     for (size_t group = 0; group < viewGroups.size(); ++group)
         ofs << "#include \"ComputeGroup"+std::to_string(group)+".h\"\n";
-  
+    ofs << "#include \"ApplicationHandler.h\"\n";
+    
     ofs << "\nnamespace lmfao\n{\n"+
         offset(1)+"//const std::string PATH_TO_DATA = \"/Users/Maximilian/Documents/"+
         "Oxford/LMFAO/"+_pathToData+"\";\n"+
@@ -249,7 +250,7 @@ void CppGenerator::genMainFunction(bool parallelize)
 
 void CppGenerator::genMakeFile()
 {
-    std::string objectList = "main.o datahandler.o ";
+    std::string objectList = "main.o datahandler.o application.o ";
     std::string objectConstruct = "";
     for (size_t group = 0; group < viewGroups.size(); ++group)
     {
@@ -271,7 +272,10 @@ void CppGenerator::genMakeFile()
     ofs << "main.o : main.cpp\n"
         << "\t$(CXX) $(FLAG) $(CXXFLAG) -xc++ -c main.cpp -o main.o\n\n"
         << "datahandler.o : DataHandler.cpp\n"
-        << "\t$(CXX) $(FLAG) $(CXXFLAG) -xc++ -c DataHandler.cpp -o datahandler.o\n\n";
+        << "\t$(CXX) $(FLAG) $(CXXFLAG) -xc++ -c DataHandler.cpp -o datahandler.o\n\n"
+        << "application.o : ApplicationHandler.cpp\n"
+        << "\t$(CXX) $(FLAG) $(CXXFLAG) -xc++ -c ApplicationHandler.cpp "
+        << "-o application.o\n\n";
 
     ofs << objectConstruct;
 
@@ -6328,11 +6332,10 @@ std::string CppGenerator::genRunFunction(bool parallelize)
         }
     }
 // #endif
-    
     // returnString += "\n"+offset(2)+"std::cout << \"Data process: \"+"+
     //     "std::to_string(duration_cast<milliseconds>("+
     //     "system_clock::now().time_since_epoch()).count()-startProcess)+\"ms.\\n\";\n\n";
-
+    
     returnString += "\n"+offset(2)+"int64_t processTime = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count()-startProcess;\n"+
         offset(2)+"std::cout << \"Data process: \"+"+
@@ -6346,6 +6349,9 @@ std::string CppGenerator::genRunFunction(bool parallelize)
         returnString += offset(2)+"std::cout << \""+viewName[view]+": \" << "+
             viewName[view]+".size() << std::endl;\n";
     }
+
+    returnString += "\n"+offset(2)+"std::cout << \"run Application:\\n\";\n"+
+        offset(2)+"runApplication();\n"; 
     
     return returnString+offset(1)+"}\n";
 }
@@ -6378,7 +6384,6 @@ std::string CppGenerator::genRunMultithreadedFunction()
     {
         TDNode* node = _td->getRelation(rel);
         returnString += offset(2)+"sort"+node->_name+"Thread.join();\n";
-
     }
 
     returnString += offset(2)+"std::cout << \"Data sorting: \" + std::to_string("+
@@ -6408,7 +6413,6 @@ std::string CppGenerator::genRunMultithreadedFunction()
                     "Thread.join();\n";
                 joinedViews[otherView] = 1;
             }
-            
         }
         returnString += offset(2)+"std::thread view"+std::to_string(view)+
             "Thread(computeView"+std::to_string(view)+");\n";
@@ -6439,7 +6443,7 @@ std::string CppGenerator::genRunMultithreadedFunction()
 
         if (_parallelizeGroup[group])            
             returnString += offset(2)+"std::thread group"+std::to_string(group)+
-                "Thread(computeGroupParallelized"+std::to_string(group)+");\n";
+                "Thread(computeGroup"+std::to_string(group)+"Parallelized);\n";
         else
          returnString += offset(2)+"std::thread group"+std::to_string(group)+
                 "Thread(computeGroup"+std::to_string(group)+");\n";
