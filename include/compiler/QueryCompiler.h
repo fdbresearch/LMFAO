@@ -104,7 +104,8 @@ enum Operation
     indicator_lt,
     indicator_gt,
     lr_cont_parameter,
-    lr_cat_parameter
+    lr_cat_parameter,
+    dynamic  // TODO: we should provide functionality to give names to dynamic functions
 };
 
 struct Function
@@ -112,15 +113,24 @@ struct Function
     var_bitset _fVars;
     Operation _operation;
     double* _parameter = nullptr;
+    bool _dynamic;
+    std::string _name = "";  
     
     Function(std::set<size_t> v, Operation o) :
-        _operation(o)
+        _operation(o), _dynamic(false)
     {
         for (int i : v) _fVars.set(i);
     }
 
     Function(std::set<size_t> v, Operation o, double* parameter) :
-        _operation(o), _parameter(parameter)
+        _operation(o), _parameter(parameter), _dynamic(false)
+    {
+        for (int i : v) _fVars.set(i);
+    }
+
+    Function(std::set<size_t> v, Operation o, bool dynamic,
+             const std::string& name) :
+        _operation(o), _dynamic(dynamic), _name(name)
     {
         for (int i : v) _fVars.set(i);
     }
@@ -129,8 +139,7 @@ struct Function
     {
         // if (_parameter != nullptr)
         //     delete[] _parameter;
-    }
-    
+    }    
 };
 
 

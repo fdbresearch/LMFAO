@@ -17,13 +17,6 @@
 #include <vector>
 
 #include <Application.hpp>
-// #include <CompilerUtils.hpp>
-// #include <GlobalParams.hpp>
-// #include <Logging.hpp>
-// #include <QueryCompiler.h>
-// #include <TDNode.hpp>
-// #include <TreeDecomposition.h>
-// #include <DataTypes.hpp>
 
 /** Forward declarations to allow pointer to launcher and Linear Regressionas
  * without cyclic includes. */
@@ -31,14 +24,13 @@ class Launcher;
 
 struct RegTreeNode
 {
-    /* Condition is a pointer to a function ? - better id of a function  */
-    /* Parent conditions - bitset */
     size_t _functionID;
+
+    /* Set of parent conditions, stored as a product of functions. */
     prod_bitset _conditions;
 
     RegTreeNode(size_t f) : _functionID(f) {}
     RegTreeNode() {}
-
 };  
 
 class RegressionTree: public Application
@@ -72,26 +64,36 @@ private:
     var_bitset _categoricalFeatures;
 
     int _labelID;
-    
-    void loadFeatures();
-
-    void computeCandidates();
-
-    //  void modelToQueries();
-
-    void splitNodeQueries(RegTreeNode* node);
 
     size_t _totalNumOfCandidates = 0;
 
     size_t* _numOfCandidates = nullptr;
 
+    size_t* _complementFunction = nullptr;
+
+    Query** _varToQueryMap = nullptr;
+
     std::vector<std::vector<double>> _thresholds;
 
     size_t* _queryRootIndex = nullptr;
 
-    /* We can have a candidate mask for each feature. */
+    /* For each feature the candidate mask indicates which functions correspond
+     * to that feature. */ 
     std::vector<prod_bitset> _candidateMask;
+    
+    void loadFeatures();
 
+    void computeCandidates();
+    
+    void splitNodeQueries(RegTreeNode* node);
+    
+    void genDynamicFunctions();
+
+    std::string genVarianceComputation();
+
+    void generateCode();
+
+    void initializeThresholds();    
 };
 
 #endif /* INCLUDE_APP_REGRESSION_TREE_H_ */
