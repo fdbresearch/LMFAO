@@ -52,7 +52,7 @@ private:
 
     size_t* _queryRootIndex = nullptr;
 
-    std::vector<size_t> firstEntry;
+    std::vector<size_t> _parameterIndex;
     
     void modelToQueries();
 
@@ -60,7 +60,6 @@ private:
 
     Query** parameterQueries;
     void generateCode();
-    // std::string generateRunFunction();
     std::string generateParameters();
     std::string generateGradients();
     std::string generateConvergenceLoop();

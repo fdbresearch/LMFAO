@@ -103,7 +103,7 @@ void CovarianceMatrix::modelToQueries()
     PartialGradient countGradient;
     countGradient.query = count;
     countGradient.inputVariables =
-        {{NUM_OF_VARIABLES+1,NUM_OF_VARIABLES+1}};
+        {{NUM_OF_VARIABLES,NUM_OF_VARIABLES}};
     partialGradients.push_back(countGradient);
 
 #ifndef DEGREE_TWO
@@ -141,7 +141,7 @@ void CovarianceMatrix::modelToQueries()
             PartialGradient linGradient;
             linGradient.query = linear;
             linGradient.inputVariables =
-                {{var,NUM_OF_VARIABLES+1},{NUM_OF_VARIABLES+1,var}};
+                {{var,NUM_OF_VARIABLES},{NUM_OF_VARIABLES,var}};
             partialGradients.push_back(linGradient);
             
             ++numberOfQueries;
@@ -192,7 +192,7 @@ void CovarianceMatrix::modelToQueries()
             PartialGradient linGradient;
             linGradient.query = linear;
             linGradient.inputVariables =
-                {{var,NUM_OF_VARIABLES+1},{NUM_OF_VARIABLES+1,var}};
+                {{var,NUM_OF_VARIABLES},{NUM_OF_VARIABLES,var}};
             partialGradients.push_back(linGradient);
 
             ++numberOfQueries;
@@ -1056,7 +1056,7 @@ void CovarianceMatrix::loadFeatures()
 
 std::string CovarianceMatrix::generateParameters()
 {
-    firstEntry.resize(NUM_OF_VARIABLES+1);
+    _parameterIndex.resize(NUM_OF_VARIABLES+1);
     
     std::string constructParam = offset(1)+"size_t numberOfParameters;\n"+
         offset(1)+"double *params = nullptr, *grad = nullptr, error, *lambda, "+
@@ -1074,7 +1074,7 @@ std::string CovarianceMatrix::generateParameters()
             continue;
         if (!_categoricalFeatures.test(var))
         {
-            firstEntry[var] = numOfContParameters;
+            _parameterIndex[var] = numOfContParameters;
             ++numOfContParameters;
         }
         else
@@ -1083,7 +1083,7 @@ std::string CovarianceMatrix::generateParameters()
             numOfParameters += "V"+std::to_string(viewID)+".size() + ";
         }
     }
-    firstEntry[NUM_OF_VARIABLES] = 0;
+    _parameterIndex[NUM_OF_VARIABLES] = 0;
     numOfParameters += std::to_string(numOfContParameters+1)+";\n";
     
     std::string initParam = offset(2)+numOfParameters+
@@ -1127,7 +1127,7 @@ std::string CovarianceMatrix::generateParameters()
         offset(3)+"params[j] = ((double) (rand() % 500 + 1) - 100) / 100;\n"+
         offset(3)+"lambda[j] = 0.1;\n"+
         offset(2)+"}\n"+
-        offset(2)+"params["+std::to_string(firstEntry[labelID])+"] = -1;\n"+
+        offset(2)+"params["+std::to_string(_parameterIndex[labelID])+"] = -1;\n"+
         offset(2)+"lambda[0] = 0.0;\n";
     
     std::string outString = constructParam+constructGrad+"\n"+
@@ -1145,7 +1145,7 @@ struct ActualGradient
 
 std::string CovarianceMatrix::getAttributeName(size_t attID)
 {
-    if (attID == NUM_OF_VARIABLES+1)
+    if (attID == NUM_OF_VARIABLES)
         return "int";
     return _td->getAttribute(attID)->_name;
 }
@@ -1246,11 +1246,11 @@ std::string CovarianceMatrix::generateGradients()
                 else
                 {
                     gradString += offset(off)+"grad["+
-                        std::to_string(firstEntry[gradID])+"] += ";
+                        std::to_string(_parameterIndex[gradID])+"] += ";
                     
                     if (prevGradID != paramID || prevParamID != gradID)
                         errorString += "params["+
-                            std::to_string(firstEntry[gradID])+"] * ";
+                            std::to_string(_parameterIndex[gradID])+"] * ";
                 }
                 
                 gradString += "tuple.aggregates["+std::to_string(ag.aggNum)+"] * ";
@@ -1270,11 +1270,12 @@ std::string CovarianceMatrix::generateGradients()
                 else
                 {
                     // gradString += "param_"+getAttributeName(paramID)+";\n";
-                    gradString += "params["+std::to_string(firstEntry[paramID])+"];\n";
+                    gradString += "params["+
+                        std::to_string(_parameterIndex[paramID])+"];\n";
 
                     if (prevGradID != paramID || prevParamID != gradID)
                         errorString += "params["+
-                            std::to_string(firstEntry[paramID])+"];\n";
+                            std::to_string(_parameterIndex[paramID])+"];\n";
                 }
 
                 prevGradID = gradID;
@@ -1292,7 +1293,7 @@ std::string CovarianceMatrix::generateGradients()
         offset(3)+"grad[j] /= tuple.aggregates[0];\n"+
         offset(1)+"}\n\n";
 
-    std::string labelStr = std::to_string(firstEntry[labelID]);
+    std::string labelStr = std::to_string(_parameterIndex[labelID]);
     
     errorString +=  offset(2)+"error /= tuple.aggregates[0];\n\n"+
         offset(2)+"double paramNorm = 0.0;\n"+
@@ -1321,7 +1322,7 @@ void CovarianceMatrix::generateCode()
         offset(1)+"{\n"+
         offset(2)+"double DSS = 0.0, GSS = 0.0, DGS = 0.0, paramDiff, gradDiff;\n"+
         offset(2)+"for(size_t j = 0; j < numberOfParameters; ++j)\n"+offset(2)+"{\n"+
-        offset(3)+"if (j == "+std::to_string(firstEntry[labelID])+") continue;\n\n"+
+        offset(3)+"if (j == "+std::to_string(_parameterIndex[labelID])+") continue;\n\n"+
         offset(3)+"paramDiff = params[j] - prevParams[j];\n"+
         offset(3)+"gradDiff = grad[j] - prevGrad[j];\n\n"+
         offset(3)+"DSS += paramDiff * paramDiff;\n"+
@@ -1353,7 +1354,7 @@ void CovarianceMatrix::generateCode()
     ofs.close();
 
     ofs.open("runtime/cpp/ApplicationHandler.cpp", std::ofstream::out);
-    ofs << "#include \"ApplicationHandler.h\"\nnamespace lmfao\n{\n";
+    ofs << "#include \"ApplicationHandler.h\"\n#include <cmath>\nnamespace lmfao\n{\n";
     ofs << parameterGeneration << std::endl;
     ofs << generateGradients() << std::endl;
     ofs << generatePrintFunction() << std::endl;
@@ -1362,12 +1363,6 @@ void CovarianceMatrix::generateCode()
     ofs << "}\n";
     ofs.close();
 }
-
-// TODO: TODO: remove this function! 
-// std::string CovarianceMatrix::generateRunFunction()
-// {
-//     return "";
-// }
 
 std::string CovarianceMatrix::generateConvergenceLoop()
 {
@@ -1380,7 +1375,7 @@ std::string CovarianceMatrix::generateConvergenceLoop()
         offset(4)+"break;\n"+
         offset(3)+"}\n";
 
-    std::string labelStr = std::to_string(firstEntry[labelID]);
+    std::string labelStr = std::to_string(_parameterIndex[labelID]);
     
     std::string updateParams = offset(3)+"gradientNorm = 0.0;\n"+
         offset(3)+"for (int j = 0; j < numberOfParameters; ++j)\n"+
@@ -1406,7 +1401,7 @@ std::string CovarianceMatrix::generateConvergenceLoop()
         offset(4)+"// Update parameters based on the new stepSize.\n"+
         offset(4)+"for (int j = 0; j < numberOfParameters; ++j)\n"+
         offset(5)+"params[j] = prevParams[j] - stepSize * update[j];\n"+
-        offset(4)+"params["+std::to_string(firstEntry[labelID])+"] = -1;\n"+
+        offset(4)+"params["+std::to_string(_parameterIndex[labelID])+"] = -1;\n"+
         offset(4)+"computeError();\n"+
         offset(4)+"++backtrackingSteps;\n"+
         offset(3)+"}\n";
@@ -1436,10 +1431,10 @@ std::string CovarianceMatrix::generateConvergenceLoop()
 std::string CovarianceMatrix::generatePrintFunction()
 {
     std::string printParam = offset(2)+"std::cout << \"param_int = \" << "+
-        "params["+std::to_string(firstEntry[NUM_OF_VARIABLES])+"] << \";\\n\";\n";
+        "params["+std::to_string(_parameterIndex[NUM_OF_VARIABLES])+"] << \";\\n\";\n";
     
     std::string printGrad = offset(2)+"std::cout << \"grad_int = \" << "+
-        "grad["+std::to_string(firstEntry[NUM_OF_VARIABLES])+"] << \";\\n\";\n";
+        "grad["+std::to_string(_parameterIndex[NUM_OF_VARIABLES])+"] << \";\\n\";\n";
     
     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
     {
@@ -1449,9 +1444,9 @@ std::string CovarianceMatrix::generatePrintFunction()
         if (!_categoricalFeatures.test(var))
         {
             printParam += offset(2)+"std::cout << \"param_"+getAttributeName(var)+" = "
-                "\" << params["+std::to_string(firstEntry[var])+"] << \";\\n\";\n";
+                "\" << params["+std::to_string(_parameterIndex[var])+"] << \";\\n\";\n";
             printGrad += offset(2)+"std::cout << \"grad_"+getAttributeName(var)+" = "
-                "\" << grad["+std::to_string(firstEntry[var])+"] <<\";\\n\";\n";
+                "\" << grad["+std::to_string(_parameterIndex[var])+"] <<\";\\n\";\n";
         }
         else
         {            
