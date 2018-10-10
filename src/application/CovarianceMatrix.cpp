@@ -1053,11 +1053,11 @@ void CovarianceMatrix::loadFeatures()
 // TODO: Can we ensure that the continuous parameters are in the order in which
 // they are needed for the computation for continuous aggregates?
 
-std::vector<size_t> firstEntry(NUM_OF_VARIABLES+1);
-
 
 std::string CovarianceMatrix::generateParameters()
 {
+    firstEntry.resize(NUM_OF_VARIABLES+1);
+    
     std::string constructParam = offset(1)+"size_t numberOfParameters;\n"+
         offset(1)+"double *params = nullptr, *grad = nullptr, error, *lambda, "+
         "*prevParams = nullptr, *prevGrad = nullptr;\n";
@@ -1083,7 +1083,7 @@ std::string CovarianceMatrix::generateParameters()
             numOfParameters += "V"+std::to_string(viewID)+".size() + ";
         }
     }
-    firstEntry[NUM_OF_VARIABLES+1] = 0;
+    firstEntry[NUM_OF_VARIABLES] = 0;
     numOfParameters += std::to_string(numOfContParameters+1)+";\n";
     
     std::string initParam = offset(2)+numOfParameters+
@@ -1371,8 +1371,6 @@ void CovarianceMatrix::generateCode()
 
 std::string CovarianceMatrix::generateConvergenceLoop()
 {
-    double epsilon = 0.00001;
-
     std::string convergenceCheck =
         offset(3)+"/* Normalized residual stopping condition */\n"+
 	offset(3)+"if (sqrt(gradientNorm) / (firstGradientNorm + 0.01) < 0.000001)\n"+
@@ -1438,10 +1436,10 @@ std::string CovarianceMatrix::generateConvergenceLoop()
 std::string CovarianceMatrix::generatePrintFunction()
 {
     std::string printParam = offset(2)+"std::cout << \"param_int = \" << "+
-        "params["+std::to_string(firstEntry[NUM_OF_VARIABLES+1])+"] << \";\\n\";\n";
+        "params["+std::to_string(firstEntry[NUM_OF_VARIABLES])+"] << \";\\n\";\n";
     
     std::string printGrad = offset(2)+"std::cout << \"grad_int = \" << "+
-        "grad["+std::to_string(firstEntry[NUM_OF_VARIABLES+1])+"] << \";\\n\";\n";
+        "grad["+std::to_string(firstEntry[NUM_OF_VARIABLES])+"] << \";\\n\";\n";
     
     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
     {

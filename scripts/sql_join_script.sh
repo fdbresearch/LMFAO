@@ -27,7 +27,7 @@ do
       echo "Run $i lmfao.sql - $DATASET - join "
       /usr/bin/time -f "%e %P %I %O" -o "times.txt" -a psql -d vldb18 -f join.sql
       /usr/bin/time -f "%e %P %I %O" -o "export_times.txt" -a psql -d vldb18 -f export.sql
-      psql -d vldb18 -f lmfao_cleanup.sql
+      psql -d vldb18 -f join_cleanup.sql
       rm joinresult.txt
 done
 

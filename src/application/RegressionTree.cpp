@@ -134,7 +134,7 @@ void RegressionTree::computeCandidates()
     // Push them on the functionList in the order they are accessed 
     size_t idx = 2;
     for (size_t var=0; var < NUM_OF_VARIABLES; ++var)
-    {                
+    {
         if (_features[var])
         {
             for (size_t t = 0; t < _thresholds[var].size(); ++t)

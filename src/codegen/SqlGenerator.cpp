@@ -39,6 +39,9 @@ void SqlGenerator::generateCode(const ParallelizationType parallelization_type)
 {
     DINFO("Starting SQL - Generator \n");
 
+    if (parallelization_type != NO_PARALLELIZATION)
+        ERROR("The SQLGenerator currently does not support parallelization.\n");
+    
     generateLoadQuery();
     generateJoinQuery();
     generateLmfaoQuery();

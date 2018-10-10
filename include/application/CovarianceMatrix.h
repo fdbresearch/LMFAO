@@ -51,6 +51,8 @@ private:
     size_t labelID;
 
     size_t* _queryRootIndex = nullptr;
+
+    std::vector<size_t> firstEntry;
     
     void modelToQueries();
 
@@ -65,6 +67,7 @@ private:
     std::string generatePrintFunction();
     std::string getAttributeName(size_t attID);
     std::string offset(size_t off);
+    
 };
 
 #endif /* INCLUDE_APP_COVARMATRIX_H_ */
