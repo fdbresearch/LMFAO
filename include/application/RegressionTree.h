@@ -29,9 +29,13 @@ struct RegTreeNode
     /* Set of parent conditions, stored as a product of functions. */
     prod_bitset _conditions;
 
+    size_t count;
+    double prediction;
+    double variance;
+
     RegTreeNode(size_t f) : _functionID(f) {}
     RegTreeNode() {}
-};  
+};
 
 class RegressionTree: public Application
 {
@@ -93,7 +97,10 @@ private:
 
     void generateCode();
 
-    void initializeThresholds();    
+    void initializeThresholds();
+
+    std::string dynamicFunctionsGenerator();
+    
 };
 
 #endif /* INCLUDE_APP_REGRESSION_TREE_H_ */

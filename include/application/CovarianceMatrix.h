@@ -48,11 +48,23 @@ private:
     
     var_bitset _categoricalFeatures;
 
+    size_t labelID;
+
     size_t* _queryRootIndex = nullptr;
     
     void modelToQueries();
 
-    void loadFeatures();    
+    void loadFeatures();
+
+    Query** parameterQueries;
+    void generateCode();
+    // std::string generateRunFunction();
+    std::string generateParameters();
+    std::string generateGradients();
+    std::string generateConvergenceLoop();
+    std::string generatePrintFunction();
+    std::string getAttributeName(size_t attID);
+    std::string offset(size_t off);
 };
 
 #endif /* INCLUDE_APP_COVARMATRIX_H_ */

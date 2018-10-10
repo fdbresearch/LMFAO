@@ -3728,7 +3728,7 @@ std::string CppGenerator::outputPostRegTupleString(
             else
             {
                 ERROR("WE EXPECT LOCAL IN POST REG TO BE SET!! \n");
-                exit(1);
+                // exit(1);
             }
             
             if (idx.present[1])

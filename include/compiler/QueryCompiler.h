@@ -247,6 +247,8 @@ public:
     size_t numberOfViews();
 
     size_t numberOfQueries();
+
+    size_t numberOfFunctions();
     
     View* getView(size_t v_id);
 

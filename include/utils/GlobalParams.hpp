@@ -54,7 +54,7 @@ namespace multifaq
 /* Runtime variable: can be used across different compilation units; must be
  * defined in a source file. */
 #else
-        const size_t NUM_OF_TABLES = 4;
+        const size_t NUM_OF_TABLES = 10;
 #endif
 
     }

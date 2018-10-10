@@ -13,9 +13,9 @@
 
 #include <Launcher.h>
 #include <CovarianceMatrix.h>
+// #include <CodegenUtils.hpp>
 
 // #define DEGREE_TWO
-
 static const std::string FEATURE_CONF = "/features.conf";
 
 static const char COMMENT_CHAR = '#';
@@ -26,6 +26,17 @@ using namespace std;
 using namespace multifaq::params;
 namespace phoenix = boost::phoenix;
 using namespace boost::spirit;
+
+
+
+struct PartialGradient
+{
+    Query* query;
+    std::vector<std::pair<size_t,size_t>> inputVariables;
+    // vector<size_t> ouputVaribales;
+};
+
+std::vector<PartialGradient> partialGradients;
 
 CovarianceMatrix::CovarianceMatrix(
     const string& pathToFiles, shared_ptr<Launcher> launcher) :
@@ -45,15 +56,18 @@ void CovarianceMatrix::run()
     loadFeatures();
     modelToQueries();
     _compiler->compile();
+    generateCode();
 }
 
 void CovarianceMatrix::modelToQueries()
 {
     size_t numberOfFunctions = 0;
     size_t featureToFunction[NUM_OF_VARIABLES],
-        quadFeatureToFunction[NUM_OF_VARIABLES],
-        cubicFeatureToFunction[NUM_OF_VARIABLES],
-        quarticFeatureToFunction[NUM_OF_VARIABLES];
+        quadFeatureToFunction[NUM_OF_VARIABLES];
+    
+    parameterQueries = new Query*[NUM_OF_VARIABLES];
+
+    // std::vector<PartialGradient> partialGradients;
     
     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
     {
@@ -77,7 +91,27 @@ void CovarianceMatrix::modelToQueries()
         }
     }
 
+    // --- TODO: TODO: add count query for intercept!! TODO: TODO: --- //
+    Aggregate* agg_count = new Aggregate();
+    agg_count->_agg.push_back(prod_bitset());
+            
+    Query* count = new Query();
+    count->_aggregates.push_back(agg_count);
+    count->_rootID = _td->_root->_id;
+    _compiler->addQuery(count);
+
+    PartialGradient countGradient;
+    countGradient.query = count;
+    countGradient.inputVariables =
+        {{NUM_OF_VARIABLES+1,NUM_OF_VARIABLES+1}};
+    partialGradients.push_back(countGradient);
+
 #ifndef DEGREE_TWO
+
+    size_t numberOfQueries = 0;
+    
+    size_t cont_var_root = _td->_root->_id;
+
     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
     {
         if (!_features[var])
@@ -85,9 +119,6 @@ void CovarianceMatrix::modelToQueries()
         
         prod_bitset prod_linear_v1;
         prod_bitset prod_quad_v1;
-
-        size_t v1_root = _td->_root->_id;
-        size_t cont_var_root = _td->_root->_id;
 
         if (!_categoricalFeatures[var])
         {
@@ -100,7 +131,25 @@ void CovarianceMatrix::modelToQueries()
             Query* linear = new Query();
             linear->_aggregates.push_back(agg_linear);
             linear->_rootID = cont_var_root;
+
             _compiler->addQuery(linear);
+
+            
+            parameterQueries[var] = linear;
+            
+            //TODO: THIS ONE WOULD NEED TO BE MULTIPLIED BY THE PARAM FOR INTERCEPT
+            PartialGradient linGradient;
+            linGradient.query = linear;
+            linGradient.inputVariables =
+                {{var,NUM_OF_VARIABLES+1},{NUM_OF_VARIABLES+1,var}};
+            partialGradients.push_back(linGradient);
+            
+            ++numberOfQueries;
+            
+            // TODO: What is the queryID ?
+            // TODO: what is the variable of the intercept? NUM_OF_VARS + 1?
+            // TODO: We should also add this to the NUM_OF_VARS + 1 gradient for
+            // the intercept multiplied by param for this var!
             
             // Quadratic function for each feature
             prod_quad_v1.set(quadFeatureToFunction[var]);
@@ -110,12 +159,21 @@ void CovarianceMatrix::modelToQueries()
             
             Query* quad = new Query();
             quad->_aggregates.push_back(agg_quad);
-            quad->_rootID = cont_var_root;            
+            quad->_rootID = _td->_root->_id; // cont_var_root;
+
             _compiler->addQuery(quad);
+
+            // TODO: THIS ONE WOULD NEED TO BE MULTIPLIED BY THE PARAM FOR THIS var!!
+            PartialGradient quadGradient;
+            quadGradient.query = quad;
+            quadGradient.inputVariables = {{var,var}};
+            partialGradients.push_back(quadGradient);
+
+            ++numberOfQueries;
         }
         else
         {
-            v1_root = _queryRootIndex[var];
+            // v1_root = _queryRootIndex[var];
 
             Aggregate* agg_linear = new Aggregate();
             agg_linear->_agg.push_back(prod_linear_v1);
@@ -125,6 +183,19 @@ void CovarianceMatrix::modelToQueries()
             linear->_fVars.set(var);
             linear->_rootID = _queryRootIndex[var];
             _compiler->addQuery(linear);
+
+            parameterQueries[var] = linear;
+
+            // THIS ONE WOULD NEED TO BE MULTIPLIED BY THE PARAM FOR INTERCEPT
+
+            //TODO: THIS ONE WOULD NEED TO BE MULTIPLIED BY THE PARAM FOR INTERCEPT
+            PartialGradient linGradient;
+            linGradient.query = linear;
+            linGradient.inputVariables =
+                {{var,NUM_OF_VARIABLES+1},{NUM_OF_VARIABLES+1,var}};
+            partialGradients.push_back(linGradient);
+
+            ++numberOfQueries;
         }
         
 
@@ -133,16 +204,16 @@ void CovarianceMatrix::modelToQueries()
             if (_features[var2])
             {
                 //*****************************************//
-                
                 prod_bitset prod_quad_v2 = prod_linear_v1;
                 
                 Aggregate* agg_quad_v2 = new Aggregate();
                 
                 Query* quad_v2 = new Query();
-                quad_v2->_rootID = v1_root;
+                quad_v2->_rootID = _td->_root->_id;
                 
                 if (_categoricalFeatures[var])
                 {
+                    quad_v2->_rootID = _queryRootIndex[var];
                     quad_v2->_fVars.set(var);
                 }
                 
@@ -151,8 +222,8 @@ void CovarianceMatrix::modelToQueries()
                     quad_v2->_fVars.set(var2);
                     // If both varaibles are categoricalVars - we choose the
                     // var2 as the root
-                    //TODO: We should use the root that is highest to the
-                    // original root 
+                    // TODO: We should use the root that is highest to the
+                    // original root
                     quad_v2->_rootID = _queryRootIndex[var2];
                 }
                 else
@@ -164,18 +235,36 @@ void CovarianceMatrix::modelToQueries()
                 
                 quad_v2->_aggregates.push_back(agg_quad_v2);
                 _compiler->addQuery(quad_v2);
+                
+                // TODO: Here we add both sides! multiply var times param of
+                // var2 -- add that to gradient of var. And then multiply var2
+                // times param of var and add to gradient of var2! -- this can
+                // be done togther in one pass over the vector!
+                PartialGradient quadGradient;
+                quadGradient.query = quad_v2;
+                quadGradient.inputVariables = {{var,var2},{var2,var}};
+                partialGradients.push_back(quadGradient);
+                
+                ++numberOfQueries;
+                
+                // TODO: once we have identified the queries and how they are
+                // multiplied, we then need to identify the actual views that
+                // are computed over and use the information group computation
+                // over this view!
             }
         }
     }
 
 #else
+
+    size_t cubicFeatureToFunction[NUM_OF_VARIABLES];
+    size_t quarticFeatureToFunction[NUM_OF_VARIABLES];
     
     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
     {
         if (_features.test(var) && !_categoricalFeatures.test(var))
         {
-            _compiler->addFunction(
-                new Function({var}, Operation::cubic_sum));
+            _compiler->addFunction(new Function({var}, Operation::cubic_sum));
             cubicFeatureToFunction[var] = numberOfFunctions;
             numberOfFunctions++;
         }
@@ -185,15 +274,11 @@ void CovarianceMatrix::modelToQueries()
     {
         if (_features.test(var) && !_categoricalFeatures.test(var))
         {
-            _compiler->addFunction(
-                new Function({var}, Operation::quartic_sum));
+            _compiler->addFunction(new Function({var}, Operation::quartic_sum));
             quarticFeatureToFunction[var] = numberOfFunctions;
             numberOfFunctions++;
         }
     }
-
-
-    // TODO: TODO: add count function for intercept
     
     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
     {
@@ -511,7 +596,7 @@ void CovarianceMatrix::modelToQueries()
 
                 /********** PRINT OUT ********/
                 // std::cout << _td->getAttribute(var)->_name + "*" +
-                //     _td->getAttribute(var)->_name + "*" +_td->getAttribute(var)->_name+
+                //   _td->getAttribute(var)->_name + "*" +_td->getAttribute(var)->_name+
                 //     "*" + _td->getAttribute(var2)->_name << std::endl;
                 // std::cout << combo->_rootID << std::endl;        
                 /********** PRINT OUT ********/
@@ -724,7 +809,6 @@ void CovarianceMatrix::modelToQueries()
                     Aggregate* agg_combo = new Aggregate();
                     prod_bitset prod_combo_v1;
 
-
                     // add linear
                     if (!_categoricalFeatures[var])
                         prod_combo_v1.set(featureToFunction[var]);
@@ -827,10 +911,20 @@ void CovarianceMatrix::modelToQueries()
     
 #endif
 
+
+    // for (size_t q = 0; q < _compiler->numberOfQueries(); q++)
+    // {
+    //     Query* query = _compiler->getQuery(q);
+        
+    //     if (query->_fVars.none())
+    //     {
+    //         std::cout << q << " : " << std::to_string(query->_rootID) << std::endl;
+    //     }
+    // }
+
+    // exit(1);
+
 }
-
-
-
 
 
 
@@ -942,11 +1036,13 @@ void CovarianceMatrix::loadFeatures()
         else
         {
             _queryRootIndex[attributeID] = _td->_root->_id;
-
             ++f.body[attributeID];
         }
 
         _listOfFeatures.push_back(f);
+
+        if (featureNo == 0)
+            labelID = attributeID;
         
         /* Clear string stream. */
         ssLine.clear();
@@ -954,32 +1050,424 @@ void CovarianceMatrix::loadFeatures()
 }
 
 
+// TODO: Can we ensure that the continuous parameters are in the order in which
+// they are needed for the computation for continuous aggregates?
 
-// void CovarianceMatrix::generateParameters()
+std::vector<size_t> firstEntry(NUM_OF_VARIABLES+1);
+
+
+std::string CovarianceMatrix::generateParameters()
+{
+    std::string constructParam = offset(1)+"size_t numberOfParameters;\n"+
+        offset(1)+"double *params = nullptr, *grad = nullptr, error, *lambda, "+
+        "*prevParams = nullptr, *prevGrad = nullptr;\n";
+    
+    std::string constructGrad = "";
+
+    std::string numOfParameters = "numberOfParameters = ";
+    size_t numOfContParameters = 1;
+    
+    // Computing the number of parameters we have
+    for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+    {
+        if (!_features.test(var))
+            continue;
+        if (!_categoricalFeatures.test(var))
+        {
+            firstEntry[var] = numOfContParameters;
+            ++numOfContParameters;
+        }
+        else
+        {
+            size_t& viewID = parameterQueries[var]->_aggregates[0]->_incoming[0].first;
+            numOfParameters += "V"+std::to_string(viewID)+".size() + ";
+        }
+    }
+    firstEntry[NUM_OF_VARIABLES+1] = 0;
+    numOfParameters += std::to_string(numOfContParameters+1)+";\n";
+    
+    std::string initParam = offset(2)+numOfParameters+
+        offset(2)+"params = new double[numberOfParameters];\n"+
+        offset(2)+"grad = new double[numberOfParameters]();\n"+
+        offset(2)+"prevParams = new double[numberOfParameters];\n"+
+        offset(2)+"prevGrad = new double[numberOfParameters];\n"+
+        offset(2)+"lambda = new double[numberOfParameters];\n";
+
+    // TODO: make sure you initialize the params and grad arrays
+    if (_categoricalFeatures.any()) 
+        initParam += offset(2)+"size_t categIndex = "+
+            std::to_string(numOfContParameters+1)+";\n";
+    
+    for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+    {
+        if (!_features.test(var))
+            continue;
+
+        if (_categoricalFeatures.test(var))
+        {
+            size_t& viewID = parameterQueries[var]->_aggregates[0]->_incoming[0].first;
+            
+            constructGrad += offset(1)+"std::unordered_map<int,size_t> index_"+
+                getAttributeName(var)+";\n";
+
+            initParam += offset(2)+"index_"+getAttributeName(var)+".reserve(V"+
+                std::to_string(viewID)+".size());\n";
+            // offset(2)+"firstindex_"+getAttributeName(var)+" = categIndex;\n";
+
+            initParam += offset(2)+"for (V"+std::to_string(viewID)+
+                "_tuple& tuple : V"+
+                std::to_string(viewID)+")\n"+
+                offset(3)+"index_"+getAttributeName(var)+
+                "[tuple."+getAttributeName(var)+"] = categIndex++;\n";
+        }
+    }
+
+    initParam += offset(2)+"for(size_t j = 0; j < numberOfParameters; ++j)\n"+
+        offset(2)+"{\n"+
+        offset(3)+"params[j] = ((double) (rand() % 500 + 1) - 100) / 100;\n"+
+        offset(3)+"lambda[j] = 0.1;\n"+
+        offset(2)+"}\n"+
+        offset(2)+"params["+std::to_string(firstEntry[labelID])+"] = -1;\n"+
+        offset(2)+"lambda[0] = 0.0;\n";
+    
+    std::string outString = constructParam+constructGrad+"\n"+
+        offset(1)+"void initParametersGradients()\n"+
+        offset(1)+"{\n"+initParam+offset(1)+"}\n";
+    
+    return outString;
+}
+
+struct ActualGradient
+{
+    size_t aggNum;
+    std::vector<std::pair<size_t,size_t>> incVars;
+};
+
+std::string CovarianceMatrix::getAttributeName(size_t attID)
+{
+    if (attID == NUM_OF_VARIABLES+1)
+        return "int";
+    return _td->getAttribute(attID)->_name;
+}
+
+
+
+std::string CovarianceMatrix::generateGradients()
+{
+    size_t numberOfViews = _compiler->numberOfViews();
+
+    std::vector<std::vector<ActualGradient>> actualGradients(numberOfViews);
+        
+    for(PartialGradient& pGrad : partialGradients)
+    {
+        // get view and aggregate corresponding to the query
+        std::pair<size_t,size_t>& viewAggPair =
+            pGrad.query->_aggregates[0]->_incoming[0];
+        
+        // Assign to view, the aggregate and the corresponding param, grad pair
+        ActualGradient ag;
+        ag.aggNum = viewAggPair.second;
+        ag.incVars = pGrad.inputVariables;
+
+        actualGradients[viewAggPair.first].push_back(ag);
+    }
+
+    // TODO: *Observations:* the view with all continuous aggregates only has one tuple
+    // Ideally, we would have the corresponding params in an array so this
+    // computation can be vectorized ! Ideally also the gradients should be a vector !
+    
+    std::string gradString =  offset(1)+"void computeGradient()\n"+offset(1)+"{\n"+
+        offset(2)+"memset(grad, 0, numberOfParameters * "+
+        std::to_string(sizeof(double))+");\n";
+
+    std::string errorString =  offset(1)+"void computeError()\n"+offset(1)+"{\n"+
+        offset(2)+"error = 0.0;\n";
+    
+    for (size_t viewID = 0; viewID < numberOfViews; ++viewID)
+    {
+        // TODO: check if this view has at least one free variable
+        // If it does not then avoid the for loop, get the tuple reference and
+        // adjust the offset
+        bool viewHasFreeVars = _compiler->getView(viewID)->_fVars.any();
+        size_t off = 3;
+        
+        if (!actualGradients[viewID].empty())
+        {
+            if (viewHasFreeVars)
+            {
+                gradString += offset(2)+"for (V"+std::to_string(viewID)+
+                    "_tuple& tuple : V"+std::to_string(viewID)+")\n"+offset(2)+"{\n";
+                errorString += offset(2)+"for (V"+std::to_string(viewID)+
+                    "_tuple& tuple : V"+std::to_string(viewID)+")\n"+offset(2)+"{\n";
+            }
+            else
+            {
+                gradString += offset(2)+"V"+std::to_string(viewID)+
+                    "_tuple& tuple = V"+std::to_string(viewID)+"[0];\n";
+                errorString += offset(2)+"V"+std::to_string(viewID)+
+                    "_tuple& tuple = V"+std::to_string(viewID)+"[0];\n";
+                off = 2;
+            }
+        }
+        
+        for (ActualGradient& ag : actualGradients[viewID])
+        {
+            size_t prevGradID = 1000;
+            size_t prevParamID = 1000;
+
+            // TODO: TODO: We go at great length to avoid adding errors twice
+            // here, this could surely be simplified by adding each combination
+            // to actualGradients only once!
+            
+            for (size_t i = 0; i < ag.incVars.size(); i++)
+            {
+                size_t& gradID = ag.incVars[i].first;
+                size_t& paramID = ag.incVars[i].second;
+
+                if (gradID == labelID)
+                    continue;
+
+                if (prevGradID != paramID || prevParamID != gradID) 
+                    errorString += offset(off)+ "error += ";
+
+                if (gradID == paramID &&
+                    (prevGradID != paramID || prevParamID != gradID))
+                    errorString += "0.5 * ";
+                
+                if (_categoricalFeatures[gradID])
+                {   
+                    gradString += offset(off)+"grad[index_"+getAttributeName(gradID)+
+                        "[tuple."+getAttributeName(gradID)+"]] += ";
+
+                    if (prevGradID != paramID || prevParamID != gradID)
+                        errorString += "params[index_"+getAttributeName(gradID)+
+                            "[tuple."+getAttributeName(gradID)+"]] * ";
+                }
+                else
+                {
+                    gradString += offset(off)+"grad["+
+                        std::to_string(firstEntry[gradID])+"] += ";
+                    
+                    if (prevGradID != paramID || prevParamID != gradID)
+                        errorString += "params["+
+                            std::to_string(firstEntry[gradID])+"] * ";
+                }
+                
+                gradString += "tuple.aggregates["+std::to_string(ag.aggNum)+"] * ";
+
+                if (prevGradID != paramID || prevParamID != gradID)
+                    errorString += "tuple.aggregates["+std::to_string(ag.aggNum)+"] * ";
+            
+                if (_categoricalFeatures[paramID])
+                {
+                    gradString += "params[index_"+getAttributeName(paramID)+
+                        "[tuple."+getAttributeName(paramID)+"]];\n";
+                    
+                    if (prevGradID != paramID || prevParamID != gradID)
+                        errorString += "params[index_"+getAttributeName(paramID)+
+                            "[tuple."+getAttributeName(paramID)+"]];\n";
+                }
+                else
+                {
+                    // gradString += "param_"+getAttributeName(paramID)+";\n";
+                    gradString += "params["+std::to_string(firstEntry[paramID])+"];\n";
+
+                    if (prevGradID != paramID || prevParamID != gradID)
+                        errorString += "params["+
+                            std::to_string(firstEntry[paramID])+"];\n";
+                }
+
+                prevGradID = gradID;
+                prevParamID = paramID;
+            }
+        }
+        if (!actualGradients[viewID].empty() && viewHasFreeVars)
+        {    
+            gradString += offset(2)+"}\n";
+            errorString += offset(2)+"}\n";
+        }
+        
+    }
+    gradString += offset(2)+"for (size_t j = 0; j < numberOfParameters; ++j)\n"+
+        offset(3)+"grad[j] /= tuple.aggregates[0];\n"+
+        offset(1)+"}\n\n";
+
+    std::string labelStr = std::to_string(firstEntry[labelID]);
+    
+    errorString +=  offset(2)+"error /= tuple.aggregates[0];\n\n"+
+        offset(2)+"double paramNorm = 0.0;\n"+
+        offset(2)+"/* Adding the regulariser to the error */\n"+
+        offset(2)+"for (size_t j = 1; j < numberOfParameters; ++j)\n"+
+        offset(3)+"paramNorm += params[j] * params[j];\n"+
+        offset(2)+"paramNorm -= params["+labelStr+"] * params["+labelStr+"];\n\n"+
+        offset(2)+"error += lambda[1] * paramNorm;\n"+
+        offset(1)+"}\n";
+
+    return gradString + errorString;
+}
+
+
+inline std::string CovarianceMatrix::offset(size_t off)
+{
+    return std::string(off*3, ' ');
+}
+
+void CovarianceMatrix::generateCode()
+{
+    // This is necessary here, because it constructs the firstEntry array used below
+    std::string parameterGeneration = generateParameters();
+    
+    std::string stepSizeFunction = offset(1)+"inline double computeStepSize()\n"+
+        offset(1)+"{\n"+
+        offset(2)+"double DSS = 0.0, GSS = 0.0, DGS = 0.0, paramDiff, gradDiff;\n"+
+        offset(2)+"for(size_t j = 0; j < numberOfParameters; ++j)\n"+offset(2)+"{\n"+
+        offset(3)+"if (j == "+std::to_string(firstEntry[labelID])+") continue;\n\n"+
+        offset(3)+"paramDiff = params[j] - prevParams[j];\n"+
+        offset(3)+"gradDiff = grad[j] - prevGrad[j];\n\n"+
+        offset(3)+"DSS += paramDiff * paramDiff;\n"+
+        offset(3)+"GSS += gradDiff * gradDiff;\n"+
+        offset(3)+"DGS += paramDiff * gradDiff;\n"+
+        offset(2)+"}\n"+
+        offset(2)+"if (DGS == 0.0 || GSS == 0.0) return 0.1;\n"+
+        offset(2)+"double Ts = DSS / DGS;\n"+
+        offset(2)+"double Tm = DGS / GSS;\n"+
+        offset(2)+"if (Tm < 0.0 || Ts < 0.0) return 0.1;\n"+
+        offset(2)+"return (Tm / Ts > 0.5)? Tm : Ts - 0.5 * Tm;\n"+
+        offset(1)+"}\n";
+    
+    std::string runFunction = offset(1)+"void runApplication()\n"+offset(1)+"{\n"+
+        offset(2)+"initParametersGradients();\n"+
+        generateConvergenceLoop()+
+        offset(2)+"printOutput();\n"+
+        offset(2)+"std::cout << \"numberOfIterations: \" << iteration << \"\\n\";\n"+
+        offset(2)+"delete[] update;\n"+
+        offset(1)+"}\n";
+    
+    std::ofstream ofs("runtime/cpp/ApplicationHandler.h", std::ofstream::out);
+    ofs << "#ifndef INCLUDE_APPLICATIONHANDLER_HPP_\n"<<
+        "#define INCLUDE_APPLICATIONHANDLER_HPP_\n\n"<<
+        "#include \"DataHandler.h\"\n\n"<<
+        "namespace lmfao\n{\n"<<
+        offset(1)+"void runApplication();\n"<<
+        "}\n\n#endif /* INCLUDE_APPLICATIONHANDLER_HPP_*/\n";    
+    ofs.close();
+
+    ofs.open("runtime/cpp/ApplicationHandler.cpp", std::ofstream::out);
+    ofs << "#include \"ApplicationHandler.h\"\nnamespace lmfao\n{\n";
+    ofs << parameterGeneration << std::endl;
+    ofs << generateGradients() << std::endl;
+    ofs << generatePrintFunction() << std::endl;
+    ofs << stepSizeFunction << std::endl;
+    ofs << runFunction << std::endl;
+    ofs << "}\n";
+    ofs.close();
+}
+
+// TODO: TODO: remove this function! 
+// std::string CovarianceMatrix::generateRunFunction()
 // {
-    // For each query that we return we need to create a parameter
-
-    // continuous parameters are scalars
-
-    // categorical parameters are arrays of tuples (potentially even only arrays
-    // of parameters)
-
-    // --> We could have all params in one array, if we can identify the correct
-    // --> indexes
-
-    // LATEST:
-    // We should go over the features and generate the parameters they need
-    // For that I should keep track of the query that defines the aggregate for
-    // the intercept of the is feature (this will give us the cardinality of the
-    // parameters)
-    
-    // Then for each index in the covariance matrix, generate a 'query' that
-    // multiplies the view with the parameters
-
-    // Then group views by predicates
-
-    // Turn each group into an MO-Operation
-    
-    // TODO: Simplify the modelToQueries function! --> define a 'feature' which
-    // can then be combined into a query --> ensure that repeated queries are shared
+//     return "";
 // }
+
+std::string CovarianceMatrix::generateConvergenceLoop()
+{
+    double epsilon = 0.00001;
+
+    std::string convergenceCheck =
+        offset(3)+"/* Normalized residual stopping condition */\n"+
+	offset(3)+"if (sqrt(gradientNorm) / (firstGradientNorm + 0.01) < 0.000001)\n"+
+        offset(3)+"{\n"+
+        // offset(4)+"converged = true;\n"+
+        offset(4)+"std::cout << \"We have converged!! \\n\";\n"+
+        offset(4)+"break;\n"+
+        offset(3)+"}\n";
+
+    std::string labelStr = std::to_string(firstEntry[labelID]);
+    
+    std::string updateParams = offset(3)+"gradientNorm = 0.0;\n"+
+        offset(3)+"for (int j = 0; j < numberOfParameters; ++j)\n"+
+        offset(3)+"{\n"+
+        offset(4)+"update[j] = grad[j] + lambda[j] * params[j];\n"+
+        offset(4)+"gradientNorm += update[j] * update[j];\n"+
+        offset(4)+"prevParams[j] = params[j];\n"+
+        offset(4)+"prevGrad[j] = grad[j];\n"+
+        offset(4)+"params[j] = params[j] - stepSize * update[j];\n"+
+        offset(3)+"}\n"+
+        offset(3)+"params["+labelStr+"] = -1;\n"+
+        offset(3)+"prevParams["+labelStr+"] = -1;\n"+
+        offset(3)+"gradientNorm -= update["+labelStr+"] * update["+labelStr+"];\n\n"+
+        offset(3)+"computeError();\n\n";
+    
+    std::string backtracking =
+        offset(3)+"/* Backtracking Line Search: Decrease stepSize until condition"+
+        " is satisfied */\n"+offset(3)+"backtrackingSteps = 0;\n"+
+        offset(3)+"while(error > previousError - (stepSize/2) * gradientNorm &&"+
+        " backtrackingSteps < 500)\n"+
+        offset(3)+"{\n"+
+        offset(4)+"stepSize /= 2;"+
+        offset(4)+"// Update parameters based on the new stepSize.\n"+
+        offset(4)+"for (int j = 0; j < numberOfParameters; ++j)\n"+
+        offset(5)+"params[j] = prevParams[j] - stepSize * update[j];\n"+
+        offset(4)+"params["+std::to_string(firstEntry[labelID])+"] = -1;\n"+
+        offset(4)+"computeError();\n"+
+        offset(4)+"++backtrackingSteps;\n"+
+        offset(3)+"}\n";
+    
+    // TODO: TODO: TODO: SHOULD THE GRADIENT NORM INCLUDE THE REGULARIZER!!?!?
+    return offset(2)+"double stepSize = 0.1, gradientNorm = 0.0, "+
+        "*update = new double[numberOfParameters];\n"+
+        offset(2)+"size_t iteration = 0, backtrackingSteps = 0;\n\n"+
+        offset(2)+"computeGradient();\n"+
+        offset(2)+"for (int j = 0; j < numberOfParameters; ++j)\n"+offset(2)+"{\n"+
+        offset(3)+"update[j] = grad[j] + lambda[j] * params[j];\n"+
+        offset(3)+"gradientNorm += update[j] * update[j];\n"+offset(2)+"}\n"+
+        offset(2)+"gradientNorm -= update["+labelStr+"] * update["+labelStr+"];\n"+
+        offset(2)+"double firstGradientNorm = sqrt(gradientNorm);\n\n"+
+        offset(2)+"computeError();\n"+
+        offset(2)+"double previousError = error;\n\n"+
+        offset(2)+"do\n"+offset(2)+"{\n"+
+        updateParams+backtracking+convergenceCheck+
+        offset(3)+"computeGradient();\n"+
+        offset(3)+"stepSize = computeStepSize();\n"+
+        offset(3)+"previousError = error;\n"+
+        offset(3)+"++iteration;\n"+
+        offset(2)+"} while (iteration < 1000);\n\n";
+}
+
+
+std::string CovarianceMatrix::generatePrintFunction()
+{
+    std::string printParam = offset(2)+"std::cout << \"param_int = \" << "+
+        "params["+std::to_string(firstEntry[NUM_OF_VARIABLES+1])+"] << \";\\n\";\n";
+    
+    std::string printGrad = offset(2)+"std::cout << \"grad_int = \" << "+
+        "grad["+std::to_string(firstEntry[NUM_OF_VARIABLES+1])+"] << \";\\n\";\n";
+    
+    for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+    {
+        if (!_features.test(var))
+            continue;
+
+        if (!_categoricalFeatures.test(var))
+        {
+            printParam += offset(2)+"std::cout << \"param_"+getAttributeName(var)+" = "
+                "\" << params["+std::to_string(firstEntry[var])+"] << \";\\n\";\n";
+            printGrad += offset(2)+"std::cout << \"grad_"+getAttributeName(var)+" = "
+                "\" << grad["+std::to_string(firstEntry[var])+"] <<\";\\n\";\n";
+        }
+        else
+        {            
+            printParam += offset(2)+"for (std::pair<int,size_t> tuple : index_"+
+                getAttributeName(var)+")\n"+
+                offset(3)+"std::cout << \"param_"+getAttributeName(var)+
+                "[\"<< tuple.first <<\"] = \"<< params[tuple.second] << \";\\n\";\n";
+            printGrad += offset(2)+"for (std::pair<int,size_t> tuple : index_"+
+                getAttributeName(var)+")\n"+
+                offset(3)+"std::cout << \"grad_"+getAttributeName(var)+
+                "[\"<< tuple.first <<\"] = \"<< grad[tuple.second] << \";\\n\";\n";
+        }
+    }
+
+    return offset(1)+"void printOutput()\n"+offset(1)+"{\n"+printParam+"\n"+
+        printGrad+offset(1)+"}\n";
+}

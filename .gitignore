@@ -43,6 +43,7 @@ core.*
 todo.md
 build/
 build/*
+_build/*
 runtime/
 
 src/codegen/previous_versions/*

@@ -147,6 +147,11 @@ size_t QueryCompiler::numberOfQueries()
     return _queryList.size();
 }
 
+size_t QueryCompiler::numberOfFunctions()
+{
+    return _functionList.size();
+}
+
 View* QueryCompiler::getView(size_t v_id)
 {
     return _viewList[v_id];

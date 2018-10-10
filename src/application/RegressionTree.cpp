@@ -70,9 +70,9 @@ void RegressionTree::run()
     RegTreeNode* root = new RegTreeNode();
 
     for (size_t f = 0; f < NUM_OF_FUNCTIONS; ++f)
-        if (_candidateMask[NUM_OF_VARIABLES+1][f])
+        if (_candidateMask[NUM_OF_VARIABLES][f])
             root->_conditions.set(f);
-    
+
     genDynamicFunctions();
     
     // root->_conditions.set(5);
@@ -115,7 +115,7 @@ void RegressionTree::computeCandidates()
     
     _numOfCandidates = new size_t[NUM_OF_VARIABLES];
     
-    _complementFunction = new size_t[NUM_OF_VARIABLES];
+    _complementFunction = new size_t[NUM_OF_FUNCTIONS];
 
     _varToQueryMap = new Query*[NUM_OF_VARIABLES];
     
@@ -204,19 +204,23 @@ void RegressionTree::computeCandidates()
         TDNode* relation = _td->getRelation(rel);
         var_bitset& relationBag = relation->_bag;
 
+        std::string functionName = "f_"+relation->_name;
+
         std::set<size_t> relationVariables;
         for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+        {
             if (relationBag[var])
                 relationVariables.insert(var);
+        }
 
-        std::string functionName = "f_"+relation->_name;
-        
         _compiler->addFunction(
             new Function(
                 relationVariables, Operation::dynamic, true, functionName));
-        _candidateMask[NUM_OF_VARIABLES+1].set(idx);
+        
+        _candidateMask[NUM_OF_VARIABLES].set(idx);
         ++idx;
     }
+    
 }
 
 void RegressionTree::splitNodeQueries(RegTreeNode* node)
@@ -470,8 +474,10 @@ void RegressionTree::genDynamicFunctions()
     std::string functionSource = "";
     for(size_t f = 0; f < NUM_OF_FUNCTIONS; ++f)
     {   
-        if (_candidateMask[NUM_OF_VARIABLES + 1].test(f))
+        if (_candidateMask[NUM_OF_VARIABLES].test(f))
         {
+            std::cout << _compiler->numberOfFunctions() << std::endl;
+            
             Function* func = _compiler->getFunction(f);
             const var_bitset& fVars = func->_fVars;
             std::string fvarString = "";
@@ -502,8 +508,81 @@ void RegressionTree::genDynamicFunctions()
     ofs.open("runtime/cpp/DynamicFunctions.cpp", std::ofstream::out);
     ofs << "#include \"DynamicFunctions.h\"\nnamespace lmfao\n{\n"+functionSource+"}\n";
     ofs.close();
+
+
+    ofs.open("runtime/cpp/DynamicFunctionsGenerator.hpp", std::ofstream::out);
+    ofs << dynamicFunctionsGenerator();
+    ofs.close();
 }
 
+
+std::string RegressionTree::dynamicFunctionsGenerator()
+{
+    std::string varList = "", relationMap = ""; 
+    for (size_t var = 0; var< _td->numberOfAttributes(); ++var)
+    {
+	varList += "\""+_td->getAttribute(var)->_name+"\","; 
+	relationMap += std::to_string(_queryRootIndex[var])+",";
+    }
+    varList.pop_back();
+    relationMap.pop_back();
+    
+    std::string relationName = "", varTypeList = "", conditionsString = ""; 
+    for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
+    {
+	relationName += "\""+_td->getRelation(rel)->_name+"\",";
+        conditionsString += "\"\",";
+
+        varTypeList += "\"";
+
+        var_bitset& bag = _td->getRelation(rel)->_bag;
+        for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+        {
+            if (bag[var])
+            {
+                Attribute* att = _td->getAttribute(var);
+                varTypeList += typeToStr(att->_type)+" "+att->_name+",";
+            }
+        }
+        varTypeList.pop_back();
+        varTypeList += "\",";
+    }
+    relationName.pop_back();
+    conditionsString.pop_back();
+    varTypeList.pop_back();
+
+    std::string headerFiles =
+        "#include <fstream>\n#include <vector>\n#include \"RegressionTreeNode.hpp\"\n\n";
+    
+    return headerFiles+
+        "void generateDynamicFunctions(std::vector<Condition>& conditions)\n{\n"+
+	offset(1)+"std::string variableMap[] = {"+varList+"};\n"+
+	offset(1)+"std::string variableList[] = {"+varTypeList+"};\n"+
+	offset(1)+"size_t relationMap[] = {"+relationMap+"};\n"+
+	offset(1)+"std::string relationName[] = {"+relationName+"};\n"+
+        offset(1)+"std::string conditionStr[] = {"+conditionsString+"};\n"+
+        offset(1)+"for (Condition& c : conditions)\n"+
+        offset(2)+"conditionStr[relationMap[c.variable]] += variableMap[c.variable] + "+
+        "c.op + std::to_string(c.threshold) + \"&&\";\n"+
+        offset(1)+"std::ofstream ofs(\"DynamicFunctions.cpp\", "+
+        "std::ofstream::out);\n"+
+        offset(1)+"ofs << \"#include \\\"DynamicFunctions.h\\\"\\n"+
+        "namespace lmfao\\n{\\n\";\n"+
+        offset(1)+"for (size_t rel = 0; rel < "+
+        std::to_string(_td->numberOfRelations())+"; ++rel)\n"+offset(1)+"{\n"+
+        offset(2)+"if (!conditionStr[rel].empty())\n"+offset(2)+"{\n"+
+        offset(3)+"conditionStr[rel].pop_back();\n"+
+        offset(3)+"conditionStr[rel].pop_back();\n"+
+        offset(3)+"ofs << \"double f_\"+relationName[rel]+\"(\"+"+
+        "variableList[rel]+\")\\n"+
+        "{\\n\treturn (\"+conditionStr[rel]+\" ? 1.0 : 0.0);\\n}\\n\";\n"+
+        offset(2)+"}\n"+offset(2)+"else\n"+offset(2)+"{\n"+
+        offset(3)+"ofs << \"double f_\"+relationName[rel]+"+
+        "\"(\"+variableList[rel]+\")\\n"+
+        "{\\n\\treturn 1.0;\\n}\\n\";\n"+
+        offset(2)+"}\n"+offset(1)+"}\n"+
+        offset(1)+"ofs << \"}\\n\";\n"+offset(1)+"ofs.close();\n}\n";
+}
 
 
 std::string RegressionTree::genVarianceComputation()
@@ -514,7 +593,6 @@ std::string RegressionTree::genVarianceComputation()
     
     for (QueryThresholdPair& qtPair : queryToThreshold)
     {
-
         if (_categoricalFeatures[qtPair.varID])
         {
             // Find the view that corresponds to the query
@@ -573,7 +651,7 @@ std::string RegressionTree::genVarianceComputation()
             const size_t& compquad = query->_aggregates[5]->_incoming[0].second;
         
             std::string viewTup = "V"+std::to_string(viewID)+"tuple";
-        
+            
             variancePerView[viewID].push_back(
                 "(("+viewTup+".aggregates["+std::to_string(count)+"] > 0  && "+
                 viewTup+".aggregates["+std::to_string(compcount)+"] > 0) ? "+
@@ -671,7 +749,7 @@ std::string RegressionTree::genVarianceComputation()
 
     std::string computeVariance = contVariance;
     
-    if (!contVariance.empty())
+    if (!categVariance.empty())
         computeVariance += offset(2)+"size_t categIdx = 0;\n"+categVariance;
     
     computeVariance += "\n"+offset(2)+"double min_variance = variance[0];\n"+
@@ -705,8 +783,8 @@ std::string RegressionTree::genVarianceComputation()
         offset(1)+"std::string* thresholdMap = nullptr;\n\n"+
         offset(1)+"void initVarianceArray()\n"+
         offset(1)+"{\n"+initVariance+
-        offset(2)+"thresholdMap = new std::string[numberOfThresholds];\n"+functionIndex+
-        offset(2)+"// TODO: NEED TO CONSTRUCT MAP FROM VARIANCE INDEX TO FUNCTION!\n"+
+        offset(2)+"thresholdMap = new std::string[numberOfThresholds];\n"+
+        functionIndex+
         offset(1)+"}\n\n"+
         offset(1)+"void computeVariance()\n"+
         offset(1)+"{\n"+computeVariance+offset(1)+"}\n";    
