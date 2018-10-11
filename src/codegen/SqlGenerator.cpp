@@ -154,7 +154,8 @@ void SqlGenerator::generateJoinQuery()
             joinString += " NATURAL JOIN ";
     }
 
-    // TODO: This should only output the features not all variables. 
+    // TODO: This should only output the features not all variables.
+    // If changed it should be changed in the Application load test data as well.
     for (size_t var = 0; var < _td->numberOfAttributes(); ++var)
         attributeString += _td->getAttribute(var)->_name + ",";
     attributeString.pop_back();

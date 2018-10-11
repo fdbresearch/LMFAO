@@ -217,10 +217,10 @@ void CppGenerator::genMainFunction(bool parallelize)
         ofs << "#include \"ComputeGroup"+std::to_string(group)+".h\"\n";
     ofs << "#include \"ApplicationHandler.h\"\n";
     
-    ofs << "\nnamespace lmfao\n{\n"+
-        offset(1)+"//const std::string PATH_TO_DATA = \"/Users/Maximilian/Documents/"+
-        "Oxford/LMFAO/"+_pathToData+"\";\n"+
-        offset(1)+"const std::string PATH_TO_DATA = \"../../"+_pathToData+"\";\n\n";
+    ofs << "\nnamespace lmfao\n{\n";    
+    // offset(1)+"//const std::std::ring PATH_TO_DATA = \"/Users/Maximilian/Documents/"+
+    // "Oxford/LMFAO/"+_pathToData+"\";\n"+
+    // offset(1)+"const std::string PATH_TO_DATA = \"../../"+_pathToData+"\";\n\n";
 
     for (size_t relID = 0; relID < _td->numberOfRelations(); ++relID)
     {
@@ -676,7 +676,10 @@ std::string CppGenerator::genHeader()
         "#include <thread>\n" +
         "#include <vector>\n\n" +
         "using namespace std::chrono;\n\n"+
-        "namespace lmfao\n{\n";
+        "namespace lmfao\n{\n"+
+        offset(1)+"//const std::string PATH_TO_DATA = \"/Users/Maximilian/Documents/"+
+        "Oxford/LMFAO/"+_pathToData+"\";\n"+
+        offset(1)+"const std::string PATH_TO_DATA = \"../../"+_pathToData+"\";\n\n";
 }
 
 std::string CppGenerator::genTupleStructs()

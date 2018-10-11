@@ -66,6 +66,9 @@ private:
     std::string generatePrintFunction();
     std::string getAttributeName(size_t attID);
     std::string offset(size_t off);
+    std::string typeToStr(Type t);
+    
+    std::string generateTestDataEvaluation();
     
 };
 

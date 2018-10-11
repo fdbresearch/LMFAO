@@ -13,7 +13,6 @@
 
 #include <Launcher.h>
 #include <CovarianceMatrix.h>
-// #include <CodegenUtils.hpp>
 
 // #define DEGREE_TWO
 static const std::string FEATURE_CONF = "/features.conf";
@@ -1313,6 +1312,21 @@ inline std::string CovarianceMatrix::offset(size_t off)
     return std::string(off*3, ' ');
 }
 
+std::string CovarianceMatrix::typeToStr(Type t)
+{
+    switch(t)
+    {
+    case Type::Integer : return "int";
+    case Type::Double : return "double";            
+    case Type::Short : return "short";
+    case Type::U_Integer : return "size_t";
+    default :
+        ERROR("This type does not exist \n");
+        exit(1);
+    }
+}
+
+
 void CovarianceMatrix::generateCode()
 {
     // This is necessary here, because it constructs the firstEntry array used below
@@ -1322,7 +1336,7 @@ void CovarianceMatrix::generateCode()
         offset(1)+"{\n"+
         offset(2)+"double DSS = 0.0, GSS = 0.0, DGS = 0.0, paramDiff, gradDiff;\n"+
         offset(2)+"for(size_t j = 0; j < numberOfParameters; ++j)\n"+offset(2)+"{\n"+
-        offset(3)+"if (j == "+std::to_string(_parameterIndex[labelID])+") continue;\n\n"+
+        offset(3)+"if(j == "+std::to_string(_parameterIndex[labelID])+") continue;\n\n"+
         offset(3)+"paramDiff = params[j] - prevParams[j];\n"+
         offset(3)+"gradDiff = grad[j] - prevGrad[j];\n\n"+
         offset(3)+"DSS += paramDiff * paramDiff;\n"+
@@ -1364,12 +1378,19 @@ void CovarianceMatrix::generateCode()
     ofs.close();
 
     ofs.open("runtime/cpp/ApplicationHandler.cpp", std::ofstream::out);
-    ofs << "#include \"ApplicationHandler.h\"\n#include <cmath>\nnamespace lmfao\n{\n";
+    ofs << "#include \"ApplicationHandler.h\"\n"
+        << "#include <boost/spirit/include/qi.hpp>\n"
+        << "#include <boost/spirit/include/phoenix_operator.hpp>\n"
+        << "#include <cmath>\n\n"
+        << "namespace qi = boost::spirit::qi;\n"
+        << "namespace phoenix = boost::phoenix;\n\n"
+        << "namespace lmfao\n{\n";
     ofs << parameterGeneration << std::endl;
     ofs << generateGradients() << std::endl;
     ofs << generatePrintFunction() << std::endl;
     ofs << stepSizeFunction << std::endl;
     ofs << runFunction << std::endl;
+    ofs << generateTestDataEvaluation() << std::endl;
     ofs << "}\n";
     ofs.close();
 }
@@ -1474,3 +1495,72 @@ std::string CovarianceMatrix::generatePrintFunction()
     return offset(1)+"void printOutput()\n"+offset(1)+"{\n"+printParam+"\n"+
         printGrad+offset(1)+"}\n";
 }
+
+
+std::string CovarianceMatrix::generateTestDataEvaluation()
+{
+    // TODO: This should only output the features not all variables.
+    // If changed it should be changed in the SQL generator as well.
+    std::string attributeString = "",
+        attrConstruct = offset(4)+"qi::phrase_parse(tuple.begin(),tuple.end(),";
+        
+    for (size_t var = 0; var < _td->numberOfAttributes(); ++var)
+    {
+        Attribute* att = _td->getAttribute(var);
+        attrConstruct += "\n"+offset(5)+"qi::"+typeToStr(att->_type)+
+            "_[phoenix::ref("+att->_name+") = qi::_1]>>";
+        attributeString += offset(2)+typeToStr(att->_type) + " "+
+            att->_name + ";\n";
+    }
+
+    // attrConstruct.pop_back();
+    attrConstruct.pop_back();
+    attrConstruct.pop_back();
+    attrConstruct += ",\n"+offset(5)+"\'|\');\n";
+
+    std::string testTuple = offset(1)+"struct Test_tuple\n"+offset(1)+"{\n"+
+        attributeString+offset(2)+"Test_tuple(const std::string& tuple)\n"+
+        offset(2)+"{\n"+attrConstruct+offset(2)+"}\n"+offset(1)+"};\n\n";
+
+    std::string loadFunction = offset(1)+"void loadTestDataset("+
+        "std::vector<Test_tuple>& TestDataset)\n"+offset(1)+"{\n"+
+        offset(2)+"std::ifstream input;\n"+offset(2)+"std::string line;\n"+
+        offset(2)+"input.open(PATH_TO_DATA + \"test_data.tbl\");\n"+
+        offset(2)+"if (!input)\n"+offset(2)+"{\n"+
+        offset(3)+"std::cerr << \"TestDataset.tbl does is not exist.\\n\";\n"+
+        offset(3)+"exit(1);\n"+offset(2)+"}\n"+
+        offset(2)+"while(getline(input, line))\n"+
+        offset(3)+"TestDataset.push_back(Test_tuple(line));\n"+
+        offset(2)+"input.close();\n"+offset(1)+"}\n\n";
+    
+    std::string prediction = "";
+    for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+    {
+        if (!_features[var])
+            continue;
+
+        Attribute* att = _td->getAttribute(var);
+        
+        if (_categoricalFeatures[var])
+            prediction += "params[index_"+att->_name+"[tuple."+att->_name+"]]+";
+        else
+            prediction += "params["+std::to_string(_parameterIndex[var])+
+                "]*tuple."+att->_name+"+";
+    }
+    prediction.pop_back();
+    
+    std::string evalFunction = offset(1)+"void evaluateModel()\n"+offset(1)+"{\n"+
+        offset(2)+"std::vector<Test_tuple> TestDataset;\n"+
+        offset(2)+"loadTestDataset(TestDataset);\n"+
+        offset(2)+"double diff, error = 0.0;\n"+
+        offset(2)+"for (Test_tuple& tuple : TestDataset)\n"+offset(2)+"{\n"+
+        offset(3)+"diff = params[0]+"+prediction+";\n"+
+        offset(3)+"error += diff * diff;\n"+
+        offset(2)+"}\n"+
+        offset(2)+"error /= TestDataset.size();\n"+
+        offset(2)+"std::cout << \"RMSE: \" << sqrt(error) << std::endl;\n"+
+        offset(1)+"}\n";
+
+    return testTuple + loadFunction + evalFunction;
+}
+
