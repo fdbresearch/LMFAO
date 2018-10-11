@@ -129,15 +129,27 @@ int Launcher::launch(const string& model, const string& codeGenerator,
 
     size_t numOfViews = _compiler->numberOfViews();    
     size_t numOfQueries = _compiler->numberOfQueries();
-
     size_t numOfGroups = _codeGenerator->numberOfGroups();
+
+    size_t totalNumberOfAggregates = 0;
+    for (size_t v = 0; v < numOfViews; ++v)
+    {
+        View* view = _compiler->getView(v);
+        
+        if (view->_origin == view->_destination)
+            totalNumberOfAggregates += view->_aggregates.size();
+    }
     
     /* Write loading times times to times file */
     ofstream ofs("compiler-data.out", std::ofstream::out);// | std::ofstream::app);
     
     if (ofs.is_open())
-        ofs << numOfQueries <<"\t"<< numOfViews <<"\t"<< numOfGroups <<"\t"
+    {   
+        ofs << "aggs\tqueries\tviews\tgroups\ttime" << std::endl;
+        ofs << totalNumberOfAggregates << "\t" << numOfQueries <<"\t"
+            << numOfViews <<"\t"<< numOfGroups <<"\t"
             << processingTime << std::endl;
+    }
     else
         cout << "Unable to open compiler-data.out \n";
     

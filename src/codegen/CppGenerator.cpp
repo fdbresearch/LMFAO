@@ -5027,7 +5027,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
     
     size_t idx = depth * (_qc->numberOfViews() + 2);
     size_t numberContributing = viewsPerVar[idx];
-    bool addTuple;
+    // bool addTuple;
 
     std::string depthString = std::to_string(depth);
     std::string returnString = "";
@@ -5068,10 +5068,10 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
             factor+"[0]."+attrName+";\n";
     }
 
-    if (depth + 1 != varOrder.size())
-        addTuple = true;
-    else
-        addTuple = false;
+    // if (depth + 1 != varOrder.size())
+    //     addTuple = true;
+    // else
+    //     addTuple = false;
     
     // Update rel pointers 
     returnString += offset(2+depth)+ "rel["+depthString+"] = 0;\n"+

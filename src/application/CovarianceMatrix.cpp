@@ -1059,8 +1059,8 @@ std::string CovarianceMatrix::generateParameters()
     _parameterIndex.resize(NUM_OF_VARIABLES+1);
     
     std::string constructParam = offset(1)+"size_t numberOfParameters;\n"+
-        offset(1)+"double *params = nullptr, *grad = nullptr, error, *lambda, "+
-        "*prevParams = nullptr, *prevGrad = nullptr;\n";
+        offset(1)+"double stepSize, error, *params = nullptr, *grad = nullptr, "+
+        "*lambda = nullptr, *prevParams = nullptr, *prevGrad = nullptr;\n";
     
     std::string constructGrad = "";
 
@@ -1124,7 +1124,7 @@ std::string CovarianceMatrix::generateParameters()
 
     initParam += offset(2)+"for(size_t j = 0; j < numberOfParameters; ++j)\n"+
         offset(2)+"{\n"+
-        offset(3)+"params[j] = ((double) (rand() % 500 + 1) - 100) / 100;\n"+
+        offset(3)+"params[j] = ((double) (rand() % 800 + 1) - 400) / 100;\n"+
         offset(3)+"lambda[j] = 0.1;\n"+
         offset(2)+"}\n"+
         offset(2)+"params["+std::to_string(_parameterIndex[labelID])+"] = -1;\n"+
@@ -1329,16 +1329,26 @@ void CovarianceMatrix::generateCode()
         offset(3)+"GSS += gradDiff * gradDiff;\n"+
         offset(3)+"DGS += paramDiff * gradDiff;\n"+
         offset(2)+"}\n"+
-        offset(2)+"if (DGS == 0.0 || GSS == 0.0) return 0.1;\n"+
+        offset(2)+"if (DGS == 0.0 || GSS == 0.0) return stepSize;\n"+
         offset(2)+"double Ts = DSS / DGS;\n"+
         offset(2)+"double Tm = DGS / GSS;\n"+
-        offset(2)+"if (Tm < 0.0 || Ts < 0.0) return 0.1;\n"+
+        offset(2)+"if (Tm < 0.0 || Ts < 0.0) return stepSize;\n"+
         offset(2)+"return (Tm / Ts > 0.5)? Tm : Ts - 0.5 * Tm;\n"+
         offset(1)+"}\n";
     
     std::string runFunction = offset(1)+"void runApplication()\n"+offset(1)+"{\n"+
+        offset(2)+"int64_t startProcess = duration_cast<milliseconds>("+
+        "system_clock::now().time_since_epoch()).count();"+
         offset(2)+"initParametersGradients();\n"+
         generateConvergenceLoop()+
+        "\n"+offset(2)+"int64_t endProcess = duration_cast<milliseconds>("+
+        "system_clock::now().time_since_epoch()).count()-startProcess;\n"+
+        offset(2)+"std::cout << \"Run Application: \"+"+
+        "std::to_string(endProcess)+\"ms.\\n\";\n\n"+
+        offset(2)+"std::ofstream ofs(\"times.txt\",std::ofstream::out | " +
+        "std::ofstream::app);\n"+
+        offset(2)+"ofs << \"\\t\" << endProcess;\n"+
+        offset(2)+"ofs.close();\n\n"+
         offset(2)+"printOutput();\n"+
         offset(2)+"std::cout << \"numberOfIterations: \" << iteration << \"\\n\";\n"+
         offset(2)+"delete[] update;\n"+
@@ -1368,7 +1378,7 @@ std::string CovarianceMatrix::generateConvergenceLoop()
 {
     std::string convergenceCheck =
         offset(3)+"/* Normalized residual stopping condition */\n"+
-	offset(3)+"if (sqrt(gradientNorm) / (firstGradientNorm + 0.01) < 0.000001)\n"+
+	offset(3)+"if (sqrt(gradientNorm) / (firstGradientNorm + 0.001) < 0.00001)\n"+
         offset(3)+"{\n"+
         // offset(4)+"converged = true;\n"+
         offset(4)+"std::cout << \"We have converged!! \\n\";\n"+
