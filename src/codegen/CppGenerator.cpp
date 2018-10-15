@@ -21,7 +21,7 @@
 /* Turn this flag on to output times for each Group individually. */
 // #define BENCH_INDIVIDUAL 
 
-#define USE_MULTIOUTPUT_OPERATOR
+//#define USE_MULTIOUTPUT_OPERATOR
 
 //#define ENABLE_RESORT_RELATIONS
 
@@ -688,21 +688,27 @@ std::string CppGenerator::typeToStr(Type t)
 std::string CppGenerator::genHeader()
 {   
     std::string s = "DATAHANDLER";
-    return "#ifndef INCLUDE_"+s+"_HPP_\n"+
+    std::string header = "#ifndef INCLUDE_"+s+"_HPP_\n"+
         "#define INCLUDE_"+s+"_HPP_\n\n"+
         "#include <algorithm>\n"+
         "#include <chrono>\n"+
         "#include <cstring>\n"+
         "#include <fstream>\n"+
         "#include <iostream>\n" +
-        "#include <unordered_map>\n" +
         "#include <thread>\n" +
-        "#include <vector>\n\n" +
-        "using namespace std::chrono;\n\n"+
-        "namespace lmfao\n{\n"+
+        "#include <unordered_map>\n" +
+        "#include <vector>\n\n";
+
+#if defined(__GNUC__) && defined(NDEBUG) && !defined(__clang__)
+   header += "#include <parallel/algorithm>";
+#endif
+    
+   header += "using namespace std::chrono;\n\nnamespace lmfao\n{\n"+
         offset(1)+"//const std::string PATH_TO_DATA = \"/Users/Maximilian/Documents/"+
         "Oxford/LMFAO/"+_pathToData+"\";\n"+
         offset(1)+"const std::string PATH_TO_DATA = \"../../"+_pathToData+"\";\n\n";
+
+   return header;
 }
 
 std::string CppGenerator::genTupleStructs()
@@ -1028,7 +1034,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
     // TODO: ADD THE CODE THAT CHECKS FOR SORTING OF RELATIONS
 
     ERROR("WE NEED TO FIX THE VARIBALE ORDER - fVARS need to come first \n");
-    exit(1);
+    // exit(1);
     
     /* 
      * Compares viewSortOrder with the varOrder required - if orders are
@@ -1461,7 +1467,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                     ".end(), "+viewName[viewID]+"_0.begin(), "+
                     viewName[viewID]+"_0.end());\n";
 
-                for (size_t t = 0; t < _threadsPerGroup[group_id]; ++t)
+                for (size_t t = 1; t < _threadsPerGroup[group_id]; ++t)
                 {
                     returnString += offset(2)+"for (const std::pair<"+
                         viewName[viewID]+"_key,size_t>& key : "+viewName[viewID]+
