@@ -1304,7 +1304,8 @@ void RegressionTree::initializeThresholds()
     }
     
     if (_pathToFiles.compare("data/usretailer") == 0 ||
-        _pathToFiles.compare("../../data/usretailer") == 0)
+        _pathToFiles.compare("../../data/usretailer") == 0 ||
+        _pathToFiles.compare("../datasets/usretailer_ml") == 0)
     {
         _thresholds =
             {
