@@ -353,6 +353,7 @@ void SqlGenerator::generateAggregateQueries()
 
     ofstream ofs("runtime/sql/aggregates.sql", std::ofstream::out);
 
+    size_t aggID = 0;
     for (auto& fvarAggPair : fVarAggregateMap)
     {
         string fVarString = "";
@@ -365,15 +366,21 @@ void SqlGenerator::generateAggregateQueries()
 
         fvarAggPair.second.pop_back();
         
-        ofs << "SELECT "+fVarString+fvarAggPair.second+"\nFROM "+joinString;
+        ofs << "CREATE TABLE agg_"+to_string(aggID++)+" AS (\n" 
+            "SELECT "+fVarString+fvarAggPair.second+"\nFROM "+joinString;
         if (!fVarString.empty())
         {
             fVarString.pop_back();
             ofs << "\nGROUP BY "+fVarString;
         }
-        ofs << ";\n\n";
+        ofs << ");\n\n";
     }
 
+    ofs.close();
+
+    ofs.open("runtime/sql/aggregate_cleanup.sql", std::ofstream::out);
+    for (size_t i = 0; i < aggID; ++i)
+        ofs << "DROP TABLE IF EXISTS agg_"+to_string(i)+";\n";
     ofs.close();
 }
 
