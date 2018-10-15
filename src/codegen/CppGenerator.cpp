@@ -70,9 +70,14 @@ CppGenerator::~CppGenerator()
     delete[] viewLevelRegister;
 }
 
-void CppGenerator::generateCode(const ParallelizationType parallelization_type)
+void CppGenerator::generateCode(const ParallelizationType parallelization_type,
+                                bool hasApplicationHandler,
+                                bool hasDynamicFunctions)
 {
     DINFO("Start generate C++ code. \n");
+
+    _hasApplicationHandler = hasApplicationHandler;
+    _hasDynamicFunctions = hasDynamicFunctions;
     
     sortOrders = new size_t*[_td->numberOfRelations() + _qc->numberOfViews()];
     viewName = new std::string[_qc->numberOfViews()];
@@ -198,12 +203,14 @@ void CppGenerator::genComputeGroupFiles(size_t group)
     // TODO:TODO:TODO: We should avoid including DynamicFunctions.h if it is not
     // needed.
     
-    ofs << "#include \"ComputeGroup"+std::to_string(group)+".h\"\n"+
-        "#include \"DynamicFunctions.h\"\n"+
-        "namespace lmfao\n{\n";
+    ofs << "#include \"ComputeGroup"+std::to_string(group)+".h\"\n";
+
+    if (_hasDynamicFunctions)
+        ofs << "#include \"DynamicFunctions.h\"\n";
+    
+    ofs << "namespace lmfao\n{\n";
     ofs << genComputeGroupFunction(group) << std::endl;
     ofs << "}\n";
-        
     ofs.close();
 }
 
@@ -217,7 +224,9 @@ void CppGenerator::genMainFunction(bool parallelize)
     ofs << "#include \"DataHandler.h\"\n";
     for (size_t group = 0; group < viewGroups.size(); ++group)
         ofs << "#include \"ComputeGroup"+std::to_string(group)+".h\"\n";
-    ofs << "#include \"ApplicationHandler.h\"\n";
+
+    if (_hasApplicationHandler)
+        ofs << "#include \"ApplicationHandler.h\"\n";
     
     ofs << "\nnamespace lmfao\n{\n";    
     // offset(1)+"//const std::std::ring PATH_TO_DATA = \"/Users/Maximilian/Documents/"+
@@ -255,7 +264,12 @@ void CppGenerator::genMainFunction(bool parallelize)
 
 void CppGenerator::genMakeFile()
 {
-    std::string objectList = "main.o datahandler.o application.o dynamic.o ";
+    std::string objectList = "main.o datahandler.o ";
+    if (_hasApplicationHandler)
+        objectList += "application.o ";
+    if (_hasDynamicFunctions)
+        objectList += "dynamic.o ";
+    
     std::string objectConstruct = "";
     for (size_t group = 0; group < viewGroups.size(); ++group)
     {
@@ -277,13 +291,15 @@ void CppGenerator::genMakeFile()
     ofs << "main.o : main.cpp\n"
         << "\t$(CXX) $(FLAG) $(CXXFLAG) -c main.cpp -o main.o\n\n"
         << "datahandler.o : DataHandler.cpp\n"
-        << "\t$(CXX) $(FLAG) $(CXXFLAG) -c DataHandler.cpp -o datahandler.o\n\n"
-        << "application.o : ApplicationHandler.cpp\n"
-        << "\t$(CXX) $(FLAG) $(CXXFLAG) -c ApplicationHandler.cpp "
-        << "-o application.o\n\n"
-        << "dynamic.o : DynamicFunctions.cpp\n"
-        << "\t$(CXX) $(FLAG) $(CXXFLAG) -c DynamicFunctions.cpp "
-        << "-o dynamic.o\n\n";
+        << "\t$(CXX) $(FLAG) $(CXXFLAG) -c DataHandler.cpp -o datahandler.o\n\n";
+    if (_hasApplicationHandler)
+        ofs << "application.o : ApplicationHandler.cpp\n"
+            << "\t$(CXX) $(FLAG) $(CXXFLAG) -c ApplicationHandler.cpp "
+            << "-o application.o\n\n";
+    if (_hasDynamicFunctions)
+        ofs << "dynamic.o : DynamicFunctions.cpp\n"
+            << "\t$(CXX) $(FLAG) $(CXXFLAG) -c DynamicFunctions.cpp "
+            << "-o dynamic.o\n\n";
 
     ofs << objectConstruct;
 
@@ -972,7 +988,8 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                     viewName[viewID]+"_iterator;\n"+
                     offset(2)+"std::pair<std::unordered_map<"+viewName[viewID]+"_key,"  +
                     "size_t,"+viewName[viewID]+"_keyhash>::iterator,bool> "+
-                    viewName[viewID]+"_pair;\n";
+                    viewName[viewID]+"_pair;\n"+
+                    offset(2)+viewName[viewID]+"_map.reserve(1000000);\n";
             }
         }
     }
@@ -1001,7 +1018,8 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                     viewName[viewID]+"_iterator;\n"+
                     offset(2)+"std::pair<std::unordered_map<"+viewName[viewID]+"_key,"  +
                     "size_t,"+viewName[viewID]+"_keyhash>::iterator,bool> "+
-                    viewName[viewID]+"_pair;\n";
+                    viewName[viewID]+"_pair;\n"+
+                    offset(2)+viewName[viewID]+"_map.reserve(500000);\n";
             }
         }
     }
@@ -6362,7 +6380,7 @@ std::string CppGenerator::genRunFunction(bool parallelize)
         "std::to_string(processTime)+\"ms.\\n\";\n"+
         offset(2)+"ofs.open(\"times.txt\",std::ofstream::out | std::ofstream::app);\n"+
         offset(2)+"ofs << \"\\t\" << processTime;\n";
-        // offset(2)+"ofs.close();\n\n";
+    
     
 #ifdef BENCH_INDIVIDUAL
     for (size_t view = 0; view < _qc->numberOfViews(); ++view)
@@ -6371,22 +6389,21 @@ std::string CppGenerator::genRunFunction(bool parallelize)
             viewName[view]+".size() << std::endl;\n";
     }
 #endif
+    if (_hasApplicationHandler)
+    {
+        returnString += offset(2)+"ofs.close();\n\n"+
+            offset(2)+"int64_t appProcess = duration_cast<milliseconds>("+
+            "system_clock::now().time_since_epoch()).count();\n\n";
 
-    returnString += "\n"+offset(2)+"int64_t appProcess = duration_cast<milliseconds>("+
-        "system_clock::now().time_since_epoch()).count();\n\n";
-    
 #ifdef BENCH_INDIVIDUAL
-    returnString += offset(2)+"std::cout << \"run Application:\\n\";\n";
+        returnString += offset(2)+"std::cout << \"run Application:\\n\";\n";
 #endif
-    returnString += offset(2)+"runApplication();\n"; 
-
-    returnString += "\n"+offset(2)+"int64_t appTime = duration_cast<milliseconds>("+
-        "system_clock::now().time_since_epoch()).count()-appProcess;\n"+
-        offset(2)+"std::cout << \"Application process: \"+"+
-        "std::to_string(appTime)+\"ms.\\n\";\n"+
-        offset(2)+"ofs << \"\\t\" << appTime;\n";
-    
-    returnString += offset(2)+"ofs << std::endl;\n"+offset(2)+"ofs.close();\n\n";
+        returnString += offset(2)+"runApplication();\n"; 
+    }
+    else {        
+        returnString += offset(2)+"ofs << std::endl;\n"+
+            offset(2)+"ofs.close();\n\n";
+    }
     
     return returnString+offset(1)+"}\n";
 }

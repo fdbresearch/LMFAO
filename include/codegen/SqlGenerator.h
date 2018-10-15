@@ -27,7 +27,10 @@ public:
     ~SqlGenerator();
 
     // void generateCode();
-    void generateCode(const ParallelizationType parallel);
+    // void generateCode(const ParallelizationType parallel);
+    void generateCode(const ParallelizationType parallelization_type,
+                      bool hasApplicationHandler,
+                      bool hasDynamicFunctions);
 
     size_t numberOfGroups()
     {

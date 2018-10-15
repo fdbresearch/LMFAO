@@ -39,7 +39,7 @@ std::vector<QueryThresholdPair> queryToThreshold;
 
 RegressionTree::RegressionTree(
     const string& pathToFiles, shared_ptr<Launcher> launcher, bool classification) :
-    _pathToFiles(pathToFiles), _classification(classification)
+    _classification(classification), _pathToFiles(pathToFiles)
 {
     _compiler = launcher->getCompiler();
     _td = launcher->getTreeDecomposition();
@@ -747,8 +747,8 @@ std::string RegressionTree::genVarianceComputation()
             const size_t& quad = query->_aggregates[2]->_incoming[0].second;
 
             const size_t& comp_count = complement->_aggregates[0]->_incoming[0].second;
-            const size_t& comp_linear = complement->_aggregates[1]->_incoming[0].second;
-            const size_t& comp_quad = complement->_aggregates[2]->_incoming[0].second;
+            // const size_t& comp_linear=complement->_aggregates[1]->_incoming[0].second;
+            // const size_t& comp_quad = complement->_aggregates[2]->_incoming[0].second;
         
             std::string viewTup = "V"+std::to_string(viewID)+"tuple";
         
@@ -1131,8 +1131,8 @@ std::string RegressionTree::genGiniComputation()
             size_t& viewID = query->_aggregates[0]->_incoming[0].first;
             size_t& countViewID = varCountQuery->_aggregates[0]->_incoming[0].first;
 
-            const size_t& count = query->_aggregates[0]->_incoming[0].second;
-            const size_t& varCount = varCountQuery->_aggregates[0]->_incoming[0].second;
+            // const size_t& count = query->_aggregates[0]->_incoming[0].second;
+            // const size_t& varCount=varCountQuery->_aggregates[0]->_incoming[0].second;
 
             std::string viewStr = "V"+std::to_string(viewID);
             string labelViewStr = "V"+std::to_string(continuousViewID);
@@ -1249,9 +1249,21 @@ std::string RegressionTree::genGiniComputation()
 void RegressionTree::generateCode()
 {
     std::string runFunction = offset(1)+"void runApplication()\n"+offset(1)+"{\n"+
+        offset(2)+"int64_t startProcess = duration_cast<milliseconds>("+
+        "system_clock::now().time_since_epoch()).count();\n"+
         offset(2)+"initCostArray();\n"+
         offset(2)+"computeCost();\n"+
+        "\n"+offset(2)+"int64_t endProcess = duration_cast<milliseconds>("+
+        "system_clock::now().time_since_epoch()).count()-startProcess;\n"+
+        offset(2)+"std::cout << \"Run Application: \"+"+
+        "std::to_string(endProcess)+\"ms.\\n\";\n\n"+
+        offset(2)+"std::ofstream ofs(\"times.txt\",std::ofstream::out | " +
+        "std::ofstream::app);\n"+
+        offset(2)+"ofs << \"\\t\" << endProcess << std::endl;\n"+
+        offset(2)+"ofs.close();\n\n"+
+        // offset(2)+"evaluateModel();\n"+
         offset(1)+"}\n";
+
         
     std::ofstream ofs("runtime/cpp/ApplicationHandler.h", std::ofstream::out);
     ofs << "#ifndef INCLUDE_APPLICATIONHANDLER_HPP_\n"<<

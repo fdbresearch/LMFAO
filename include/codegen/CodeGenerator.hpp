@@ -35,7 +35,7 @@ public:
      * Runs the data processing task.
      */
     // virtual void generateCode() = 0;
-    virtual void generateCode(const ParallelizationType parallel) = 0;
+    virtual void generateCode(const ParallelizationType parallel, bool, bool) = 0;
 
     virtual size_t numberOfGroups() = 0;
     

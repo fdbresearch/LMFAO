@@ -1351,7 +1351,7 @@ void CovarianceMatrix::generateCode()
         offset(1)+"}\n";
     
     std::string runFunction = offset(1)+"void runApplication()\n"+offset(1)+"{\n"+
-        offset(2)+"int64_t startProcess = duration_cast<milliseconds>("+
+         offset(2)+"int64_t startProcess = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count();\n"+
         offset(2)+"initParametersGradients();\n"+
         generateConvergenceLoop()+
@@ -1361,7 +1361,7 @@ void CovarianceMatrix::generateCode()
         "std::to_string(endProcess)+\"ms.\\n\";\n\n"+
         offset(2)+"std::ofstream ofs(\"times.txt\",std::ofstream::out | " +
         "std::ofstream::app);\n"+
-        offset(2)+"ofs << \"\\t\" << endProcess;\n"+
+        offset(2)+"ofs << \"\\t\" << endProcess << std::endl;\n"+
         offset(2)+"ofs.close();\n\n"+
         offset(2)+"printOutput();\n"+
         offset(2)+"std::cout << \"numberOfIterations: \" << iteration << \"\\n\";\n"+

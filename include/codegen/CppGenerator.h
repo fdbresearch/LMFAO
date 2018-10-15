@@ -324,7 +324,9 @@ public:
 
     ~CppGenerator();
 
-    void generateCode(const ParallelizationType parallelization_type);
+    void generateCode(const ParallelizationType parallelization_type,
+                      bool hasApplicationHandler,
+                      bool hasDynamicFunctions);
 
     size_t numberOfGroups()
     {
@@ -395,6 +397,9 @@ private:
     std::vector<var_bitset> coveredVariables;
     boost::dynamic_bitset<> addableViews;
 
+    bool _hasApplicationHandler;
+    bool _hasDynamicFunctions;
+    
     // std::unordered_map<std::string, std::pair<size_t,size_t>> deferredAggregateMap;
     // std::vector<std::vector<std::string>> deferredAggregateRegister;
     // std::vector<std::vector<boost::dynamic_bitset<>>> deferredLoopRegister;
@@ -568,7 +573,6 @@ private:
 
     std::string genTestFunction();
     
-
     bool resortRelation(const size_t& rel, const size_t& view);
 
     bool resortView(const size_t& incView, const size_t& view);

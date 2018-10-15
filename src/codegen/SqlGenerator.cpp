@@ -35,12 +35,18 @@ SqlGenerator::~SqlGenerator()
 {
 }
 
-void SqlGenerator::generateCode(const ParallelizationType parallelization_type)
+
+void SqlGenerator::generateCode(const ParallelizationType parallelization_type,
+                                bool hasApplicationHandler,
+                                bool hasDynamicFunctions)
 {
     DINFO("Starting SQL - Generator \n");
 
     if (parallelization_type != NO_PARALLELIZATION)
         ERROR("The SQLGenerator currently does not support parallelization.\n");
+
+    hasApplicationHandler = true;
+    hasDynamicFunctions = true;
     
     generateLoadQuery();
     generateJoinQuery();
@@ -366,7 +372,7 @@ void SqlGenerator::generateAggregateQueries()
 
         fvarAggPair.second.pop_back();
         
-        ofs << "CREATE TABLE agg_"+to_string(aggID++)+" AS (\n" 
+        ofs << "CREATE TABLE agg_"+to_string(aggID++)+" AS (\nq" 
             "SELECT "+fVarString+fvarAggPair.second+"\nFROM "+joinString;
         if (!fVarString.empty())
         {

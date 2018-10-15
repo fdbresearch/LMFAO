@@ -67,6 +67,9 @@ int Launcher::launch(const string& model, const string& codeGenerator,
 
     _compiler.reset(new QueryCompiler(_treeDecomposition));
 
+    bool hasApplicationHandler = false;
+    bool hasDynamicFunctions = false;
+    
     if (model.compare("reg") == 0)
     {
         _model = LinearRegressionModel;
@@ -78,18 +81,23 @@ int Launcher::launch(const string& model, const string& codeGenerator,
         _model = RegressionTreeModel;
         _application.reset(
             new RegressionTree(_pathToFiles, shared_from_this(), false));
+        hasApplicationHandler = true;
+        hasDynamicFunctions = true;
     }
     else if (model.compare("ctree") == 0)
     {
         _model = RegressionTreeModel;
         _application.reset(
             new RegressionTree(_pathToFiles, shared_from_this(), true));
+        hasApplicationHandler = true;
+        hasDynamicFunctions = true;
     }
     else if (model.compare("covar") == 0)
     {
         _model = CovarianceMatrixModel;
         _application.reset(
             new CovarianceMatrix(_pathToFiles, shared_from_this()));
+        hasApplicationHandler = true;
     }
     else if (model.compare("count") == 0)
     {
@@ -103,18 +111,6 @@ int Launcher::launch(const string& model, const string& codeGenerator,
         exit(1);
     }
     _application->run();
-    
-    if (codeGenerator.compare("cpp") == 0)
-        _codeGenerator.reset(
-            new CppGenerator(_pathToFiles, shared_from_this()));
-    else if (codeGenerator.compare("sql") == 0)
-        _codeGenerator.reset(
-            new SqlGenerator(_pathToFiles, shared_from_this()));
-    else
-    {
-        ERROR("The code generator "+codeGenerator+" is not supported. \n");
-        exit(1);
-    }
 
     ParallelizationType parallelization_type = NO_PARALLELIZATION;
     if (parallel.compare("task") == 0)
@@ -127,7 +123,20 @@ int Launcher::launch(const string& model, const string& codeGenerator,
         ERROR("ERROR - We only support task and/or domain parallelism. "<<
               "We continue single threaded.\n\n");
     
-    _codeGenerator->generateCode(parallelization_type);
+    if (codeGenerator.compare("cpp") == 0)
+        _codeGenerator.reset(
+            new CppGenerator(_pathToFiles, shared_from_this()));
+    else if (codeGenerator.compare("sql") == 0)
+        _codeGenerator.reset(
+            new SqlGenerator(_pathToFiles, shared_from_this()));
+    else
+    {
+        ERROR("The code generator "+codeGenerator+" is not supported. \n");
+        exit(1);
+    }
+    
+    _codeGenerator->generateCode(
+        parallelization_type, hasApplicationHandler, hasDynamicFunctions);
     
 #ifdef BENCH
     int64_t processingTime = duration_cast<milliseconds>(
