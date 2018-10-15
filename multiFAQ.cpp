@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
        "set path for data and configuration files - required.")
       /* Option for machine learning model. */
       ("model", boost::program_options::value<std::string>()->default_value("reg"),
-       "operation to be computed: reg (default), covar, or rtree")
+       "operation to be computed: reg (default), covar, ctree, or rtree")
       /* Option for code generator. */
       ("codegen", boost::program_options::value<std::string>()->default_value("cpp"),
        "open for code generation: cpp (default), or sql")

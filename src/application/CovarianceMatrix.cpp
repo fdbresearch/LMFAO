@@ -1352,7 +1352,7 @@ void CovarianceMatrix::generateCode()
     
     std::string runFunction = offset(1)+"void runApplication()\n"+offset(1)+"{\n"+
         offset(2)+"int64_t startProcess = duration_cast<milliseconds>("+
-        "system_clock::now().time_since_epoch()).count();"+
+        "system_clock::now().time_since_epoch()).count();\n"+
         offset(2)+"initParametersGradients();\n"+
         generateConvergenceLoop()+
         "\n"+offset(2)+"int64_t endProcess = duration_cast<milliseconds>("+
@@ -1366,6 +1366,7 @@ void CovarianceMatrix::generateCode()
         offset(2)+"printOutput();\n"+
         offset(2)+"std::cout << \"numberOfIterations: \" << iteration << \"\\n\";\n"+
         offset(2)+"delete[] update;\n"+
+        offset(2)+"evaluateModel();\n"+
         offset(1)+"}\n";
     
     std::ofstream ofs("runtime/cpp/ApplicationHandler.h", std::ofstream::out);
@@ -1389,8 +1390,8 @@ void CovarianceMatrix::generateCode()
     ofs << generateGradients() << std::endl;
     ofs << generatePrintFunction() << std::endl;
     ofs << stepSizeFunction << std::endl;
-    ofs << runFunction << std::endl;
     ofs << generateTestDataEvaluation() << std::endl;
+    ofs << runFunction << std::endl;
     ofs << "}\n";
     ofs.close();
 }

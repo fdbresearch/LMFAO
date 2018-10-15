@@ -13,7 +13,6 @@
 
 #include <bitset>
 #include <string>
-#include <queue>
 #include <vector>
 
 #include <Application.hpp>
@@ -22,33 +21,36 @@
  * without cyclic includes. */
 class Launcher;
 
-struct RegTreeNode
-{
-    size_t _functionID;
+// struct RegTreeNode
+// {
+//     size_t _functionID;
 
-    /* Set of parent conditions, stored as a product of functions. */
-    prod_bitset _conditions;
+//     /* Set of parent conditions, stored as a product of functions. */
+//     prod_bitset _conditions;
 
-    size_t count;
-    double prediction;
-    double variance;
+//     size_t count;
+//     double prediction;
+//     double variance;
 
-    RegTreeNode(size_t f) : _functionID(f) {}
-    RegTreeNode() {}
-};
+//     RegTreeNode(size_t f) : _functionID(f) {}
+//     RegTreeNode() {}
+// };
 
 class RegressionTree: public Application
 {
 public:
 
     RegressionTree(const std::string& pathToFiles,
-                     std::shared_ptr<Launcher> launcher);
+                   std::shared_ptr<Launcher> launcher,
+                   bool classification);
 
     ~RegressionTree();
 
     void run();
     
 private:
+
+    bool _classification;
     
     //! Physical path to the schema and table files.
     std::string _pathToFiles;
@@ -58,9 +60,6 @@ private:
 
     //! TreeDecomposition of the the underlying join query.
     std::shared_ptr<TreeDecomposition> _td;
-    
-    //! Queue of active RegTreeNodes to be considered for splitting.
-    std::queue<RegTreeNode*> _activeNodes;
     
     //! Array containing the features of the model.
     var_bitset _features;
@@ -78,7 +77,10 @@ private:
     Query** _varToQueryMap = nullptr;
 
     std::vector<std::vector<double>> _thresholds;
-
+    
+    std::vector<Function*> _functionOfAggregate;
+    std::vector<size_t> _varOfFunction;
+    
     size_t* _queryRootIndex = nullptr;
 
     /* For each feature the candidate mask indicates which functions correspond
@@ -89,11 +91,15 @@ private:
 
     void computeCandidates();
     
-    void splitNodeQueries(RegTreeNode* node);
+    void regressionTreeQueries();
+
+    void classificationTreeQueries();
     
     void genDynamicFunctions();
 
     std::string genVarianceComputation();
+
+    std::string genGiniComputation();
 
     void generateCode();
 

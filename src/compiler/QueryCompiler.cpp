@@ -120,7 +120,7 @@ void QueryCompiler::compile()
         //     aggString.pop_back();
         //     aggString += "   ||   ";
         // }
-        printf("%s -- %lu \n\n", aggString.c_str(),v->_aggregates.size());
+        printf("%s -- %lu \n", aggString.c_str(),v->_aggregates.size());
     }
 #endif /* Printout */
 

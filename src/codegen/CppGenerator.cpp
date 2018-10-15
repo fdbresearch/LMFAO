@@ -17,7 +17,9 @@
 #include <TDNode.hpp>
 
 #define OPTIMIZED
-#define BENCH_INDIVIDUAL
+
+/* Turn this flag on to output times for each Group individually. */
+// #define BENCH_INDIVIDUAL 
 
 #define USE_MULTIOUTPUT_OPERATOR
 
@@ -238,7 +240,6 @@ void CppGenerator::genMainFunction(bool parallelize)
         ofs << genSortFunction(relID) << std::endl;
     
     ofs << genRunFunction(parallelize) << std::endl;
-    // ofs << genRunMultithreadedFunction() << std::endl;
     ofs << genTestFunction() << "}\n\n";
  
     ofs << "int main(int argc, char *argv[])\n{\n#ifndef MULTITHREAD\n"+
@@ -288,7 +289,13 @@ void CppGenerator::genMakeFile()
 
     ofs << ".PHONY : multithread\n"
         << "multi : FLAG = -DMULTITHREAD\n"
+        << "multi : lmfao\n\n"<< ".PHONY : multithread\n"
+        << "multi : FLAG = -DMULTITHREAD\n"
         << "multi : lmfao\n\n"
+        << ".PHONY : precompilation\n"
+        << "precomp : main.o\n"
+        << "precomp : datahandler.o\n"
+        << "precomp : application.o\n\n"
         << ".PHONY : testing\n"
         << "test : FLAG = -DTESTING\n"
         << "test : lmfao\n\n"
@@ -6223,7 +6230,7 @@ std::string CppGenerator::getFunctionString(Function* f, std::string& fvars)
     case Operation::indicator_eq : 
         return "("+fvars+" == "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
     case Operation::indicator_lt : 
-        return "("+fvars+" < "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
+        return "("+fvars+" <= "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
     case Operation::indicator_neq : 
         return "("+fvars+" != "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
     case Operation::indicator_gt : 
@@ -6354,134 +6361,149 @@ std::string CppGenerator::genRunFunction(bool parallelize)
         offset(2)+"std::cout << \"Data process: \"+"+
         "std::to_string(processTime)+\"ms.\\n\";\n"+
         offset(2)+"ofs.open(\"times.txt\",std::ofstream::out | std::ofstream::app);\n"+
-        offset(2)+"ofs << \"\\t\" << processTime << std::endl;\n"+
-        offset(2)+"ofs.close();\n\n";
-
+        offset(2)+"ofs << \"\\t\" << processTime;\n";
+        // offset(2)+"ofs.close();\n\n";
+    
+#ifdef BENCH_INDIVIDUAL
     for (size_t view = 0; view < _qc->numberOfViews(); ++view)
     {
         returnString += offset(2)+"std::cout << \""+viewName[view]+": \" << "+
             viewName[view]+".size() << std::endl;\n";
     }
+#endif
 
-    returnString += "\n"+offset(2)+"std::cout << \"run Application:\\n\";\n"+
-        offset(2)+"runApplication();\n"; 
+    returnString += "\n"+offset(2)+"int64_t appProcess = duration_cast<milliseconds>("+
+        "system_clock::now().time_since_epoch()).count();\n\n";
+    
+#ifdef BENCH_INDIVIDUAL
+    returnString += offset(2)+"std::cout << \"run Application:\\n\";\n";
+#endif
+    returnString += offset(2)+"runApplication();\n"; 
+
+    returnString += "\n"+offset(2)+"int64_t appTime = duration_cast<milliseconds>("+
+        "system_clock::now().time_since_epoch()).count()-appProcess;\n"+
+        offset(2)+"std::cout << \"Application process: \"+"+
+        "std::to_string(appTime)+\"ms.\\n\";\n"+
+        offset(2)+"ofs << \"\\t\" << appTime;\n";
+    
+    returnString += offset(2)+"ofs << std::endl;\n"+offset(2)+"ofs.close();\n\n";
     
     return returnString+offset(1)+"}\n";
 }
 
-std::string CppGenerator::genRunMultithreadedFunction()
-{
-    std::string returnString = "#ifdef MULTITHREAD\n"+
-        offset(1)+"void runMultithreaded()\n"+
-        offset(1)+"{\n";
+// std::string CppGenerator::genRunMultithreadedFunction()
+// {
+//     std::string returnString = "#ifdef MULTITHREAD\n"+
+//         offset(1)+"void runMultithreaded()\n"+
+//         offset(1)+"{\n";
 
-    returnString += offset(2)+
-        "int64_t startLoading = duration_cast<milliseconds>("+
-        "system_clock::now().time_since_epoch()).count();\n\n"+
-        offset(2)+"loadRelations();\n\n"+
-        offset(2)+"std::cout << \"Data loading: \" + std::to_string("+
-        "duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count()-"+
-        "startLoading)+\"ms.\\n\";\n\n";
+//     returnString += offset(2)+
+//         "int64_t startLoading = duration_cast<milliseconds>("+
+//         "system_clock::now().time_since_epoch()).count();\n\n"+
+//         offset(2)+"loadRelations();\n\n"+
+//         offset(2)+"std::cout << \"Data loading: \" + std::to_string("+
+//         "duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count()-"+
+//         "startLoading)+\"ms.\\n\";\n\n";
     
-    returnString += offset(2)+"int64_t startSorting = duration_cast<milliseconds>("+
-        "system_clock::now().time_since_epoch()).count();\n\n";
+//     returnString += offset(2)+"int64_t startSorting = duration_cast<milliseconds>("+
+//         "system_clock::now().time_since_epoch()).count();\n\n";
     
-    for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
-    {
-        TDNode* node = _td->getRelation(rel);
-        returnString += offset(2)+"std::thread sort"+node->_name+
-            "Thread(sort"+node->_name+");\n";
-    }
+//     for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
+//     {
+//         TDNode* node = _td->getRelation(rel);
+//         returnString += offset(2)+"std::thread sort"+node->_name+
+//             "Thread(sort"+node->_name+");\n";
+//     }
 
-    for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
-    {
-        TDNode* node = _td->getRelation(rel);
-        returnString += offset(2)+"sort"+node->_name+"Thread.join();\n";
-    }
+//     for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
+//     {
+//         TDNode* node = _td->getRelation(rel);
+//         returnString += offset(2)+"sort"+node->_name+"Thread.join();\n";
+//     }
 
-    returnString += offset(2)+"std::cout << \"Data sorting: \" + std::to_string("+
-        "duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count()-"+
-        "startSorting)+\"ms.\\n\";\n\n";
+//     returnString += offset(2)+"std::cout << \"Data sorting: \" + std::to_string("+
+//         "duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count()-"+
+//         "startSorting)+\"ms.\\n\";\n\n";
 
-    returnString += offset(2)+"int64_t startProcess = duration_cast<milliseconds>("+
-        "system_clock::now().time_since_epoch()).count();\n\n";
+//     returnString += offset(2)+"int64_t startProcess = duration_cast<milliseconds>("+
+//         "system_clock::now().time_since_epoch()).count();\n\n";
 
-#ifndef OPTIMIZED
-    std::vector<bool> joinedViews(_qc->numberOfViews());
-    for (size_t view = 0; view < _qc->numberOfViews(); ++view)
-    {
-        // TDNode* relation = _td->getRelation(_qc->getView(view)->_origin);
-        // if (!joinedRelations[relation->_id])
-        // {
-        //     returnString += offset(2)+"sort"+relation->_name+"Thread.join();\n";
-        //     joinedRelations[relation->_id] = 1;
-        // }
+// #ifndef OPTIMIZED
+//     std::vector<bool> joinedViews(_qc->numberOfViews());
+//     for (size_t view = 0; view < _qc->numberOfViews(); ++view)
+//     {
+//         // TDNode* relation = _td->getRelation(_qc->getView(view)->_origin);
+//         // if (!joinedRelations[relation->_id])
+//         // {
+//         //     returnString += offset(2)+"sort"+relation->_name+"Thread.join();\n";
+//         //     joinedRelations[relation->_id] = 1;
+//         // }
 
-        for (const size_t& otherView : incomingViews[view])
-        {
-            // find group that contains this view!
-            if (!joinedViews[otherView])
-            {
-                returnString += offset(2)+"view"+std::to_string(otherView)+
-                    "Thread.join();\n";
-                joinedViews[otherView] = 1;
-            }
-        }
-        returnString += offset(2)+"std::thread view"+std::to_string(view)+
-            "Thread(computeView"+std::to_string(view)+");\n";
-    }
+//         for (const size_t& otherView : incomingViews[view])
+//         {
+//             // find group that contains this view!
+//             if (!joinedViews[otherView])
+//             {
+//                 returnString += offset(2)+"view"+std::to_string(otherView)+
+//                     "Thread.join();\n";
+//                 joinedViews[otherView] = 1;
+//             }
+//         }
+//         returnString += offset(2)+"std::thread view"+std::to_string(view)+
+//             "Thread(computeView"+std::to_string(view)+");\n";
+//     }
 
-    for (size_t view = 0; view < _qc->numberOfViews(); ++view)
-    {
-        if(!joinedViews[view])
-            returnString += offset(2)+"view"+std::to_string(view)+"Thread.join();\n";
-    }
+//     for (size_t view = 0; view < _qc->numberOfViews(); ++view)
+//     {
+//         if(!joinedViews[view])
+//             returnString += offset(2)+"view"+std::to_string(view)+"Thread.join();\n";
+//     }
     
-#else
-    std::vector<bool> joinedGroups(viewGroups.size());
+// #else
+//     std::vector<bool> joinedGroups(viewGroups.size());
     
-    for (size_t group = 0; group < viewGroups.size(); ++group)
-    {
-        for (const size_t& viewID : groupIncomingViews[group])
-        {
-            // find group that contains this view!
-            size_t otherGroup = viewToGroupMapping[viewID];
-            if (!joinedGroups[otherGroup])
-            {
-                returnString += offset(2)+"group"+std::to_string(otherGroup)+
-                    "Thread.join();\n";
-                joinedGroups[otherGroup] = 1;
-            }
-        }
+//     for (size_t group = 0; group < viewGroups.size(); ++group)
+//     {
+//         for (const size_t& viewID : groupIncomingViews[group])
+//         {
+//             // find group that contains this view!
+//             size_t otherGroup = viewToGroupMapping[viewID];
+//             if (!joinedGroups[otherGroup])
+//             {
+//                 returnString += offset(2)+"group"+std::to_string(otherGroup)+
+//                     "Thread.join();\n";
+//                 joinedGroups[otherGroup] = 1;
+//             }
+//         }
 
-        if (_parallelizeGroup[group])            
-            returnString += offset(2)+"std::thread group"+std::to_string(group)+
-                "Thread(computeGroup"+std::to_string(group)+"Parallelized);\n";
-        else
-         returnString += offset(2)+"std::thread group"+std::to_string(group)+
-                "Thread(computeGroup"+std::to_string(group)+");\n";
-    }
+//         if (_parallelizeGroup[group])            
+//             returnString += offset(2)+"std::thread group"+std::to_string(group)+
+//                 "Thread(computeGroup"+std::to_string(group)+"Parallelized);\n";
+//         else
+//          returnString += offset(2)+"std::thread group"+std::to_string(group)+
+//                 "Thread(computeGroup"+std::to_string(group)+");\n";
+//     }
 
-    for (size_t group = 0; group < viewGroups.size(); ++group)
-    {
-        if (!joinedGroups[group])
-            returnString += offset(2)+"group"+std::to_string(group)+"Thread.join();\n";
-    }
+//     for (size_t group = 0; group < viewGroups.size(); ++group)
+//     {
+//         if (!joinedGroups[group])
+//             returnString += offset(2)+"group"+std::to_string(group)+"Thread.join();\n";
+//     }
     
-#endif
+// #endif
 
-    returnString += "\n"+offset(2)+"std::cout << \"Data process: \"+"+
-        "std::to_string(duration_cast<milliseconds>("+
-        "system_clock::now().time_since_epoch()).count()-startProcess)+\"ms.\\n\";\n\n";
+//     returnString += "\n"+offset(2)+"std::cout << \"Data process: \"+"+
+//         "std::to_string(duration_cast<milliseconds>("+
+//         "system_clock::now().time_since_epoch()).count()-startProcess)+\"ms.\\n\";\n\n";
 
-    for (size_t view = 0; view < _qc->numberOfViews(); ++view)
-    {
-        returnString += offset(2)+"std::cout << \""+viewName[view]+": \" << "+
-            viewName[view]+".size() << std::endl;\n";
-    }
+//     for (size_t view = 0; view < _qc->numberOfViews(); ++view)
+//     {
+//         returnString += offset(2)+"std::cout << \""+viewName[view]+": \" << "+
+//             viewName[view]+".size() << std::endl;\n";
+//     }
     
-    return returnString+offset(1)+"}\n#endif\n";
-}
+//     return returnString+offset(1)+"}\n#endif\n";
+// }
 
 
 std::string CppGenerator::genFindUpperBound(const std::string& rel_name,

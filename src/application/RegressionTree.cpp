@@ -32,13 +32,14 @@ struct QueryThresholdPair
     Query* query;
     size_t varID;
     Function* function;
+    Query* complementQuery = nullptr;
 };
 
 std::vector<QueryThresholdPair> queryToThreshold;
 
-RegressionTree::RegressionTree(const string& pathToFiles,
-                                   shared_ptr<Launcher> launcher) :
-    _pathToFiles(pathToFiles)
+RegressionTree::RegressionTree(
+    const string& pathToFiles, shared_ptr<Launcher> launcher, bool classification) :
+    _pathToFiles(pathToFiles), _classification(classification)
 {
     _compiler = launcher->getCompiler();
     _td = launcher->getTreeDecomposition();
@@ -66,51 +67,20 @@ void RegressionTree::run()
 
     cout << "Computed Candidates \n";
 
-    /* Create EmptyNode? */
-    RegTreeNode* root = new RegTreeNode();
-
-    for (size_t f = 0; f < NUM_OF_FUNCTIONS; ++f)
-        if (_candidateMask[NUM_OF_VARIABLES][f])
-            root->_conditions.set(f);
-
     genDynamicFunctions();
+
+    if (_classification)
+        classificationTreeQueries();
+    else
+        regressionTreeQueries();
     
-    // root->_conditions.set(5);
-    // root->_conditions.set(9);
-    // root->_conditions.set(15);
-    
-    splitNodeQueries(root);
     _compiler->compile();
-    
-    // 1. define queries for new splits
-    // 2. compile views for these queries
-    // 3. compute these views / queries and opt. split
-    // 4. repeat from 1
-    
-    /* The regression tree is iterative */
-    // while (!_activeNodes.empty()) 
-    // {
-    //     RegTreeNode* node = _activeNodes.front();
-    //     _activeNodes.pop();
-    
-    //     splitNodeQueries(node);
-    //     _compiler->compile();
-
-    //     /* Compute the queries */
-        
-    //     /* For each of them find minimum candidates */
-    //     /* Then the optimal split  */
-    //     // TODO: how do we do this?!?!
-
-    //     /* split node and add them to active nodes if they satisfy the minimum
-    //      * threshold condition */
-    // }
 
     generateCode();
 }
 
 void RegressionTree::computeCandidates()
-{
+{   
     initializeThresholds();
     
     _numOfCandidates = new size_t[NUM_OF_VARIABLES];
@@ -121,18 +91,25 @@ void RegressionTree::computeCandidates()
     
     /* We can have a candidate mask for each feature. */
     _candidateMask.resize(NUM_OF_VARIABLES + 1);
-    
-    // Create functions that are linear sums for y and y^2 first 
-    _compiler->addFunction(
-        new Function({static_cast<size_t>(_labelID)}, Operation::linear_sum));
-    _compiler->addFunction(
-        new Function({static_cast<size_t>(_labelID)}, Operation::quadratic_sum));
 
+    size_t idx = 0;
+    size_t origIdx = 0;
+
+    if (!_classification)
+    {        
+        // Create functions that are linear sums for y and y^2 first
+        _compiler->addFunction(
+            new Function({static_cast<size_t>(_labelID)}, Operation::linear_sum));
+        _compiler->addFunction(
+            new Function({static_cast<size_t>(_labelID)}, Operation::quadratic_sum));
+        idx = 2;
+        origIdx = 2;
+    }
+    
     /* CANDIDATES ARE FUNCTIONS --- so we define the functions for all
      * candidates and set them accordingly  */
 
     // Push them on the functionList in the order they are accessed 
-    size_t idx = 2;
     for (size_t var=0; var < NUM_OF_VARIABLES; ++var)
     {
         if (_features[var])
@@ -166,10 +143,7 @@ void RegressionTree::computeCandidates()
         }
     }
 
-    // size_t firstComplementFunction = idx;
 
-    size_t origIdx = 2;
-    
     /* Now we also add the complement functions! */
     for (size_t var=0; var < NUM_OF_VARIABLES; ++var)
     {
@@ -216,14 +190,14 @@ void RegressionTree::computeCandidates()
         _compiler->addFunction(
             new Function(
                 relationVariables, Operation::dynamic, true, functionName));
-        
+
+        /* _candidateMask[NUM_OF_VARIABLES] keeps track of all dynamic functions */
         _candidateMask[NUM_OF_VARIABLES].set(idx);
         ++idx;
-    }
-    
+    }   
 }
 
-void RegressionTree::splitNodeQueries(RegTreeNode* node)
+void RegressionTree::regressionTreeQueries()
 {
     for (size_t var=0; var < NUM_OF_VARIABLES; ++var)
     {
@@ -236,36 +210,60 @@ void RegressionTree::splitNodeQueries(RegTreeNode* node)
                 Aggregate* aggQ = new Aggregate();
                 
                 /* Q_C */
-                aggC->_agg.push_back(node->_conditions);
+                aggC->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
                             
                 /* Q_L */
-                aggL->_agg.push_back(node->_conditions);
+                aggL->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
                 aggL->_agg[0].set(0);
         
                 /* Q_Q */
-                aggQ->_agg.push_back(node->_conditions);
+                aggQ->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
                 aggQ->_agg[0].set(1);
 
-                /*  One each for Q_c, Q_y, Q_q  -- probably should be in one */
+                
                 Query* query = new Query();
-
                 query->_rootID = _queryRootIndex[var];  
                 query->_aggregates = {aggC,aggL,aggQ};
                 query->_fVars.set(var);
                 
                 _compiler->addQuery(query);
 
+                Aggregate* compaggC = new Aggregate();
+                Aggregate* compaggL = new Aggregate();
+                Aggregate* compaggQ = new Aggregate();
+                
+                /* Q_C */
+                compaggC->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                            
+                /* Q_L */
+                compaggL->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                compaggL->_agg[0].set(0);
+        
+                /* Q_Q */
+                compaggQ->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                compaggQ->_agg[0].set(1);
+
+                // We add an additional query without free vars to compute the
+                // complement of each threshold 
+                Query* complementQuery = new Query();
+                complementQuery->_rootID = _queryRootIndex[var];  
+                complementQuery->_aggregates = {compaggC,compaggL,compaggQ};
+
+                _compiler->addQuery(complementQuery);
+
                 QueryThresholdPair qtPair;
                 qtPair.query = query;
                 qtPair.varID = var;
                 qtPair.function = nullptr;
+                qtPair.complementQuery = complementQuery;
                 
-                queryToThreshold.push_back(qtPair);
-
                 _varToQueryMap[var] = query;
+
+                queryToThreshold.push_back(qtPair);
             }
-            else
+            else /* Continuous Variable */
             {
+                /* We create a query for each threshold for this variable */ 
                 for (size_t f = 0; f < NUM_OF_FUNCTIONS; ++f)
                 {
                     if (!_candidateMask[var][f])
@@ -276,16 +274,16 @@ void RegressionTree::splitNodeQueries(RegTreeNode* node)
                     Aggregate* aggQ = new Aggregate();
         
                     /* Q_C */
-                    aggC->_agg.push_back(node->_conditions);
+                    aggC->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
                     aggC->_agg[0].set(f);
 
                     /* Q_L */
-                    aggL->_agg.push_back(node->_conditions);
+                    aggL->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
                     aggL->_agg[0].set(0);
                     aggL->_agg[0].set(f);
         
                     /* Q_Q */
-                    aggQ->_agg.push_back(node->_conditions);
+                    aggQ->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
                     aggQ->_agg[0].set(1);
                     aggQ->_agg[0].set(f);
                                         
@@ -294,19 +292,18 @@ void RegressionTree::splitNodeQueries(RegTreeNode* node)
                     Aggregate* aggQ_complement = new Aggregate();
         
                     /* Q_C */
-                    aggC_complement->_agg.push_back(node->_conditions);
+                    aggC_complement->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
                     aggC_complement->_agg[0].set(_complementFunction[f]);
 
                     /* Q_L */
-                    aggL_complement->_agg.push_back(node->_conditions);
+                    aggL_complement->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
                     aggL_complement->_agg[0].set(0);
                     aggL_complement->_agg[0].set(_complementFunction[f]);
         
                     /* Q_Q */
-                    aggQ_complement->_agg.push_back(node->_conditions);
+                    aggQ_complement->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
                     aggQ_complement->_agg[0].set(1);
                     aggQ_complement->_agg[0].set(_complementFunction[f]);
-                    
 
                     Query* query = new Query();
                     query->_rootID = _queryRootIndex[var];
@@ -322,6 +319,146 @@ void RegressionTree::splitNodeQueries(RegTreeNode* node)
                     qtPair.function = _compiler->getFunction(f);
                     
                     queryToThreshold.push_back(qtPair);
+                }
+            }
+        }
+    }
+}
+
+
+void RegressionTree::classificationTreeQueries()
+{
+    Query* continuousQuery = new Query();
+    continuousQuery->_rootID = _queryRootIndex[_labelID];
+    continuousQuery->_fVars.set(_labelID);
+    _compiler->addQuery(continuousQuery);
+    
+    // Simple count for each category
+    Aggregate* countCategory = new Aggregate();
+    countCategory->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
+    continuousQuery->_aggregates.push_back(countCategory);
+    
+    // Add to compiler list
+    Query* countQuery = new Query();
+    countQuery->_rootID = _queryRootIndex[_labelID]; // TODO: is this ok?!
+    _compiler->addQuery(countQuery);
+
+    // Overall count of tuples satisfying the parent conditions
+    Aggregate* count = new Aggregate();
+    count->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
+    countQuery->_aggregates.push_back(count);
+
+    QueryThresholdPair qtPair;
+    qtPair.query = continuousQuery;
+    qtPair.complementQuery = countQuery;    
+    queryToThreshold.push_back(qtPair);
+
+    _functionOfAggregate.push_back(nullptr);
+    
+    for (size_t var=0; var < NUM_OF_VARIABLES; ++var)
+    {
+        if (_features[var])
+        {
+            if (_categoricalFeatures[var])
+            {
+                Aggregate* agg = new Aggregate();
+                agg->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                
+                Query* query = new Query();
+                query->_rootID = _queryRootIndex[var];
+                query->_fVars.set(var);
+                query->_fVars.set(_labelID);
+                query->_aggregates.push_back(agg);
+                
+                _compiler->addQuery(query);
+
+                /* Count Query keeps track of the count of each category
+                 * independent of label */
+                Aggregate* countagg = new Aggregate();
+                countagg->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                
+                Query* varCountQuery = new Query();
+                varCountQuery->_rootID = _queryRootIndex[var];  
+                varCountQuery->_aggregates.push_back(countagg);
+                varCountQuery->_fVars.set(var);
+                _compiler->addQuery(varCountQuery);
+
+                // TODO:TODO: Need to keep track of this count query somewhere!!
+
+                QueryThresholdPair qtPair;
+                qtPair.query = query;
+                qtPair.varID = var;
+                qtPair.complementQuery = varCountQuery;
+                
+                _varToQueryMap[var] = query;
+                queryToThreshold.push_back(qtPair);
+            }
+            else /* Continuous Variable */
+            {
+                // TODO: perhaps push all continuous aggregates to the same
+                // query?
+                // TODO: we will also need the count overall
+                _varToQueryMap[var] = continuousQuery;
+
+                /* We create a query for each threshold for this variable */ 
+                for (size_t f = 0; f < NUM_OF_FUNCTIONS; ++f)
+                {
+                    if (!_candidateMask[var][f])
+                        continue;
+                    
+                    Aggregate* agg = new Aggregate();
+                    agg->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                    agg->_agg[0].set(f);
+
+                    // TODO: technically we can infer the comp agg from the
+                    // first aggregate - but I will add it for now to make it easier
+                    Aggregate* agg_complement = new Aggregate();
+                    agg_complement->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                    agg_complement->_agg[0].set(_complementFunction[f]);
+
+                    continuousQuery->_aggregates.push_back(agg);
+                    continuousQuery->_aggregates.push_back(agg_complement);
+                    
+                    // The below should give us the size of the group - may not
+                    // be necessary
+                    Aggregate* agg_count = new Aggregate();
+                    agg_count->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                    agg_count->_agg[0].set(f);
+                    
+                    // TODO: technically we can infer the comp agg from the
+                    // first aggregate - but I will add it for now to make it easier
+                    Aggregate* agg_count_complement = new Aggregate();
+                    agg_count_complement->_agg.push_back(
+                        _candidateMask[NUM_OF_VARIABLES]);
+                    agg_count_complement->_agg[0].set(_complementFunction[f]);
+
+                    countQuery->_aggregates.push_back(agg_count);
+                    countQuery->_aggregates.push_back(agg_count_complement);
+                    
+                    // TODO: TODO: we need to keep track of the functions that
+                    // are in the continuous query - the below does that kind of 
+                    _functionOfAggregate.push_back(_compiler->getFunction(f));
+                    _functionOfAggregate.push_back(
+                        _compiler->getFunction(_complementFunction[f]));
+
+                    _varOfFunction.push_back(var);
+                    _varOfFunction.push_back(var);
+                    
+                    // QueryThresholdPair qtPair;
+                    // qtPair.query = continuousQuery;
+                    // qtPair.varID = var;
+                    // qtPair.function = _compiler->getFunction(f);
+                    // qtPair.complementQuery = countQuery;
+
+                    // queryToThreshold.push_back(qtPair);
+
+                    // QueryThresholdPair qtPair2;
+                    // qtPair.query = continuousQuery;
+                    // qtPair.varID = var;
+                    // qtPair.function = _compiler->getFunction(_complementFunction[f]);
+                    // qtPair.complementQuery = countQuery;
+                    
+                    // queryToThreshold.push_back(qtPair2);
                 }
             }
         }
@@ -476,8 +613,6 @@ void RegressionTree::genDynamicFunctions()
     {   
         if (_candidateMask[NUM_OF_VARIABLES].test(f))
         {
-            std::cout << _compiler->numberOfFunctions() << std::endl;
-            
             Function* func = _compiler->getFunction(f);
             const var_bitset& fVars = func->_fVars;
             std::string fvarString = "";
@@ -491,13 +626,11 @@ void RegressionTree::genDynamicFunctions()
                 }
             }
             fvarString.pop_back();
-            
             functionHeaders += offset(1)+"double "+func->_name+"("+fvarString+");\n\n";
             functionSource += offset(1)+"double "+func->_name+"("+fvarString+")\n"+
                 offset(1)+"{\n"+offset(2)+"return 1.0;\n"+offset(1)+"}\n";
         }
     }
-
     std::ofstream ofs("runtime/cpp/DynamicFunctions.h", std::ofstream::out);
     ofs << "#ifndef INCLUDE_DYNAMICFUNCTIONS_H_\n"<<
         "#define INCLUDE_DYNAMICFUNCTIONS_H_\n\n"<<
@@ -588,8 +721,10 @@ std::string RegressionTree::dynamicFunctionsGenerator()
 std::string RegressionTree::genVarianceComputation()
 {
     std::vector<std::vector<std::string>> variancePerView(_compiler->numberOfViews());
+    //TODO: rename this to thresholdPerView
     std::vector<std::vector<std::string>> functionPerView(_compiler->numberOfViews());
     std::vector<size_t> firstThreshold(NUM_OF_VARIABLES);
+    std::vector<Query*> complementQueryPerView(_compiler->numberOfViews());
     
     for (QueryThresholdPair& qtPair : queryToThreshold)
     {
@@ -601,29 +736,53 @@ std::string RegressionTree::genVarianceComputation()
             size_t& viewID2 = query->_aggregates[1]->_incoming[0].first;
             size_t& viewID3 = query->_aggregates[2]->_incoming[0].first;
 
+            Query* complement = qtPair.complementQuery;
+            const size_t& comp_viewID = complement->_aggregates[0]->_incoming[0].first;
+
             if (viewID != viewID2 || viewID != viewID3)
                 std::cout << "THERE IS AN ERROR IN genVarianceComputation" << std::endl;
         
             const size_t& count = query->_aggregates[0]->_incoming[0].second;
             const size_t& linear = query->_aggregates[1]->_incoming[0].second;
             const size_t& quad = query->_aggregates[2]->_incoming[0].second;
+
+            const size_t& comp_count = complement->_aggregates[0]->_incoming[0].second;
+            const size_t& comp_linear = complement->_aggregates[1]->_incoming[0].second;
+            const size_t& comp_quad = complement->_aggregates[2]->_incoming[0].second;
         
             std::string viewTup = "V"+std::to_string(viewID)+"tuple";
         
+            // variancePerView[viewID].push_back(
+            //     "("+viewTup+".aggregates["+std::to_string(count)+"] > 0 ? "+
+            //     viewTup+".aggregates["+std::to_string(quad)+"] - ("+
+            //     viewTup+".aggregates["+std::to_string(linear)+"] * "+
+            //     viewTup+".aggregates["+std::to_string(linear)+"]) / "+
+            //     viewTup+".aggregates["+std::to_string(count)+"] : 999);\n"
+            //     );
+            
             variancePerView[viewID].push_back(
-                "("+viewTup+".aggregates["+std::to_string(count)+"] > 0 ? "+
                 viewTup+".aggregates["+std::to_string(quad)+"] - ("+
                 viewTup+".aggregates["+std::to_string(linear)+"] * "+
                 viewTup+".aggregates["+std::to_string(linear)+"]) / "+
-                viewTup+".aggregates["+std::to_string(count)+"] : 999);\n"
+                viewTup+".aggregates["+std::to_string(count)+"] + "+
+                "difference[2] - (difference[1] * difference[1]) / difference[0];\n"
                 );
-        
-            Attribute* att = _td->getAttribute(qtPair.varID);
+
+            complementQueryPerView[viewID] = complement;
             
+            Attribute* att = _td->getAttribute(qtPair.varID);
+
+            // functionPerView[viewID].push_back(
+            //     "\"Variable: "+std::to_string(qtPair.varID)+" "+
+            //     "Threshold: \"+std::to_string(tuple."+att->_name+")+\" "+
+            //     "Operator: = \";\n");
+
+            // TODO:TODO:TODO:TODO:TODO:TODO: WHY DOES THIS SAY AGGREGATES[QUAD] !?!?!
             functionPerView[viewID].push_back(
-                "\"Variable: "+std::to_string(qtPair.varID)+" "+
-                "Threshold: \"+std::to_string(tuple."+att->_name+")+\" "+
-                "Operator: = \";\n");
+                ".set("+std::to_string(qtPair.varID)+",tuple."+att->_name+",1,"+
+                "&tuple.aggregates["+std::to_string(count)+"],"+
+                "&V"+std::to_string(comp_viewID)+"[0].aggregates["+
+                std::to_string(comp_count)+"]"+");\n");
         }
         else
         {   // Continuous variable
@@ -662,13 +821,18 @@ std::string RegressionTree::genVarianceComputation()
                 viewTup+".aggregates["+std::to_string(compquad)+"] - ("+
                 viewTup+".aggregates["+std::to_string(complinear)+"] * "+
                 viewTup+".aggregates["+std::to_string(complinear)+"]) / "+
-                viewTup+".aggregates["+std::to_string(compcount)+"] : 999);\n"
+                viewTup+".aggregates["+std::to_string(compcount)+"] : 1.79769e+308);\n"
                 );
            
-            functionPerView[viewID].push_back(
-                "\"Variable: "+std::to_string(qtPair.varID)+" "+
-                "Threshold: "+std::to_string(qtPair.function->_parameter[0])+" "+
-                "Operator: < \";\n");
+            // functionPerView[viewID].push_back(
+            //     "\"Variable: "+std::to_string(qtPair.varID)+" "+
+            //     "Threshold: "+std::to_string(qtPair.function->_parameter[0])+" "+
+            //     "Operator: < \";\n");
+            functionPerView[viewID].push_back(".set("+std::to_string(qtPair.varID)+","+
+                std::to_string(qtPair.function->_parameter[0])+",0,"+
+                "&V"+std::to_string(viewID)+"[0].aggregates["+std::to_string(count)+"],"+
+                "&V"+std::to_string(cviewID)+"[0].aggregates["+
+                std::to_string(compcount)+"]"+");\n");
         }
         
     }
@@ -692,7 +856,6 @@ std::string RegressionTree::genVarianceComputation()
             numOfThresholds += "V"+std::to_string(viewID)+".size() + ";
         }
     }
-
     numOfThresholds += std::to_string(numOfContThresholds)+";\n";
 
     std::string initVariance = offset(2)+numOfThresholds +
@@ -710,21 +873,77 @@ std::string RegressionTree::genVarianceComputation()
             
             if (_compiler->getView(viewID)->_fVars.any())
             {
-                categVariance += offset(2)+"for ("+viewString+"_tuple& "+
-                    viewString+"tuple : "+viewString+")\n";
-
-                for (size_t j = 0; j < variancePerView[viewID].size(); ++j)
-                {
-                    categVariance += offset(3)+
-                        "variance["+std::to_string(numOfContThresholds)+
-                        "+categIdx++] = "+variancePerView[viewID][j];
+                // categVariance += offset(2)+"for ("+viewString+"_tuple& "+
+                //     viewString+"tuple : "+viewString+")\n";
+                // for (size_t j = 0; j < variancePerView[viewID].size(); ++j)
+                // {
+                //     categVariance += offset(3)+
+                //         "variance[categIdx++] = "+variancePerView[viewID][j];
                     
-                    categFunctionIndex += 
-                        offset(2)+"for (V"+std::to_string(viewID)+"_tuple& tuple : "+
-                        "V"+std::to_string(viewID)+")\n"+
-                        offset(3)+"thresholdMap["+std::to_string(numOfContThresholds)+
-                        "+categIdx++] = "+functionPerView[viewID][j];
+                //     categFunctionIndex += 
+                //         offset(2)+"for (V"+std::to_string(viewID)+"_tuple& tuple : "+
+                //         "V"+std::to_string(viewID)+")\n"+offset(3)+
+                //         "thresholdMap[categIdx++] = "+functionPerView[viewID][j];
+                // }
+                
+                if (variancePerView[viewID].size() > 1)
+                {
+                    ERROR("THIS IS ODD, EXCEPCTED SIZE IS 1;\n");
+                    exit(1);
                 }
+
+                Query* complement = complementQueryPerView[viewID];
+                const size_t& comp_viewID =
+                    complement->_aggregates[0]->_incoming[0].first;
+                const size_t& comp_count =
+                    complement->_aggregates[0]->_incoming[0].second;
+                const size_t& comp_linear =
+                    complement->_aggregates[1]->_incoming[0].second;
+                const size_t& comp_quad =
+                    complement->_aggregates[2]->_incoming[0].second;
+
+                if (comp_count != comp_linear-1 || comp_count != comp_quad-2 ||
+                    comp_linear != comp_quad-1)
+                {    
+                    ERROR("We should have expected the aggregates to be contiguous!\n");
+                    exit(1);
+                }
+
+                std::cout << "complement: " << comp_viewID << "  " << viewID << "\n";
+                std::cout << complement->_fVars << std::endl;
+                std::cout << _compiler->getView(viewID)->_fVars << std::endl;
+                
+                categVariance += offset(2)+"compaggs = &V"+std::to_string(comp_viewID)+
+                    "[0].aggregates["+std::to_string(comp_count)+"];\n"+
+                    offset(2)+"for ("+viewString+"_tuple& "+viewString+"tuple : "+
+                    viewString+")\n"+offset(2)+"{\n"+
+                    offset(3)+"if("+viewString+"tuple.aggregates[0] == 0)\n"+
+                    offset(3)+"{\n"+
+                    offset(4)+"variance[categIdx++] = 1.79769e+308;\n"+
+                    offset(4)+"continue;\n"+
+                    offset(3)+"}\n"+
+                    offset(3)+"for (size_t i=0; i < 3; ++i)\n"+
+                    offset(4)+"difference[i] = compaggs[i] - "+
+                    viewString+"tuple.aggregates[i];\n"+
+                    offset(3)+"variance[categIdx++] = "+variancePerView[viewID][0]+
+                    offset(2)+"}\n";
+                
+                // categFunctionIndex +=offset(2)+"for (V"+std::to_string(viewID)+
+                //     "_tuple& tuple : V"+std::to_string(viewID)+")\n"+offset(3)+
+                //     "thresholdMap[categIdx++] = "+functionPerView[viewID][0];
+                categFunctionIndex +=offset(2)+"for (V"+std::to_string(viewID)+
+                    "_tuple& tuple : V"+std::to_string(viewID)+")\n"+offset(3)+
+                    "thresholdMap[categIdx++]"+functionPerView[viewID][0];
+                
+                // for (size_t j = 0; j < variancePerView[viewID].size(); ++j)
+                // {
+                //     categVariance += "variance[categIdx++] = "+
+                //         variancePerView[viewID][0];
+                //     categFunctionIndex += 
+                //         offset(2)+"for (V"+std::to_string(viewID)+"_tuple& tuple : "+
+                //         "V"+std::to_string(viewID)+")\n"+offset(3)+
+                //         "thresholdMap[categIdx++] = "+functionPerView[viewID][j];
+                // }
             }
             else
             {
@@ -737,8 +956,11 @@ std::string RegressionTree::genVarianceComputation()
                         "variance["+std::to_string(varianceCount)+"] = "+
                         variancePerView[viewID][j];
 
+                    // contFunctionIndex += offset(2)+
+                    //     "thresholdMap["+std::to_string(varianceCount)+"] = "+
+                    //     functionPerView[viewID][j];
                     contFunctionIndex += offset(2)+
-                        "thresholdMap["+std::to_string(varianceCount)+"] = "+
+                        "thresholdMap["+std::to_string(varianceCount)+"]"+
                         functionPerView[viewID][j];
                     
                     ++varianceCount;
@@ -750,7 +972,12 @@ std::string RegressionTree::genVarianceComputation()
     std::string computeVariance = contVariance;
     
     if (!categVariance.empty())
-        computeVariance += offset(2)+"size_t categIdx = 0;\n"+categVariance;
+    {    
+        computeVariance += offset(2)+"size_t categIdx = "+
+            std::to_string(numOfContThresholds)+";\n"+
+            offset(2)+"double difference[3], *compaggs;\n"+
+            categVariance;
+    }
     
     computeVariance += "\n"+offset(2)+"double min_variance = variance[0];\n"+
         offset(2)+"size_t threshold = 0;\n\n"+
@@ -759,43 +986,271 @@ std::string RegressionTree::genVarianceComputation()
         offset(4)+"min_variance = variance[t];\n"+offset(4)+"threshold = t;\n"+
         offset(3)+"}\n"+offset(2)+"}\n"+
         offset(2)+"std::cout << \"The minimum variance is: \" << min_variance <<"+
-        "\" for threshold: \" << thresholdMap[threshold] << std::endl;\n";
-
-    // TODO:TODO: For categorical variables, when we want to compute the other half
-    // of the variance, we would need to compute the total and then infer from
-    // that!
-
-    // TODO:TODO:TODO:TODO:TODO:TODO:TODO: We could compute the variance and
-    // minimum variance over categorical variables right away. No need to store
-    // all of them in an array. Then we only need one index in the variance[..]
-    // for each categorical variable. --> if this index is chose we need to know
-    // what kind of function we need to construct now.
+        "\" for variable \" << thresholdMap[threshold].varID << \" and threshold:"+
+        " \" << thresholdMap[threshold].threshold << std::endl;\n"+
+        offset(2)+"std::ofstream ofs(\"bestsplit.out\",std::ofstream::out);\n"+
+        offset(2)+"ofs << thresholdMap[threshold].varID << \"\\t\" << "+
+        "thresholdMap[threshold].threshold  << \"\\t\" << "+
+        "thresholdMap[threshold].categorical  << \"\\t\" << "+
+        "thresholdMap[threshold].aggregates[0]  << \"\\t\" << "+
+        "thresholdMap[threshold].compAggregates[0] << \"\\t\" << "+
+        "thresholdMap[threshold].aggregates[1] << \"\\t\" << "+
+        "thresholdMap[threshold].compAggregates[1] << std::endl;\n"+
+        offset(2)+"ofs.close();\n";
 
     std::string functionIndex = contFunctionIndex;
 
     if (!categFunctionIndex.empty())
     {
-        functionIndex += offset(2)+"size_t categIdx = 0;\n"+categFunctionIndex;
+        functionIndex += offset(2)+"size_t categIdx = "+
+            std::to_string(numOfContThresholds)+";\n"+categFunctionIndex;
     }
+
+    std::string thresholdStruct = offset(1)+"struct Threshold\n"+offset(1)+"{\n"+
+        offset(2)+"size_t varID;\n"+offset(2)+"double threshold;\n"+
+        offset(2)+"bool categorical;\n"+offset(2)+"double* aggregates;\n"+
+        offset(2)+"double* compAggregates;\n"+offset(2)+
+        "Threshold() : varID(0), threshold(0), categorical(false), "+
+        "aggregates(nullptr), compAggregates(nullptr) {}\n"+
+        offset(2)+"void set(size_t var, double t, bool c, double* agg, double *cagg)\n"+
+        offset(2)+"{\n"+offset(3)+"varID = var;\n"+offset(3)+"threshold = t;\n"+
+        offset(3)+"categorical = c;\n"+offset(3)+"aggregates = agg;\n"+
+        offset(3)+"compAggregates = cagg;\n"+
+        offset(2)+"}\n"+offset(1)+"};\n\n";
     
-    return offset(1)+"size_t numberOfThresholds;\n"+
+    return thresholdStruct+
+        offset(1)+"size_t numberOfThresholds;\n"+
         offset(1)+"double* variance = nullptr;\n"+
-        offset(1)+"std::string* thresholdMap = nullptr;\n\n"+
-        offset(1)+"void initVarianceArray()\n"+
+        offset(1)+"Threshold* thresholdMap = nullptr;\n\n"+
+        offset(1)+"void initCostArray()\n"+
         offset(1)+"{\n"+initVariance+
-        offset(2)+"thresholdMap = new std::string[numberOfThresholds];\n"+
-        functionIndex+
-        offset(1)+"}\n\n"+
-        offset(1)+"void computeVariance()\n"+
+        // offset(2)+"thresholdMap = new std::string[numberOfThresholds];\n"+
+        offset(2)+"thresholdMap = new Threshold[numberOfThresholds];\n"+
+        functionIndex+offset(1)+"}\n\n"+
+        offset(1)+"void computeCost()\n"+
         offset(1)+"{\n"+computeVariance+offset(1)+"}\n";    
 }
+
+
+std::string RegressionTree::genGiniComputation()
+{
+    std::string returnString = "";
+    
+    std::vector<std::vector<std::string>> giniPerView(_compiler->numberOfViews());
+    std::vector<std::vector<std::string>> thresholdPerView(_compiler->numberOfViews());
+    std::vector<Query*> complementQueryPerView(_compiler->numberOfViews());
+    std::vector<size_t> firstThresholdPerVariable(NUM_OF_VARIABLES);
+    
+    QueryThresholdPair& continuousPair = queryToThreshold[0];
+    // QueryThresholdPair& countPair = queryToThreshold[1];
+
+    Query* continuousQuery = continuousPair.query;
+    Query* countQuery = continuousPair.complementQuery;
+
+    const size_t& continuousViewID =
+        continuousQuery->_aggregates[0]->_incoming[0].first;
+    const size_t& countViewID =
+        countQuery->_aggregates[0]->_incoming[0].first;
+
+    string viewStr = "V"+std::to_string(continuousViewID);
+    string countViewStr = "V"+std::to_string(countViewID);
+    string overallCountViewStr = "V"+std::to_string(countViewID);
+
+    string numAggs = std::to_string(_functionOfAggregate.size());
+
+    /* This creates the gini computation for continuous variables. */ 
+    returnString += offset(2)+"double squaredSum["+numAggs+"] = {}, "+
+        "largestCount["+numAggs+"] = {};\n"+
+        offset(2)+"for("+viewStr+"_tuple& tuple : "+viewStr+")\n"+offset(2)+"{\n"+
+        offset(3)+"for (size_t agg = 1; agg < "+numAggs+"; ++agg)\n"+
+        offset(3)+"{\n"+
+        offset(4)+"squaredSum[agg] += tuple.aggregates[agg] * tuple.aggregates[agg];\n"+
+        offset(4)+"largestCount[agg] = (tuple.aggregates[agg] > largestCount[agg] ? "+
+        "tuple.aggregates[agg] : largestCount[agg]);\n"+
+        offset(3)+"}\n"+
+        offset(2)+"}\n"+
+        offset(2)+countViewStr+"_tuple& tup = "+countViewStr+"[0];\n"+
+        offset(2)+"for (size_t agg = 1, g = 0; agg < "+numAggs+"; agg += 2, ++g)\n"+
+        offset(2)+"{\n"+
+        offset(3)+"if (tup.aggregates[agg] > 0 && tup.aggregates[agg+1] > 0)\n"+
+        offset(4)+"gini[g] = "+
+        "(1 - squaredSum[agg]/(tup.aggregates[agg] * tup.aggregates[agg])) * "+
+        "tup.aggregates[agg]/tup.aggregates[0] + "+
+        "(1 - squaredSum[agg+1]/(tup.aggregates[agg+1] * tup.aggregates[agg+1])) * "+
+        "tup.aggregates[agg+1]/tup.aggregates[0];\n"+
+        offset(3)+"else\n"+offset(4)+"gini[g] = 999;\n"+offset(2)+"}\n";
+
+    // If there are categorical variables we need to initialize some extra vars
+    if (queryToThreshold.size() > 1)
+    {
+        returnString +=
+            "\n"+offset(2)+"double lhs = 0.0, rhs = 0.0, complementCount = 0.0;\n"+
+            offset(2)+"const double& overallCount = tup.aggregates[0];\n"+
+            offset(2)+"size_t idx = 0, categIndex = "+
+            std::to_string(_functionOfAggregate.size() / 2)+";\n\n";
+    }
+
+    // TODO: // TODO: // TODO: The below is just a check and can probably be removed ! 
+    size_t numOfContThresholds = 0;
+    for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+    {
+        if (!_features.test(var) || _categoricalFeatures.test(var))
+            continue;
+        numOfContThresholds += _thresholds[var].size();
+    }
+    if (numOfContThresholds != (_functionOfAggregate.size()-1) / 2)
+        std::cout << "WHY IS THIS THIS CASE!?!?!?\n";
+    // TODO: // TODO: // TODO:
+
+    std::string numOfThresholds = "numberOfThresholds = "+
+        std::to_string(_functionOfAggregate.size() / 2);
+
+    std::string thresholdMap = "";
+    size_t idx = 0;
+    for (size_t f = 1; f < _functionOfAggregate.size(); f += 2)
+    {
+        Function* function = _functionOfAggregate[f];
+        thresholdMap += offset(2)+"thresholdMap["+to_string(idx++)+"].set("+
+            to_string(_varOfFunction[f])+","+
+            to_string(function->_parameter[0])+",0,"+
+            "&"+countViewStr+"[0].aggregates["+to_string(f)+"],"+
+            "&"+countViewStr+"[0].aggregates["+to_string(f+1)+"]);\n";
+    }
+
+    // Then iterate over the other queries and go from there
+    for (size_t p = 1; p < queryToThreshold.size(); ++p)
+    {
+        QueryThresholdPair& qtPair = queryToThreshold[p];
+        
+        if (_categoricalFeatures[qtPair.varID])
+        {                        
+            // Find the view that corresponds to the query
+            Query* query = qtPair.query;
+            Query* varCountQuery = qtPair.complementQuery;
+            
+            size_t& viewID = query->_aggregates[0]->_incoming[0].first;
+            size_t& countViewID = varCountQuery->_aggregates[0]->_incoming[0].first;
+
+            const size_t& count = query->_aggregates[0]->_incoming[0].second;
+            const size_t& varCount = varCountQuery->_aggregates[0]->_incoming[0].second;
+
+            std::string viewStr = "V"+std::to_string(viewID);
+            string labelViewStr = "V"+std::to_string(continuousViewID);
+            std::string countViewStr = "V"+std::to_string(countViewID);
+            
+            std::string label = _td->getAttribute(_labelID)->_name;
+            std::string var = _td->getAttribute(qtPair.varID)->_name;
+            
+            returnString += offset(2)+"lhs = 0.0; rhs = 0.0; idx = 0;\n"+
+                offset(2)+"for (size_t v = 0; v < "+countViewStr+".size(); ++v)\n"+
+                offset(2)+"{\n"+
+                offset(3)+countViewStr+"_tuple& varCountTup = "+countViewStr+"[v];\n"+
+                offset(3)+"if (varCountTup.aggregates[0] == 0.0)\n"+offset(3)+"{\n"+
+                offset(4)+"while(varCountTup."+var+" == "+viewStr+"[idx]."+var+")\n"+
+                offset(5)+"++idx;\n"+offset(4)+"gini[categIndex++] = 999;\n"+
+                offset(4)+"continue;\n"+offset(3)+"}\n"+
+                offset(3)+"for (size_t l = 0; l < "+labelViewStr+".size(); ++l)\n"+
+                offset(3)+"{\n"+
+                offset(4)+viewStr+"_tuple& tuple = "+viewStr+"[idx];\n"+
+                offset(4)+"if ("+labelViewStr+"[l]."+label+" != tuple."+label+")\n"+
+                offset(4)+"{\n"+offset(5)+"//TODO: what to do here in this case?!\n"+
+                offset(5)+"rhs += "+labelViewStr+"[l].aggregates[0] * "+labelViewStr+
+                "[l].aggregates[0];\n"+offset(5)+"continue;\n"+offset(4)+"}\n"+
+                offset(4)+"lhs += tuple.aggregates[0] * tuple.aggregates[0];\n"+
+                offset(4)+"complementCount = "+labelViewStr+"[l].aggregates[0] - "+
+                "tuple.aggregates[0];\n"+
+                offset(4)+"rhs += complementCount * complementCount;\n"+
+                offset(4)+"if (tuple."+var+" != varCountTup."+var+") "+
+                "std::cout << \"ERROR \\n\";\n"+
+                offset(4)+"largestCount[categIndex*2] = (tuple.aggregates[0] > "+
+                "largestCount[categIndex*2] ? tuple.aggregates[categIndex*2] : "+
+                "largestCount[categIndex*2]);\n"+
+                offset(4)+"largestCount[categIndex*2+1] = (complementCount > "+
+                "largestCount[categIndex*2+1] ? complementCount : "+
+                "largestCount[categIndex*2+1]);\n"+
+                offset(4)+"++idx;\n"+offset(3)+"}\n"+
+                offset(3)+"gini[categIndex] = (1 - lhs/"+
+                "(varCountTup.aggregates[0]*varCountTup.aggregates[0])) "+
+                "* varCountTup.aggregates[0] / overallCount;\n"+
+                offset(3)+"complementCount = overallCount-varCountTup.aggregates[0];\n"+
+                offset(3)+"gini[categIndex] += (1- rhs/"+
+                "(complementCount*complementCount)) * complementCount/overallCount;\n"+
+                offset(3)+"lhs = 0.0; rhs = 0.0;\n"+
+                offset(3)+"++categIndex;\n"+offset(2)+"}\n\n";
+            
+            numOfThresholds += " + V"+std::to_string(countViewID)+".size()";
+
+            Attribute* att = _td->getAttribute(qtPair.varID);
+            thresholdMap +=
+                offset(2)+"for ("+countViewStr+"_tuple& tuple : "+countViewStr+")\n"+
+                offset(3)+"thresholdMap[categIndex++].set("
+                +std::to_string(qtPair.varID)+",tuple."+att->_name+",1,"+
+                "&tuple.aggregates[0],&"+overallCountViewStr+"[0].aggregates[0]);\n";
+        }
+        else
+        {
+            // Continuous variable
+            cout << " WE SHOULD NEVER GET HERE !!! \n";
+        }
+    }
+
+    
+    std::string initVariance = offset(2)+numOfThresholds+";\n"+
+        offset(2)+"gini = new double[numberOfThresholds];\n"+
+        offset(2)+"size_t categIndex = "+
+        std::to_string(_functionOfAggregate.size()/2)+";\n";
+    
+    std::string thresholdStruct = offset(1)+"struct Threshold\n"+offset(1)+"{\n"+
+        offset(2)+"size_t varID;\n"+offset(2)+"double threshold;\n"+
+        offset(2)+"bool categorical;\n"+offset(2)+"double* aggregates;\n"+
+        offset(2)+"double* compAggregates;\n"+offset(2)+
+        "Threshold() : varID(0), threshold(0), categorical(false), "+
+        "aggregates(nullptr), compAggregates(nullptr) {}\n"+
+        offset(2)+"void set(size_t var, double t, bool c, double* agg, double *cagg)\n"+
+        offset(2)+"{\n"+offset(3)+"varID = var;\n"+offset(3)+"threshold = t;\n"+
+        offset(3)+"categorical = c;\n" +offset(3)+"aggregates = agg;\n"+
+        offset(3)+"compAggregates = cagg;\n"+
+        offset(2)+"}\n"+offset(1)+"};\n\n";
+
+
+    returnString += "\n"+offset(2)+"double min_gini = gini[0];\n"+
+        offset(2)+"size_t threshold = 0;\n\n"+
+        offset(2)+"for (size_t t=1; t < numberOfThresholds; ++t)\n"+offset(2)+"{\n"+
+        offset(3)+"if (gini[t] < min_gini)\n"+offset(3)+"{\n"+
+        offset(4)+"min_gini = gini[t];\n"+offset(4)+"threshold = t;\n"+
+        offset(3)+"}\n"+offset(2)+"}\n"+
+        offset(2)+"std::cout << \"The minimum gini index is: \" << min_gini <<"+
+        "\" for variable \" << thresholdMap[threshold].varID << \" and threshold:"+
+        " \" << thresholdMap[threshold].threshold << std::endl;\n"+
+        offset(2)+"std::ofstream ofs(\"bestsplit.out\",std::ofstream::out);\n"+
+        offset(2)+"ofs << thresholdMap[threshold].varID << \"\\t\" << "+
+        "thresholdMap[threshold].threshold  << \"\\t\" << "+
+        "thresholdMap[threshold].categorical  << \"\\t\" << "+
+        "thresholdMap[threshold].aggregates[0]  << \"\\t\" << "+
+        "thresholdMap[threshold].compAggregates[0]  << \"\\t\" << "+
+        "largestCount[threshold*2]  << \"\\t\" << "+
+        "largestCount[threshold*2+1] << std::endl;\n"+
+        offset(2)+"ofs.close();\n";
+    
+    return thresholdStruct+
+        offset(1)+"size_t numberOfThresholds;\n"+
+        offset(1)+"double* gini = nullptr;\n"+
+        offset(1)+"Threshold* thresholdMap = nullptr;\n\n"+
+        offset(1)+"void initCostArray()\n"+
+        offset(1)+"{\n"+initVariance+
+        offset(2)+"thresholdMap = new Threshold[numberOfThresholds];\n"+
+        thresholdMap+offset(1)+"}\n\n"+
+        offset(1)+"void computeCost()\n"+
+        offset(1)+"{\n"+returnString+offset(1)+"}\n";
+}
+
 
 
 void RegressionTree::generateCode()
 {
     std::string runFunction = offset(1)+"void runApplication()\n"+offset(1)+"{\n"+
-        offset(2)+"initVarianceArray();\n"+
-        offset(2)+"computeVariance();\n"+
+        offset(2)+"initCostArray();\n"+
+        offset(2)+"computeCost();\n"+
         offset(1)+"}\n";
         
     std::ofstream ofs("runtime/cpp/ApplicationHandler.h", std::ofstream::out);
@@ -810,7 +1265,10 @@ void RegressionTree::generateCode()
     ofs.open("runtime/cpp/ApplicationHandler.cpp", std::ofstream::out);
     
     ofs << "#include \"ApplicationHandler.h\"\nnamespace lmfao\n{\n";
-    ofs << genVarianceComputation() << std::endl;
+    if (_classification)
+        ofs << genGiniComputation() << std::endl;
+    else
+        ofs << genVarianceComputation() << std::endl;
     ofs << runFunction << std::endl;
     ofs << "}\n";
     ofs.close();

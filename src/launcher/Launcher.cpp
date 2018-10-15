@@ -77,7 +77,13 @@ int Launcher::launch(const string& model, const string& codeGenerator,
     {
         _model = RegressionTreeModel;
         _application.reset(
-            new RegressionTree(_pathToFiles, shared_from_this()));
+            new RegressionTree(_pathToFiles, shared_from_this(), false));
+    }
+    else if (model.compare("ctree") == 0)
+    {
+        _model = RegressionTreeModel;
+        _application.reset(
+            new RegressionTree(_pathToFiles, shared_from_this(), true));
     }
     else if (model.compare("covar") == 0)
     {

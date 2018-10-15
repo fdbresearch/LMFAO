@@ -564,7 +564,7 @@ private:
     
     std::string genRunFunction(bool parallelize);
     
-    std::string genRunMultithreadedFunction();
+    // std::string genRunMultithreadedFunction();
 
     std::string genTestFunction();
     
