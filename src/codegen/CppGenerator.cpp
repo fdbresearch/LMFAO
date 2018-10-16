@@ -700,7 +700,7 @@ std::string CppGenerator::genHeader()
         "#include <vector>\n\n";
 
 #if defined(__GNUC__) && defined(NDEBUG) && !defined(__clang__)
-   header += "#include <parallel/algorithm>";
+   header += "#include <parallel/algorithm>\n";
 #endif
     
    header += "using namespace std::chrono;\n\nnamespace lmfao\n{\n"+
