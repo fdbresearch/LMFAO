@@ -282,8 +282,13 @@ void CppGenerator::genMakeFile()
     
     std::ofstream ofs("runtime/cpp/Makefile",std::ofstream::out);
 
-    ofs << "CXXFLAG  += -std=c++11 -O2 -pthread -mtune=native -ftree-vectorize" <<
-        "\n# -pthread -O2 -mtune=native -fassociative-math -freciprocal-math "
+    ofs << "CXXFLAG  += -std=c++11 -O2 -pthread -mtune=native -ftree-vectorize";
+
+#if defined(__GNUC__) && defined(NDEBUG) && !defined(__clang__)
+    ofs << " -fopenmp";
+#endif
+
+    ofs << "\n# -pthread -O2 -mtune=native -fassociative-math -freciprocal-math "
         << "-fno-signed-zeros -v -ftime-report -fno-stack-protector\n\n";
 
     ofs << "lmfao : "+objectList+"\n\t$(CXX) $(CXXFLAG) "+objectList+"-o lmfao\n\n";
