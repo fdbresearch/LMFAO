@@ -372,7 +372,7 @@ void SqlGenerator::generateAggregateQueries()
 
         fvarAggPair.second.pop_back();
         
-        ofs << "CREATE TABLE agg_"+to_string(aggID++)+" AS (\nq" 
+        ofs << "CREATE TABLE agg_"+to_string(aggID++)+" AS (\n" 
             "SELECT "+fVarString+fvarAggPair.second+"\nFROM "+joinString;
         if (!fVarString.empty())
         {

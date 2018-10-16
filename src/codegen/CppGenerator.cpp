@@ -21,7 +21,7 @@
 /* Turn this flag on to output times for each Group individually. */
 // #define BENCH_INDIVIDUAL 
 
-//#define USE_MULTIOUTPUT_OPERATOR
+#define USE_MULTIOUTPUT_OPERATOR
 
 //#define ENABLE_RESORT_RELATIONS
 
