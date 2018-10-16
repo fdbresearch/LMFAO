@@ -316,6 +316,9 @@ void SqlGenerator::generateAggregateQueries()
     }
 
     unordered_map<var_bitset,string> fVarAggregateMap;
+
+    size_t aggNum = 0;
+    
     for (size_t queryID = 0; queryID < _qc->numberOfQueries(); ++queryID)
     {
         Query* query = _qc->getQuery(queryID);
@@ -350,7 +353,7 @@ void SqlGenerator::generateAggregateQueries()
                 ++aggIdx;
             }
             sumString.pop_back();
-            aggregateString += "SUM("+sumString+"),";
+            aggregateString += "SUM("+sumString+") AS agg_"+to_string(aggNum++)+",";
         }
 
         auto it_pair = fVarAggregateMap.insert({query->_fVars,""});
