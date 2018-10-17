@@ -81,9 +81,9 @@ public:
     /**
      * Get pointer to node for given node ID. 
      */
-    TDNode* getRelation(int relationID);
+    TDNode* getRelation(size_t relationID);
 
-    Attribute* getAttribute(int attID);
+    Attribute* getAttribute(size_t attID);
 
     size_t getAttributeIndex(const std::string& name);
 

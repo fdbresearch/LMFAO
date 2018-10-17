@@ -42,13 +42,19 @@ size_t TreeDecomposition::numberOfRelations()
     return _numOfRelations;
 }
 
-TDNode* TreeDecomposition::getRelation(int relationID)
+TDNode* TreeDecomposition::getRelation(size_t relationID)
 {
     return _relations[relationID];
 }
 
-Attribute* TreeDecomposition::getAttribute(int attID)
+Attribute* TreeDecomposition::getAttribute(size_t attID)
 {
+    if (attID > _attributes.size())
+    {
+        ERROR(attID << " is not a valid Attribute ID!\n");
+        exit(1);
+    }
+    
     return _attributes[attID];
 }
 
