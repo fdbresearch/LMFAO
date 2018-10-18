@@ -1,1 +1,1 @@
-add_library(application LinearRegression.cpp RegressionTree.cpp CovarianceMatrix.cpp Count.cpp)
+add_library(application LinearRegression.cpp RegressionTree.cpp CovarianceMatrix.cpp Percentile.cpp Count.cpp)

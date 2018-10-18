@@ -479,7 +479,7 @@ private:
     std::vector<std::vector<size_t>> depAggregateRemapping;
     std::vector<std::vector<size_t>> depLocalProductRemapping;
 
-/***************************************************x***********************/
+/**************************************************************************/
 /**************************************************************************/
     
     /* TODO: Technically there is no need to pre-materialise this! */

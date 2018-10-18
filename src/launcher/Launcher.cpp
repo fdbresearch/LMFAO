@@ -13,6 +13,7 @@
 #include <Launcher.h>
 #include <LinearRegression.h>
 #include <RegressionTree.h>
+#include <Percentile.h>
 #include <SqlGenerator.h>
 
 #include <bitset>
@@ -59,11 +60,9 @@ int Launcher::launch(const string& model, const string& codeGenerator,
     _treeDecomposition.reset(new TreeDecomposition(_pathToFiles + TREEDECOMP_CONF));
 
     DINFO("Built the TD. \n");
-
-#ifdef BENCH
+    
     int64_t start = duration_cast<milliseconds>(
         system_clock::now().time_since_epoch()).count();
-#endif
 
     _compiler.reset(new QueryCompiler(_treeDecomposition));
 
@@ -105,6 +104,13 @@ int Launcher::launch(const string& model, const string& codeGenerator,
         _application.reset(
             new Count(_pathToFiles, shared_from_this()));
     }
+    else if (model.compare("perc") == 0)
+    {
+        // _model = CountModel;
+        _application.reset(
+            new Percentile(_pathToFiles, shared_from_this()));
+        hasApplicationHandler = true;
+    }
     else
     {
         ERROR("The model "+model+" is not supported. \n");
@@ -138,7 +144,6 @@ int Launcher::launch(const string& model, const string& codeGenerator,
     _codeGenerator->generateCode(
         parallelization_type, hasApplicationHandler, hasDynamicFunctions);
     
-#ifdef BENCH
     int64_t processingTime = duration_cast<milliseconds>(
         system_clock::now().time_since_epoch()).count() - start;
 
@@ -146,13 +151,16 @@ int Launcher::launch(const string& model, const string& codeGenerator,
     size_t numOfQueries = _compiler->numberOfQueries();
     size_t numOfGroups = _codeGenerator->numberOfGroups();
 
+    size_t finalNumberOfAggregates = 0;
     size_t totalNumberOfAggregates = 0;
     for (size_t v = 0; v < numOfViews; ++v)
     {
         View* view = _compiler->getView(v);
         
         if (view->_origin == view->_destination)
-            totalNumberOfAggregates += view->_aggregates.size();
+            finalNumberOfAggregates += view->_aggregates.size();
+        
+        totalNumberOfAggregates += view->_aggregates.size();
     }
     
     /* Write loading times times to times file */
@@ -160,8 +168,10 @@ int Launcher::launch(const string& model, const string& codeGenerator,
     
     if (ofs.is_open())
     {   
-        ofs << "aggs\tqueries\tviews\tgroups\ttime" << std::endl;
-        ofs << totalNumberOfAggregates << "\t" << numOfQueries <<"\t"
+        ofs << "aggs\tfinAgg\tqueries\tviews\tgroups\ttime" << std::endl;
+        ofs << totalNumberOfAggregates << "\t"
+            << finalNumberOfAggregates << "\t"
+            << numOfQueries <<"\t"
             << numOfViews <<"\t"<< numOfGroups <<"\t"
             << processingTime << std::endl;
     }
@@ -169,7 +179,6 @@ int Launcher::launch(const string& model, const string& codeGenerator,
         cout << "Unable to open compiler-data.out \n";
     
     ofs.close();
-#endif
     
     BINFO(
 	"Time for Compiler: " + to_string(processingTime) + "ms.\n");

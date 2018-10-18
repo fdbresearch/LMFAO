@@ -1039,7 +1039,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
     // TODO: ADD THE CODE THAT CHECKS FOR SORTING OF RELATIONS
 
     ERROR("WE NEED TO FIX THE VARIBALE ORDER - fVARS need to come first \n");
-    // exit(1);
+    exit(1);
     
     /* 
      * Compares viewSortOrder with the varOrder required - if orders are
@@ -1186,9 +1186,9 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
     aggregateGenerator(group_id, *baseRelation);
     
     /******************* PRINT OUT *****************************/
-    // if (group_id == 5)
+    // if (group_id == 4)
     // {
-    //     for (size_t& viewID : viewGroups[5])
+    //     for (size_t& viewID : viewGroups[4])
     //     {
     //         std::cout << viewID << " " << viewLevelRegister[viewID] <<" : ";
     //         for (size_t incID : incomingViews[viewID])
@@ -2031,7 +2031,7 @@ void CppGenerator::registerAggregatesToVariables(
     std::vector<std::pair<size_t, size_t>>& localAggReg)
 {
     std::vector<std::pair<size_t,size_t>>& incoming = aggregate->_incoming;
-    
+
     View* view = _qc->getView(view_id);
     TDNode* node = _td->getRelation(view->_origin);
     const var_bitset& relationBag = node->_bag;
@@ -2172,7 +2172,7 @@ void CppGenerator::registerAggregatesToVariables(
         for (size_t n = 0; n < numberIncomingViews; ++n)
         {
             size_t& incViewID = incoming[incCounter].first;
-            
+
             if (addableViews[incViewID + (depth * (_qc->numberOfViews()+1))])
             {
                 View* incView = _qc->getView(incViewID);
@@ -2185,13 +2185,13 @@ void CppGenerator::registerAggregatesToVariables(
                     viewReg.push_back(incoming[incCounter]);
 
                     /************** PRINT OUT ****************/
-                    if (group_id == 5 &&  incoming[incCounter].first == 2 &&
-                        incoming[incCounter].second == 125)
-                    {
-                        std::cout << "##--------" <<
-                            incoming[incCounter].first << " - " <<
-                            incoming[incCounter].second << std::endl;
-                    }
+                    // if (group_id == 5 &&  incoming[incCounter].first == 2 &&
+                    //     incoming[incCounter].second == 125)
+                    // {
+                    //     std::cout << "##--------" <<
+                    //         incoming[incCounter].first << " - " <<
+                    //         incoming[incCounter].second << std::endl;
+                    // }
                     /************** PRINT OUT ****************/
                 }
                 else
@@ -2225,7 +2225,7 @@ void CppGenerator::registerAggregatesToVariables(
         if (localFunctions.any() || !viewReg.empty() ||
             (depth+1 == varOrder.size() &&
                 (dependentVariables & relationBag & nonVarOrder).none()))
-        {
+        {                
             ProductAggregate prodAgg;
             prodAgg.product = localFunctions;
             prodAgg.viewAggregate = viewReg;
@@ -2647,7 +2647,7 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
     bool newViewProduct = false;
     bool singleViewAgg = false;
     
-    std::pair<size_t, size_t> regTupleView;
+    std::pair<size_t, size_t> regTupleView = {2147483647,2147483647};
 
     if (!prodAgg.viewAggregate.empty())
     {
@@ -3995,7 +3995,7 @@ std::string CppGenerator::genAggLoopStringCompressed(
     }
 
     for (size_t viewProd = 0; viewProd < viewProductList[thisLoopID].size(); ++viewProd)
-    {
+    {   
         std::string viewProduct = "";
         for (const std::pair<size_t, size_t>& viewAgg : viewProductList[thisLoopID][viewProd])
         {
@@ -4188,8 +4188,7 @@ std::string CppGenerator::genAggLoopStringCompressed(
     bool addedAggregates = false;
 
     // Loop to identify the first bench
-    for (; aggID <
-             newAggregateRegister[thisLoopID].size(); ++aggID)
+    for (; aggID < newAggregateRegister[thisLoopID].size(); ++aggID)
     {
         const AggRegTuple& regTuple = newAggregateRegister[thisLoopID][aggID];
         
@@ -4210,8 +4209,7 @@ std::string CppGenerator::genAggLoopStringCompressed(
     }
 
     // Loop over all other aggregates 
-    for (; aggID <
-             newAggregateRegister[thisLoopID].size(); ++aggID)
+    for (; aggID < newAggregateRegister[thisLoopID].size(); ++aggID)
     {
         const AggRegTuple& regTuple = newAggregateRegister[thisLoopID][aggID];
         
