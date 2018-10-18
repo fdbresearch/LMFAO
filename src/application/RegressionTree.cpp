@@ -1356,6 +1356,7 @@ void RegressionTree::initializeThresholds()
             // };
         _thresholds = {
             {},// percentiles locn
+            {46,88,130,172,214,249,291,333,382,424,473,522,564,606,641,683,739,781,830},// percentiles dateid
             {},// percentiles ksn
             {1,2,3,4,5,6,7,8,9,12,18},// percentiles inventoryunits
             {},// percentiles zip
@@ -1425,13 +1426,12 @@ void RegressionTree::initializeThresholds()
             {},// percentiles perishable
         };   
     }
-
-
-    if (_pathToFiles.compare("data/favorita") == 0 ||
-        _pathToFiles.compare("../../data/favorita") == 0 ||
-        _pathToFiles.compare("../datasets/favorita_ml") == 0)
-    {
-        _thresholds = {
+    
+    if (_pathToFiles.compare("../benchmarking/datasets/yelp/") == 0)
+    {_thresholds = {
+            {},// percentiles business_id
+            {},// percentiles user_id
+            {},// percentiles review_id
             {1,2,3,4,5},// percentiles review_stars
             {},// percentiles review_year
             {},// percentiles review_month
@@ -1466,6 +1466,7 @@ void RegressionTree::initializeThresholds()
             {0,1,2,5,18},// percentiles compliment_photos
             {},// percentiles attribute_id
             {},// percentiles attribute_value
+            {},// percentiles category_id
         };
-    }
+   }
 }
