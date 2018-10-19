@@ -39,7 +39,7 @@ public:
     size_t _id;
    
     //! Parent of the current node
-    TDNode* _parent;
+    TDNode* _parent = nullptr;
 
     //! Number of children of current node.
     size_t _numOfNeighbors;

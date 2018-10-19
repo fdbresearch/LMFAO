@@ -1,15 +1,15 @@
 //--------------------------------------------------------------------
 //
-// Percentile.h
+// MutualInformation.h
 //
-// Created on: Feb 1, 2018
+// Created on: Oct 18, 2019
 // Author: Max
 //
 //--------------------------------------------------------------------
 
 
-#ifndef INCLUDE_APP_PERCENTILE_H_
-#define INCLUDE_APP_PERCENTILE_H_
+#ifndef INCLUDE_APP_MUTUALINFORMATION_H_
+#define INCLUDE_APP_MUTUALINFORMATION_H_
 
 #include <bitset>
 #include <string>
@@ -24,14 +24,14 @@ class Launcher;
 /**
  * Class that launches regression model on the data, using d-trees.
  */
-class Percentile: public Application
+class MutualInformation: public Application
 {
 public:
 
-    Percentile(const std::string& pathToFiles,
+    MutualInformation(const std::string& pathToFiles,
           std::shared_ptr<Launcher> launcher);
 
-    ~Percentile();
+    ~MutualInformation();
 
     void run();
     
@@ -45,21 +45,14 @@ private:
     std::shared_ptr<TreeDecomposition> _td;
 
     size_t* _queryRootIndex = nullptr;
-    Query** varToQuery = nullptr;
     
     void modelToQueries();
 
     void loadFeatures();
-
-    void generateCode();
-
-    // std::string offset(size_t);
-
-    // std::string typeToStr(Type t);
 
     // The two bitsets are defined in ApplicationHandler
     // var_bitset _isFeature;
     // var_bitset _isCategoricalFeature
 };
 
-#endif /* INCLUDE_APP_PERCENTILE_H_ */
+#endif /* INCLUDE_APP_MUTUALINFORMATION_H_ */

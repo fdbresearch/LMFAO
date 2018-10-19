@@ -1427,7 +1427,8 @@ void RegressionTree::initializeThresholds()
         };   
     }
     
-    if (_pathToFiles.compare("../benchmarking/datasets/yelp/") == 0)
+    if (_pathToFiles.compare("../../../benchmarking/datasets/yelp") == 0 ||
+        _pathToFiles.compare("../benchmarking/datasets/yelp") == 0)
     {_thresholds = {
             {},// percentiles business_id
             {},// percentiles user_id

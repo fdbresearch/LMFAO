@@ -10,8 +10,10 @@
 #include <Count.h>
 #include <CovarianceMatrix.h>
 #include <CppGenerator.h>
+#include <DataCube.h>
 #include <Launcher.h>
 #include <LinearRegression.h>
+#include <MutualInformation.h>
 #include <RegressionTree.h>
 #include <Percentile.h>
 #include <SqlGenerator.h>
@@ -103,6 +105,18 @@ int Launcher::launch(const string& model, const string& codeGenerator,
         // _model = CountModel;
         _application.reset(
             new Count(_pathToFiles, shared_from_this()));
+    }
+    else if (model.compare("cube") == 0)
+    {
+        // _model = CountModel;
+        _application.reset(
+            new DataCube(_pathToFiles, shared_from_this()));
+    }
+    else if (model.compare("mi") == 0)
+    {
+        // _model = CountModel;
+        _application.reset(
+            new MutualInformation(_pathToFiles, shared_from_this()));
     }
     else if (model.compare("perc") == 0)
     {
