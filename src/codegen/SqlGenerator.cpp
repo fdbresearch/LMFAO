@@ -517,13 +517,13 @@ inline string SqlGenerator::getFunctionString(size_t fid)
     case Operation::prod :
         return "f_"+to_string(fid);
     case Operation::indicator_eq :
-        return "f_"+to_string(fid);
+        return "CASE WHEN "+fvars+" = "+to_string(f->_parameter[0])+" THEN 1.0 ELSE 0.0 END";
     case Operation::indicator_neq :
-        return "f_"+to_string(fid);
+        return "CASE WHEN "+fvars+" != "+to_string(f->_parameter[0])+" THEN 1.0 ELSE 0.0 END";
     case Operation::indicator_lt :
-        return "f_"+to_string(fid);
+        return "CASE WHEN "+fvars+" <= "+to_string(f->_parameter[0])+" THEN 1.0 ELSE 0.0 END";
     case Operation::indicator_gt :
-        return "f_"+to_string(fid);
+        return "CASE WHEN "+fvars+" > "+to_string(f->_parameter[0])+" THEN 1.0 ELSE 0.0 END";
     case Operation::exponential :
         return "f_"+to_string(fid);
     // case Operation::lr_cont_parameter :
@@ -534,6 +534,8 @@ inline string SqlGenerator::getFunctionString(size_t fid)
         return "(0.15*"+fvars+")";
     case Operation::lr_cat_parameter :
         return "(0.15)";
+    case Operation::dynamic :
+      return "1";
     default : return "f_"+to_string(fid);
     }
 
