@@ -52,8 +52,12 @@ void DataCube::run()
 
 void DataCube::modelToQueries()
 {
+    _compiler->addFunction(
+        new Function({_labelID}, Operation::sum));
+
     Aggregate* agg = new Aggregate();
     prod_bitset product;
+    product.set(0);
     agg->_agg.push_back(product);
     
     Query* query = new Query();
@@ -91,8 +95,10 @@ void DataCube::modelToQueries()
     for(counter = 0; counter < pow_set_size; counter++) 
     {
         Aggregate* agg = new Aggregate();
-        agg->_agg.push_back(prod_bitset());
-    
+        prod_bitset product;
+        product.set(0);
+        agg->_agg.push_back(product);
+
         Query* query = new Query();
         query->_aggregates.push_back(agg);
         query->_rootID = _td->_root->_id;
@@ -234,10 +240,15 @@ void DataCube::loadFeatures()
             ERROR("Relation |"+rootName+"| does not exist.");
             exit(1);
         }
-        if (featureNo == 0 && categorical == 1)
+        if (featureNo == 0)
         {
-            ERROR("The label needs to be continuous! ");
-            exit(1);
+            _labelID = attributeID;
+
+            if (categorical)
+            {
+                ERROR("The Measure of a DataCube should be continuous!\n");
+                exit(1);
+            }
         }
 
         _isFeature.set(attributeID);

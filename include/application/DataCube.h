@@ -45,6 +45,8 @@ private:
     std::shared_ptr<TreeDecomposition> _td;
 
     size_t* _queryRootIndex = nullptr;
+
+    size_t _labelID;
     
     void modelToQueries();
 
