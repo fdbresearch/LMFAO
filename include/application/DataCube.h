@@ -47,6 +47,8 @@ private:
     size_t* _queryRootIndex = nullptr;
 
     size_t _labelID;
+
+    var_bitset _measures;
     
     void modelToQueries();
 

@@ -52,20 +52,39 @@ void DataCube::run()
 
 void DataCube::modelToQueries()
 {
-    _compiler->addFunction(
-        new Function({_labelID}, Operation::sum));
+    // _compiler->addFunction(
+    //     new Function({_labelID}, Operation::sum));
 
-    Aggregate* agg = new Aggregate();
-    prod_bitset product;
-    product.set(0);
-    agg->_agg.push_back(product);
+    size_t numberOfFunctions = 0;
+
+    std::vector<prod_bitset> measureAggregates;
+    
+    for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+    {    
+        if (_measures.test(var))
+        {    
+            _compiler->addFunction(
+                new Function({var}, Operation::sum));
+
+            prod_bitset measureFunction;
+            measureFunction.set(numberOfFunctions);
+            measureAggregates.push_back(measureFunction);
+            ++numberOfFunctions;
+        }
+    }
     
     Query* query = new Query();
     query->_rootID = _td->_root->_id;
     
-    query->_aggregates.push_back(agg);
-    _compiler->addQuery(query);
+    for (prod_bitset p : measureAggregates)
+    {
+        Aggregate* agg = new Aggregate();
+        agg->_agg.push_back(p);
+        query->_aggregates.push_back(agg);
+    }
 
+    _compiler->addQuery(query);
+    
     std::vector<var_bitset> pathNodes(_td->numberOfRelations());
 
     for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
@@ -94,14 +113,16 @@ void DataCube::modelToQueries()
     size_t counter, j;
     for(counter = 0; counter < pow_set_size; counter++) 
     {
-        Aggregate* agg = new Aggregate();
-        prod_bitset product;
-        product.set(0);
-        agg->_agg.push_back(product);
-
         Query* query = new Query();
-        query->_aggregates.push_back(agg);
         query->_rootID = _td->_root->_id;
+
+        for (prod_bitset p : measureAggregates)
+        {
+            Aggregate* agg = new Aggregate();
+            agg->_agg.push_back(p);
+            query->_aggregates.push_back(agg);
+        }
+        
 
         for(j = 0; j < listOfCatFeatures.size(); j++) 
         {
@@ -244,7 +265,7 @@ void DataCube::loadFeatures()
         {
             _labelID = attributeID;
 
-            if (categorical)
+            if (categorical == 1)
             {
                 ERROR("The Measure of a DataCube should be continuous!\n");
                 exit(1);
@@ -254,10 +275,15 @@ void DataCube::loadFeatures()
         _isFeature.set(attributeID);
         _features.set(attributeID);
 
-        if (categorical)
+        if (categorical == 1)
         {
             _queryRootIndex[attributeID] = rootID;
             _isCategoricalFeature.set(attributeID);
+        }
+        else if (categorical == 2 || featureNo == 0)
+        {
+            std::cout << "HERE \n";
+            _measures.set(attributeID);
         }
         else
         {
