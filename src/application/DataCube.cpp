@@ -75,7 +75,11 @@ void DataCube::modelToQueries()
     
     Query* query = new Query();
     query->_rootID = _td->_root->_id;
-    
+
+    Aggregate* agg = new Aggregate();
+    agg->_agg.push_back(prod_bitset());
+    query->_aggregates.push_back(agg);
+ 
     for (prod_bitset p : measureAggregates)
     {
         Aggregate* agg = new Aggregate();
@@ -115,6 +119,11 @@ void DataCube::modelToQueries()
     {
         Query* query = new Query();
         query->_rootID = _td->_root->_id;
+
+        Aggregate* agg = new Aggregate();
+        agg->_agg.push_back(prod_bitset());
+        query->_aggregates.push_back(agg);
+ 
 
         for (prod_bitset p : measureAggregates)
         {
