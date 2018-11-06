@@ -572,6 +572,7 @@ private:
     // std::string genRunMultithreadedFunction();
 
     std::string genTestFunction();
+    std::string genDumpFunction();
     
     bool resortRelation(const size_t& rel, const size_t& view);
 

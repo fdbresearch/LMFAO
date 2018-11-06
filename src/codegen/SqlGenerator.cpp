@@ -288,32 +288,34 @@ void SqlGenerator::generateAggregateQueries()
     //********** TODO: TODO: ********** 
     // technically we need to join in the parameters
     // for now we just fix the params
-    //********** TODO: TODO: ********** 
-    if (false && _model == LinearRegressionModel)
-    {
-        // Add parameters to the join string !
-        var_bitset features = _app->getFeatures();
+    //********** TODO: TODO: **********
+    // TODO: TODO: TODO: THIS SHOULD REALLY BE LINEARREGRESSION GRADIENT
+    // TODO: TODO: TODO: Commenting out for now
+    // if (false && _model == LinearRegressionModel)
+    // {
+    //     // Add parameters to the join string !
+    //     var_bitset features = _app->getFeatures();
 
-        const var_bitset categoricalFeatures =
-            static_pointer_cast<LinearRegression>(_app)->
-            getCategoricalFeatures();
+    //     const var_bitset categoricalFeatures =
+    //         static_pointer_cast<LinearRegression>(_app)->
+    //         getCategoricalFeatures();
         
-        std::string catParams = "", contParams = "";
-        for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
-        {
-            if (features[var])
-            {
-                Attribute* attr = _td->getAttribute(var);
+    //     std::string catParams = "", contParams = "";
+    //     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+    //     {
+    //         if (features[var])
+    //         {
+    //             Attribute* attr = _td->getAttribute(var);
 
-                if (categoricalFeatures[var])
-                    catParams += " NATURAL JOIN "+attr->_name+"_param";
-                else
-                    contParams += ","+attr->_name+"_param";
-            }
-        }
+    //             if (categoricalFeatures[var])
+    //                 catParams += " NATURAL JOIN "+attr->_name+"_param";
+    //             else
+    //                 contParams += ","+attr->_name+"_param";
+    //         }
+    //     }
         
-        joinString += catParams + contParams;
-    }
+    //     joinString += catParams + contParams;
+    // }
 
     unordered_map<var_bitset,string> fVarAggregateMap;
 

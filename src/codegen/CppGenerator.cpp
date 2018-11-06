@@ -19,7 +19,7 @@
 #define OPTIMIZED
 
 /* Turn this flag on to output times for each Group individually. */
-// #define BENCH_INDIVIDUAL 
+#define BENCH_INDIVIDUAL 
 
 #define USE_MULTIOUTPUT_OPERATOR
 
@@ -249,15 +249,16 @@ void CppGenerator::genMainFunction(bool parallelize)
         ofs << genSortFunction(relID) << std::endl;
     
     ofs << genRunFunction(parallelize) << std::endl;
-    ofs << genTestFunction() << "}\n\n";
+    ofs << genTestFunction() << genDumpFunction() << "}\n\n";
  
-    ofs << "int main(int argc, char *argv[])\n{\n#ifndef MULTITHREAD\n"+
+    ofs << "int main(int argc, char *argv[])\n{\n"+// #ifndef MULTITHREAD\n"+
         offset(1)+"std::cout << \"run lmfao\" << std::endl;\n"+
-        offset(1)+"lmfao::run();\n"+"#else\n"+
-        offset(1)+"std::cout << \"run multithreaded lmfao\" << std::endl;\n"+
-        offset(1)+"lmfao::runMultithreaded();\n#endif\n"+
-        "#ifdef TESTING\n"+offset(1)+"lmfao::ouputViewsForTesting();\n"+
-        "#endif\n"+offset(1)+"return 0;\n};\n";
+        offset(1)+"lmfao::run();\n"+//"#else\n"+
+        // offset(1)+"std::cout << \"run multithreaded lmfao\" << std::endl;\n"+
+        // offset(1)+"lmfao::runMultithreaded();\n#endif\n"+
+        "#ifdef TESTING\n"+offset(1)+"lmfao::ouputViewsForTesting();\n#endif\n"+
+        "#ifdef DUMP_OUTPUT\n"+offset(1)+"lmfao::dumpOutputViews();\n#endif\n"+
+        offset(1)+"return 0;\n};\n";
     ofs.close();
 }
 
@@ -310,8 +311,6 @@ void CppGenerator::genMakeFile()
 
     ofs << ".PHONY : multithread\n"
         << "multi : FLAG = -DMULTITHREAD\n"
-        << "multi : lmfao\n\n"<< ".PHONY : multithread\n"
-        << "multi : FLAG = -DMULTITHREAD\n"
         << "multi : lmfao\n\n"
         << ".PHONY : precompilation\n"
         << "precomp : main.o\n"
@@ -320,6 +319,9 @@ void CppGenerator::genMakeFile()
         << ".PHONY : testing\n"
         << "test : FLAG = -DTESTING\n"
         << "test : lmfao\n\n"
+        << ".PHONY : dump\n"
+        << "dump : FLAG = -DDUMP_OUTPUT\n"
+        << "dump : lmfao\n\n"
         << ".PHONY : clean\n"
         << "clean :\n"
 	<< "\trm *.o lmfao";
@@ -6626,6 +6628,53 @@ std::string CppGenerator::genTestFunction()
     returnString += offset(2)+"ofs.close();\n"+offset(1)+"}\n"+"#endif\n";
     return returnString;
 }
+
+
+std::string CppGenerator::genDumpFunction()
+{
+    std::string returnString = "#ifdef DUMP_OUTPUT\n"+
+        offset(1)+"void dumpOutputViews()\n"+offset(1)+"{\n"+
+        offset(2)+"std::ofstream ofs;\n";
+    
+    for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
+    {
+        View* view = _qc->getView(viewID);
+
+        if (view->_origin != view->_destination)
+            continue;
+
+        returnString += offset(2)+"ofs.open(\"output/"+
+            viewName[viewID]+".tbl\");\n"+
+            offset(2)+"ofs << \""+std::to_string(view->_fVars.count())+" "+
+            std::to_string(view->_aggregates.size())+"\\n\";\n";
+            
+        std::string fields = "";
+        for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+        {
+            if (view->_fVars[var])
+            {
+                Attribute* attr = _td->getAttribute(var);
+                fields += " << tuple."+attr->_name+" <<\"|\"";
+            }
+        }
+
+        for (size_t agg = 0; agg < view->_aggregates.size(); ++agg)
+            fields += " << tuple.aggregates["+std::to_string(agg)+"] << \"|\"";
+
+        fields.pop_back();
+        fields.pop_back();
+        fields.pop_back();
+        
+        returnString += offset(2)+"for (size_t i=0; i < "+viewName[viewID]+
+            ".size(); ++i)\n"+offset(2)+"{\n"+offset(3)+
+            viewName[viewID]+"_tuple& tuple = "+viewName[viewID]+"[i];\n"+
+            offset(3)+"ofs "+fields+"\"\\n\";\n"+offset(2)+"}\n";
+    }
+
+    returnString += offset(2)+"ofs.close();\n"+offset(1)+"}\n"+"#endif\n";
+    return returnString;
+}
+
 
 
 

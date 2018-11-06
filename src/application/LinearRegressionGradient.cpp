@@ -1,97 +1,159 @@
 //--------------------------------------------------------------------
 //
-// MutualInformation.cpp
+// LinearRegression.cpp
 //
-// Created on: Oct 15, 2018
+// Created on: Nov 27, 2017
 // Author: Max
 //
 //--------------------------------------------------------------------
-
 
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/phoenix_operator.hpp>
 #include <fstream>
 
 #include <Launcher.h>
-#include <MutualInformation.h>
+#include <LinearRegression.h>
 
 static const std::string FEATURE_CONF = "/features.conf";
 
 static const char COMMENT_CHAR = '#';
 static const char NUMBER_SEPARATOR_CHAR = ',';
+// static const char PARAMETER_SEPARATOR_CHAR = ' ';
+// static const char ATTRIBUTE_SEPARATOR_CHAR = ',';
 static const char ATTRIBUTE_NAME_CHAR = ':';
+
 
 using namespace std;
 using namespace multifaq::params;
 namespace phoenix = boost::phoenix;
 using namespace boost::spirit;
 
-using namespace std;
 
-MutualInformation::MutualInformation(
-    const string& pathToFiles, shared_ptr<Launcher> launcher) :
+LinearRegression::LinearRegression(const string& pathToFiles,
+                                   shared_ptr<Launcher> launcher) :
     _pathToFiles(pathToFiles)
 {
     _compiler = launcher->getCompiler();
     _td = launcher->getTreeDecomposition();
 }
 
-MutualInformation::~MutualInformation()
+LinearRegression::~LinearRegression()
 {
+    delete[] _queryRootIndex;
 }
 
-void MutualInformation::run()
+void LinearRegression::run()
 {
     loadFeatures();
     modelToQueries();
     _compiler->compile();
 }
 
-
-void MutualInformation::modelToQueries()
-{    
-    for (size_t var = 0; var < NUM_OF_VARIABLES; ++var) 
-    {
-        if (_isCategoricalFeature[var])
-        {
-            for (size_t var2 = var+1; var2 < NUM_OF_VARIABLES; ++var2) 
-            {
-                if (_isCategoricalFeature[var2])
-                {
-                    Aggregate* agg = new Aggregate();
-                    agg->_agg.push_back(prod_bitset());
-
-                    // Create a query & Aggregate
-                    Query* query = new Query();
-                    query->_fVars.set(var);
-                    query->_fVars.set(var2);
-                    query->_aggregates.push_back(agg);
-                    _compiler->addQuery(query);
-
-                    if (_queryRootIndex[var] <= _queryRootIndex[var2])
-                        query->_rootID = _queryRootIndex[var];
-                    else
-                        query->_rootID = _queryRootIndex[var2];                        
-                }
-            }
-
-            Aggregate* agg = new Aggregate();
-            agg->_agg.push_back(prod_bitset());
-
-            // Create a query & Aggregate
-            Query* query = new Query();
-            query->_aggregates.push_back(agg);
-            query->_rootID = _queryRootIndex[var];
-            query->_fVars.set(var);
-
-            _compiler->addQuery(query);
-        }
-    }
+// var_bitset LinearRegression::getFeatures()
+// {
+//     cout << _features << endl;
     
+//     return _features;
+// }
+
+var_bitset LinearRegression::getCategoricalFeatures()
+{
+    return _categoricalFeatures;
 }
 
 
-void MutualInformation::loadFeatures()
+void LinearRegression::modelToQueries()
+{
+
+    size_t numberOfFunctions = 0;
+    size_t featureToFunction[NUM_OF_VARIABLES],
+        secondaryFeatureToFunction[NUM_OF_VARIABLES];
+    
+    for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+    {
+        if (_features.test(var))
+        {
+            if (_categoricalFeatures.test(var))
+            {
+                // TODO: TODO: TODO: Need to set the parameter here correctly!
+                double* parameter = new double[1];
+                parameter[0] = 0.0;
+                _compiler->addFunction(
+                    new Function({var}, Operation::lr_cat_parameter, parameter));
+            }
+            else 
+            {
+                double* parameter = new double[1];
+                parameter[0] = 0.0;
+            
+                _compiler->addFunction(
+                    new Function({var}, Operation::lr_cont_parameter, parameter));
+            }
+
+            featureToFunction[var] = numberOfFunctions;
+            numberOfFunctions++;
+        }
+    }
+
+    size_t numberOfFeatures = _features.count();
+    numberOfFunctions = 0;
+    
+    for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+    {
+        if (_features.test(var) && !_categoricalFeatures.test(var))
+        {
+            _compiler->addFunction(new Function({var}, Operation::sum));
+            secondaryFeatureToFunction[var] = numberOfFeatures + numberOfFunctions;
+            numberOfFunctions++;
+        }
+    }
+
+    for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+    {
+        if (_features.test(var))
+        {   
+            // Aggregate* agg = new Aggregate(1);
+            // agg->_m[0] = 0;
+            Aggregate* agg = new Aggregate();
+
+            for (size_t otherVar = 0; otherVar < NUM_OF_VARIABLES; ++otherVar)
+            {
+                if (_features.test(otherVar))
+                {
+                    prod_bitset product;
+                    product.set(featureToFunction[otherVar]);
+                    
+                    if (!_categoricalFeatures.test(var))
+                        product.set(secondaryFeatureToFunction[var]);
+                    
+                    agg->_agg.push_back(product);
+
+                    // TODO: Make sure this is correct!?!
+                    // ++agg->_m[0];
+                }
+            }
+            
+            Query* query = new Query();
+            query->_aggregates.push_back(agg);
+
+            if (_categoricalFeatures[var])
+            {
+                query->_fVars.set(var);
+                query->_rootID = _queryRootIndex[var];
+            }
+            else
+            {
+                query->_rootID = _td->_root->_id;
+                // query->_rootID = 3;
+            }
+            
+            _compiler->addQuery(query);
+        }
+    }    
+}
+
+
+void LinearRegression::loadFeatures()
 {
     _queryRootIndex = new size_t[NUM_OF_VARIABLES]();
     
@@ -126,16 +188,20 @@ void MutualInformation::loadFeatures()
      */
     bool parsingSuccess =
         qi::phrase_parse(line.begin(), line.end(),
+
                          /* Begin Boost Spirit grammar. */
                          ((qi::int_[phoenix::ref(numOfFeatures) = qi::_1])
                           >> NUMBER_SEPARATOR_CHAR
                           >> (qi::int_[phoenix::ref(degreeOfInteractions) =
                                        qi::_1])),
                          /*  End grammar. */
-                         ascii::space);
+                          ascii::space);
 
     assert(parsingSuccess && "The parsing of the features file has failed.");
     
+    // std::vector<int> linearContinuousFeatures;
+    // std::vector<int> linearCategoricalFeatures;
+
     /* Read in the features. */
     for (int featureNo = 0; featureNo < numOfFeatures; ++featureNo)
     {
@@ -169,31 +235,33 @@ void MutualInformation::loadFeatures()
             ERROR("Attribute |"+attrName+"| does not exist.");
             exit(1);
         }
+
         if (rootID == -1)
         {
             ERROR("Relation |"+rootName+"| does not exist.");
             exit(1);
         }
+
         if (featureNo == 0 && categorical == 1)
         {
             ERROR("The label needs to be continuous! ");
             exit(1);
         }
 
-        _isFeature.set(attributeID);
         _features.set(attributeID);
 
         if (categorical)
-        {
-            _queryRootIndex[attributeID] = rootID;
-            _isCategoricalFeature.set(attributeID);
-        }
-        else
-        {
-            _queryRootIndex[attributeID] = _td->_root->_id;
-        }
+            _categoricalFeatures.set(attributeID);
 
+        _queryRootIndex[attributeID] = rootID;
+        
         /* Clear string stream. */
         ssLine.clear();
     }
+}
+
+
+void LinearRegression::computeGradient()
+{
+    _compiler->compile();
 }

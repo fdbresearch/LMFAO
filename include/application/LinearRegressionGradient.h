@@ -2,20 +2,21 @@
 //
 // LinearRegression.h
 //
-// Created on: Feb 1, 2018
+// Created on: Nov 27, 2017
 // Author: Max
 //
 //--------------------------------------------------------------------
 
 
-#ifndef INCLUDE_APP_LINEARREGRESSION_H_
-#define INCLUDE_APP_LINEARREGRESSION_H_
+#ifndef INCLUDE_APP_REGRESSION_H_
+#define INCLUDE_APP_REGRESSION_H_
 
 #include <bitset>
 #include <string>
 #include <vector>
 
 #include <Application.hpp>
+// #include <DataTypes.hpp>
 
 /** Forward declarations to allow pointer to launcher and Linear Regressionas
  * without cyclic includes. */
@@ -34,42 +35,35 @@ public:
     ~LinearRegression();
 
     void run();
-    
+
+//    var_bitset getFeatures();
+
     var_bitset getCategoricalFeatures();
     
 private:
     
     //! Physical path to the schema and table files.
     std::string _pathToFiles;
-    
+
+    // std::shared_ptr<Launcher> _launcher;
+
     std::shared_ptr<QueryCompiler> _compiler;
     
     std::shared_ptr<TreeDecomposition> _td;
-    
+
+    //! Array containing the features of the model.
+    // var_bitset _features;
+
     var_bitset _categoricalFeatures;
 
-    size_t labelID;
-
     size_t* _queryRootIndex = nullptr;
-
-    std::vector<size_t> _parameterIndex;
     
     void modelToQueries();
 
     void loadFeatures();
 
-    Query** parameterQueries;
-    void generateCode();
-    std::string generateParameters();
-    std::string generateGradients();
-    std::string generateConvergenceLoop();
-    std::string generatePrintFunction();
-    std::string getAttributeName(size_t attID);
-    std::string offset(size_t off);
-    std::string typeToStr(Type t);
-    
-    std::string generateTestDataEvaluation();
+    void computeGradient();
     
 };
 
-#endif /* INCLUDE_APP_LINEARREGRESSION_H_ */
+#endif /* INCLUDE_APP_REGRESSION_H_ */

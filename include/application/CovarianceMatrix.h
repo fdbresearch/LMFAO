@@ -58,18 +58,11 @@ private:
 
     void loadFeatures();
 
-    Query** parameterQueries;
+    std::vector<Query*> listOfQueries;
     void generateCode();
-    std::string generateParameters();
-    std::string generateGradients();
-    std::string generateConvergenceLoop();
-    std::string generatePrintFunction();
-    std::string getAttributeName(size_t attID);
-    std::string offset(size_t off);
-    std::string typeToStr(Type t);
-    
-    std::string generateTestDataEvaluation();
-    
+    // std::string offset(size_t off);
+    // std::string typeToStr(Type t);
+    // std::string generateTestDataEvaluation();   
 };
 
 #endif /* INCLUDE_APP_COVARMATRIX_H_ */
