@@ -589,20 +589,30 @@ void testFitNoisyPolynomial2()
         ///cerr << "\n---------------------------\n";
         MatrixUtil<long double>::LeastSquaresQR(A, b, x, true);
         Matrix<long double> y = A*x - b;
-        cout << x << "\n Error: ";
+        cout << x << "\n Error: ";I will send 
         cout << setprecision(10) << fixed;
         cout << (y.transpose() * y).get(0, 0) << endl << endl;
     }
 }
 
+static const string FILE_INPUT = "test.in";
+
+void unitTest7() 
+{
+    Matrix<int> M;
+    MatrixUtil<int>::Reader(M, FILE_INPUT);
+    M.print(5);
+}
+
 int main()
 {
-    unitTest1(true);
+    //unitTest1(true);
     ///unitTest2(true);
     ///unitTest3(true);
     ///unitTest4(true);
     ///unitTest5(true);
     ///unitTest6(true);
+    unitTest7();
 
 
     ///clusteringTest();
