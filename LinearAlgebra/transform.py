@@ -48,7 +48,7 @@ if __name__ == "__main__":
 
     for file_name in os.listdir(runtime_path):
         if file_name.endswith(".tbl"):
-            view = read_views(file_name)
+            view = read_views(os.path.join(runtime_path, file_name))
             #print(read_views(file_name))
             views[int(file_name.split(".")[0][1:])] = view
     #print(views)
@@ -56,7 +56,7 @@ if __name__ == "__main__":
     triagnular_array = get_triangualar_array(runtime_path, views)
     #print (triagnular_array)
     n = int(math.floor(math.sqrt(len(triagnular_array) * 2)))
-    print(n)
+    print("{0} {0}".format(n))
     for row in range (1, n + 1):
         for col in range(1, n + 1):
             val = get_cell_value(triagnular_array, n, row, col)
