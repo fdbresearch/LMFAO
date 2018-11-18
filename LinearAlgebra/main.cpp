@@ -168,7 +168,7 @@ void unitTest4(int verbose = 0)
         cout << MatrixUtil<long double>::compareEquals(x, y, 1e-10);
     }
 }
-
+/*
 void unitTest5(int verbose = 0)
 {
     Matrix<long double> init({
@@ -193,6 +193,7 @@ void unitTest5(int verbose = 0)
     assert(MatrixUtil<long double>::compareEquals(A, init));
 
 }
+*/
 
 void unitTest6(int verbose)
 {
@@ -589,7 +590,7 @@ void testFitNoisyPolynomial2()
         ///cerr << "\n---------------------------\n";
         MatrixUtil<long double>::LeastSquaresQR(A, b, x, true);
         Matrix<long double> y = A*x - b;
-        cout << x << "\n Error: ";I will send 
+        cout << x << "\n Error: "; 
         cout << setprecision(10) << fixed;
         cout << (y.transpose() * y).get(0, 0) << endl << endl;
     }
