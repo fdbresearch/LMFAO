@@ -321,7 +321,8 @@ public:
 
     CppGenerator(const std::string path, const std::string outputDirectory,
                  const bool multioutput_flag, const bool resort_flag,
-                 const bool microbench_flag, std::shared_ptr<Launcher> launcher);
+                 const bool microbench_flag, const bool compression_flag,
+                 std::shared_ptr<Launcher> launcher);
 
     ~CppGenerator();
 

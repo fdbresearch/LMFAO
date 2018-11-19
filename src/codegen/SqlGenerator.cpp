@@ -25,7 +25,6 @@ SqlGenerator::SqlGenerator(const std::string path, const std::string outDirector
    
     _td = launcher->getTreeDecomposition();
     _qc = launcher->getCompiler();
-    _model = launcher->getModel();
     _app = launcher->getApplication();
     
     if (_pathToData.back() == '/')

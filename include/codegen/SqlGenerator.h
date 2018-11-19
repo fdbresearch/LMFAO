@@ -48,7 +48,7 @@ private:
 
     std::shared_ptr<Application> _app;
 
-    Model _model;
+    // Model _model;
     
     void generateLoadQuery();
 

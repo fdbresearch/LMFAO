@@ -17,12 +17,13 @@
 #include <QueryCompiler.h>
 #include <TreeDecomposition.h>
 
-enum Model 
-{
-    LinearRegressionModel,
-    RegressionTreeModel,
-    CovarianceMatrixModel
-};
+// enum Model 
+// {
+//     LinearRegressionModel,
+//     RegressionTreeModel,
+//     CovarianceMatrixModel
+// };
+
 
 /**
  * Class that takes care of assembling the different components of the database
@@ -46,7 +47,8 @@ public:
     int launch(const std::string& model, const std::string& codeGenerator,
                const std::string& parallel, const std::string& featureFile,
                const std::string& tdFile, const std::string& outDirectory,
-               const bool mo, const bool resort, const bool microbench);
+               const bool mo, const bool resort, const bool microbench,
+               const bool compress);
 
     /**
      * Returns a pointer to the tree decomposition.
@@ -61,7 +63,7 @@ public:
     /**
      * Returns a model identifier.
      */
-    Model getModel();
+    // Model getModel();
 
     /**
      * Returns a pointer to the Query Compiler.
@@ -88,7 +90,7 @@ private:
     //! Path to the files used by the database.
     std::string _outputDirectory;
 
-    Model _model;
+    // Model _model;
 
 };
 

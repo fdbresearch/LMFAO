@@ -26,40 +26,48 @@ int main(int argc, char *argv[])
       program. */
    boost::program_options::options_description desc("multiFAQ - allowed options");
    desc.add_options()
-      /* Option to show help. */
-      ("help", "produce help message.")
-      /* Option to show some info. */
-      ("info", "show some information about the program.")
-      /* Option for path to data and configuration files. */
-      ("path", boost::program_options::value<std::string>(),
-       "set path for data and configuration files - required.")
-      /* Option for machine learning model. */
-      ("model", boost::program_options::value<std::string>()->default_value("reg"),
-       "model to be computed: reg (default), covar, ctree, rtree, cube, mi or perc")
-      /* Option for code generator. */
-      ("codegen", boost::program_options::value<std::string>()->default_value("cpp"),
-       "open for code generation: cpp (default), or sql")
-      /* Option for directory of generated code. */
-      ("out",boost::program_options::value<std::string>()->default_value("runtime/cpp/"),
-       "output directory for the generated code, default: runtime/{codegen}/")
-      /* Option for parallellization. */
-      ("parallel", boost::program_options::value<std::string>()->default_value("none"),
-       "options for parallelization: none (default), task, domain, or both")
-      /* Option for feature config file. */
-      ("feat", boost::program_options::value<std::string>()->
-       default_value("features.conf"),
-       "features file for this model, assumed to be in {pathToFiles}/config/")
-      /* Option for feature config file. */
-      ("td", boost::program_options::value<std::string>()->
-       default_value("treedecomposition.conf"),
-       "tree decomposition config file, assumed to be in {pathToFiles}/config/")
+       /* Option to show help. */
+       ("help", "produce help message.")
+       /* Option to show some info. */
+       ("info", "show some information about the program.")
+       /* Option for path to data and configuration files. */
+       ("path", boost::program_options::value<std::string>(),
+        "set path for data and configuration files - required.")
+       /* Option for machine learning model. */
+       ("model", boost::program_options::value<std::string>()->default_value("reg"),
+        "model to be computed: reg (default), covar, ctree, rtree, cube, mi or perc")
+       /* Option for code generator. */
+       ("codegen", boost::program_options::value<std::string>()->default_value("cpp"),
+        "open for code generation: cpp (default), or sql")
+       /* Option for directory of generated code. */
+       ("out",
+        boost::program_options::value<std::string>()->default_value("runtime/cpp/"),
+        "output directory for the generated code, default: runtime/{codegen}/")
+       /* Option for parallellization. */
+       ("parallel", boost::program_options::value<std::string>()->default_value("none"),
+        "options for parallelization: none (default), task, domain, or both")
+       /* Option for feature config file. */
+       ("feat", boost::program_options::value<std::string>()->
+        default_value("features.conf"),
+        "features file for this model, assumed to be in {pathToFiles}/config/")
+       /* Option for feature config file. */
+       ("td", boost::program_options::value<std::string>()->
+        default_value("treedecomposition.conf"),
+        "tree decomposition config file, assumed to be in {pathToFiles}/config/")
        /* Option to turn off mutlti output operator. */
-      ("mo", boost::program_options::value<bool>()->default_value("1"),
-       "turn multioutput operator on (default)/off")
-      /* Option to turn off mutlti output operator. */
-      ("resort", "enables resorting of views / relations, requires multiout off.")
-      /* Option to turn off mutlti output operator. */
-      ("microbench", "enables micro benchmarking.");
+       ("mo", boost::program_options::value<bool>()->default_value("1"),
+        "turn multioutput operator on (default)/off")
+       /* Option to turn off compression of aggregates operator. */
+       ("compress", boost::program_options::value<bool>()->default_value("1"),
+        "turn compression of aggregates on (default)/off")
+       /* Option to turn off mutlti output operator. */
+       ("resort", "enables resorting of views / relations, requires multiout off.")
+       /* Option to turn off mutlti output operator. */
+       ("microbench", "enables micro benchmarking.")
+       /* Option for parallellization. */
+       ("degree", boost::program_options::value<int>()->default_value(1),
+        "Degree of interactions for regression models and FMs. (Default = 1.)");
+   
 
    /* Register previous options and do command line parsing. */
    boost::program_options::variables_map vm;
@@ -115,9 +123,11 @@ int main(int argc, char *argv[])
       return EXIT_FAILURE;
    }
 
+   /* TODO: when this gets fixed, degree needs to be passed to relevant models. */
+   if (vm["degree"].as<int>() > 1)
+       ERROR("A degree > 1 is currenlty not supported.\n");
 
    /* Check the code generator is supported */
-
    std::string codeGenerator = vm["codegen"].as<std::string>();
 
    if (codeGenerator.compare("cpp") != 0 && codeGenerator.compare("sql") != 0)
@@ -137,11 +147,11 @@ int main(int argc, char *argv[])
    /*If provided path is not a directory, return failure. */
    if (boost::filesystem::create_directories(outputDirectory))
    {
-       DINFO("Output directory " << outputDirectory << " created." << std::endl);
+       DINFO("INFO: Output directory " << outputDirectory << " created." << std::endl);
    }
    else
    {    
-       DINFO("Output directory " << outputDirectory << " exists." << std::endl);
+       DINFO("INFO: Output directory " << outputDirectory << " exists." << std::endl);
    }
    
    std::shared_ptr<Launcher> launcher(new Launcher(pathString));
@@ -160,7 +170,8 @@ int main(int argc, char *argv[])
                                  outputDirectory,
                                  vm["mo"].as<bool>(),
                                  vm.count("resort"),
-                                 vm.count("microbench")
+                                 vm.count("microbench"),
+                                 vm["compress"].as<bool>()
        );
    
 #ifdef BENCH
@@ -169,7 +180,6 @@ int main(int argc, char *argv[])
 #endif
 
    BINFO("MAIN - overall time: " + std::to_string(end) + "ms.\n");
-   
    DINFO("Completed execution \n");
    
    return result;
