@@ -57,6 +57,10 @@ namespace multifaq
         const size_t NUM_OF_TABLES = 10;
 #endif
 
+        extern std::string FEATURE_CONF;
+        
+        extern std::string TREEDECOMP_CONF;
+
     }
 }
 

@@ -13,9 +13,6 @@
 
 #include <Launcher.h>
 #include <Percentile.h>
-// #include <CodegenUtils.hpp>
-
-static const std::string FEATURE_CONF = "/features.conf";
 
 static const char COMMENT_CHAR = '#';
 static const char NUMBER_SEPARATOR_CHAR = ',';

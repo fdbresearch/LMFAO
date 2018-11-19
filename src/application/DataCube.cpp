@@ -15,8 +15,6 @@
 #include <Launcher.h>
 #include <DataCube.h>
 
-static const std::string FEATURE_CONF = "/features.conf";
-
 static const char COMMENT_CHAR = '#';
 static const char NUMBER_SEPARATOR_CHAR = ',';
 static const char ATTRIBUTE_NAME_CHAR = ':';
@@ -196,7 +194,7 @@ void DataCube::loadFeatures()
 
     if (!input)
     {
-        ERROR(_pathToFiles + FEATURE_CONF+" does not exist. \n");
+        ERROR(_pathToFiles + FEATURE_CONF + " does not exist. \n");
         exit(1);
     }
 

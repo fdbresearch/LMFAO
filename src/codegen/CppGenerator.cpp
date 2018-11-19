@@ -21,9 +21,9 @@
 /* Turn this flag on to output times for each Group individually. */
 #define BENCH_INDIVIDUAL 
 
-#define USE_MULTIOUTPUT_OPERATOR
-
+// #define USE_MULTIOUTPUT_OPERATOR
 //#define ENABLE_RESORT_RELATIONS
+// #define MICRO_BENCH
 
 #define COMPRESS_AGGREGATES
 
@@ -34,31 +34,37 @@
 // const bool RESORT_RELATIONS = false;
 #endif
 
-#ifdef USE_MULTIOUTPUT_OPERATOR
-const bool GROUP_VIEWS = true;
-#else
-const bool GROUP_VIEWS = false;
-#endif
+static bool GROUP_VIEWS;
+static bool RESORT_RELATIONS;
+static bool MICRO_BENCH;
 
-// const bool PARALLELIZE_GROUPS = true;
+// #ifdef USE_MULTIOUTPUT_OPERATOR
+// static bool GROUP_VIEWS = true;
+// #else
+// static bool GROUP_VIEWS = false;
+// #endif
+
 using namespace multifaq::params;
 
 typedef boost::dynamic_bitset<> dyn_bitset;
 
-CppGenerator::CppGenerator(const std::string path,
-                           std::shared_ptr<Launcher> launcher) : _pathToData(path)
+CppGenerator::CppGenerator(const std::string path, const std::string outDirectory,
+                           const bool multioutput_flag, const bool resort_flag,
+                           const bool microbench_flag,
+                           std::shared_ptr<Launcher> launcher) :
+    _pathToData(path), _outputDirectory(outDirectory)
 {
     _td = launcher->getTreeDecomposition();
     _qc = launcher->getCompiler();
-        
-    std::string dataset = path;
-    
-    if (dataset.back() == '/')
-        dataset.pop_back();
 
-    _datasetName = dataset.substr(dataset.rfind('/')).substr(1);
-    std::transform(_datasetName.begin(), _datasetName.end(), _datasetName.begin(),
-                   [](unsigned char c) -> unsigned char { return std::toupper(c); });
+    GROUP_VIEWS = multioutput_flag;
+    MICRO_BENCH = microbench_flag;
+    
+    if (resort_flag)
+    {
+        GROUP_VIEWS = false;
+        RESORT_RELATIONS = true;
+    }
 }
 
 CppGenerator::~CppGenerator()
@@ -94,6 +100,7 @@ void CppGenerator::generateCode(const ParallelizationType parallelization_type,
     }
     
     variableDependency.resize(NUM_OF_VARIABLES);
+    
     // Find all the dependencies amongst the variables
     for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
     {
@@ -149,15 +156,57 @@ void CppGenerator::generateCode(const ParallelizationType parallelization_type,
 
 void CppGenerator::genDataHandler()
 {
-    std::ofstream ofs("runtime/cpp/DataHandler.h", std::ofstream::out);
+    std::string header = std::string("#ifndef INCLUDE_DATAHANDLER_HPP_\n")+
+        "#define INCLUDE_DATAHANDLER_HPP_\n\n"+
+        "#include <algorithm>\n"+
+        "#include <chrono>\n"+
+        "#include <cstring>\n"+
+        "#include <fstream>\n"+
+        "#include <iostream>\n" +
+        "#include <thread>\n" +
+        "#include <unordered_map>\n" +
+        "#include <vector>\n\n";
 
-    ofs << genHeader()
-        << genTupleStructs()
+#if defined(__GNUC__) && defined(NDEBUG) && !defined(__clang__)
+    header += "#include <parallel/algorithm>\n";
+#endif
+
+    if (MICRO_BENCH)
+    {
+        header += "#define INIT_MICRO_BENCH(timer)\\\n"+offset(1)+
+            "auto begin_##timer = std::chrono::high_resolution_clock::now();\\\n"+
+            offset(1)+
+            "auto finish_##timer = std::chrono::high_resolution_clock::now();\\\n"+
+            offset(1)+"std::chrono::duration<double>  elapsed_##timer = "+
+            "finish_##timer - begin_##timer;\\\n"+
+            offset(1)+"double time_spent_##timer = elapsed_##timer.count();\\\n"+
+            offset(1)+"double global_time_##timer = 0;\n";
+
+        header += std::string("#define BEGIN_MICRO_BENCH(timer) begin_##timer = ")+
+            "std::chrono::high_resolution_clock::now();\n";
+        header += std::string("#define END_MICRO_BENCH(timer) finish_##timer = ")+
+            "std::chrono::high_resolution_clock::now();\\\n"+
+            offset(1)+"elapsed_##timer = finish_##timer - begin_##timer;\\\n"+
+            offset(1)+"time_spent_##timer = elapsed_##timer.count();\\\n"+
+            offset(1)+"global_time_##timer += time_spent_##timer;\n";
+
+        header += std::string("#define PRINT_MICRO_BENCH(timer) std::cout << ")+
+            "#timer << \": \" << std::to_string(global_time_##timer) << std::endl;\n\n";
+    }
+    
+    header += "using namespace std::chrono;\n\nnamespace lmfao\n{\n"+
+        offset(1)+"//const std::string PATH_TO_DATA = \"/Users/Maximilian/Documents/"+
+        "Oxford/LMFAO/"+_pathToData+"\";\n"+
+        offset(1)+"const std::string PATH_TO_DATA = \"../../"+_pathToData+"\";\n\n";
+
+    std::ofstream ofs(_outputDirectory+"DataHandler.h", std::ofstream::out);
+
+    ofs << header << genTupleStructs()
         << genCaseIdentifiers() << std::endl;
     ofs <<  "}\n\n#endif /* INCLUDE_DATAHANDLER_HPP_*/\n";    
     ofs.close();
 
-    ofs.open("runtime/cpp/DataHandler.cpp", std::ofstream::out);
+    ofs.open(_outputDirectory+"DataHandler.cpp", std::ofstream::out);
     ofs << genTupleStructConstructors() << std::endl;
     ofs.close();
 }
@@ -165,7 +214,7 @@ void CppGenerator::genDataHandler()
 
 void CppGenerator::genComputeGroupFiles(size_t group)
 {
-    std::ofstream ofs("runtime/cpp/ComputeGroup"+std::to_string(group)+".h",
+    std::ofstream ofs(_outputDirectory+"ComputeGroup"+std::to_string(group)+".h",
                       std::ofstream::out);
 
     ofs << "#ifndef INCLUDE_COMPUTEGROUP"+std::to_string(group)+"_HPP_\n"+
@@ -197,7 +246,7 @@ void CppGenerator::genComputeGroupFiles(size_t group)
     ofs << "}\n\n#endif /* INCLUDE_COMPUTEGROUP"+std::to_string(group)+"_HPP_*/\n";
     ofs.close();
         
-    ofs.open("runtime/cpp/ComputeGroup"+std::to_string(group)+".cpp",
+    ofs.open(_outputDirectory+"ComputeGroup"+std::to_string(group)+".cpp",
              std::ofstream::out);
 
     // TODO:TODO:TODO: We should avoid including DynamicFunctions.h if it is not
@@ -217,7 +266,7 @@ void CppGenerator::genComputeGroupFiles(size_t group)
 
 void CppGenerator::genMainFunction(bool parallelize)
 {
-    std::ofstream ofs("runtime/cpp/main.cpp",std::ofstream::out);
+    std::ofstream ofs(_outputDirectory+"main.cpp",std::ofstream::out);
 
     ofs << "#ifdef TESTING \n"+offset(1)+"#include <iomanip>\n"+"#endif\n";
     
@@ -281,7 +330,7 @@ void CppGenerator::genMakeFile()
             groupString+".cpp -o computegroup"+groupString+".o\n\n";
     }
     
-    std::ofstream ofs("runtime/cpp/Makefile",std::ofstream::out);
+    std::ofstream ofs(_outputDirectory+"Makefile",std::ofstream::out);
 
     ofs << "CXXFLAG  += -std=c++11 -O2 -pthread -mtune=native -ftree-vectorize";
 
@@ -877,7 +926,7 @@ std::string CppGenerator::genLoadRelationFunction()
         
         returnString += "\n"+offset(2)+rel_name+".clear();\n";
 
-        returnString += offset(2)+"input.open(PATH_TO_DATA + \""+rel_name+".tbl\");\n"+
+        returnString += offset(2)+"input.open(PATH_TO_DATA + \"/"+rel_name+".tbl\");\n"+
             offset(2)+"if (!input)\n"+offset(2)+"{\n"+
             offset(3)+"std::cerr << PATH_TO_DATA + \""+rel_name+
             ".tbl does is not exist. \\n\";\n"+
@@ -933,6 +982,8 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
 
     std::string hashStruct = "";
     std::string hashFunct = "";
+
+    std::string groupString = "Group"+std::to_string(group_id);
     
     for (const size_t& viewID : viewGroups[group_id])
     {
@@ -1037,89 +1088,96 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
         }
     }
 
-#if !defined USE_MULTIOUTPUT_OPERATOR && defined ENABLE_RESORT_RELATIONS
-    // TODO: ADD THE CODE THAT CHECKS FOR SORTING OF RELATIONS
-
-    ERROR("WE NEED TO FIX THE VARIBALE ORDER - fVARS need to come first \n");
-    exit(1);
-    
-    /* 
-     * Compares viewSortOrder with the varOrder required - if orders are
-     * different we resort 
-     */
-    if (viewGroups[group_id].size() > 1)
+    if (RESORT_RELATIONS)
     {
-        ERROR("We should only have one outgoing view in case we resort \n");
+        // TODO: ADD THE CODE THAT CHECKS FOR SORTING OF RELATIONS
+
+        ERROR("WE NEED TO FIX THE VARIBALE ORDER - fVARS need to come first \n");
         exit(1);
-    }
-
-    size_t viewID = viewGroups[group_id][0];
-    View* view = _qc->getView(viewID);
     
-    if (resortRelation(view->_origin, viewID))
-    {
-        headerString += offset(2)+"std::sort("+relName+".begin(),"+
-            relName+".end(),[ ](const "+relName+"_tuple& lhs, const "+relName+
-            "_tuple& rhs)\n"+offset(2)+"{\n";
-
-        size_t orderIdx = 0;
-        for (const size_t& var : varOrder)
-        {
-            if (baseRelation->_bag[var])
-            {
-                const std::string& attrName = _td->getAttribute(var)->_name;
-                headerString += offset(3)+"if(lhs."+attrName+" != rhs."+attrName+")\n"+
-                    offset(4)+"return lhs."+attrName+" < rhs."+attrName+";\n";
-                // Reset the relSortOrder array for future calls 
-                sortOrders[view->_origin][orderIdx] = var;
-                ++orderIdx;
-            }
-        }
-        headerString += offset(3)+"return false;\n"+offset(2)+"});\n";
-    }
-    
-    for (const size_t& incViewID : incViews)
-    {
-        /*
+        /* 
          * Compares viewSortOrder with the varOrder required - if orders are
-         * different we resort
+         * different we resort 
          */
-        if (resortView(incViewID, viewID))
+        if (viewGroups[group_id].size() > 1)
         {
-            headerString += offset(2)+"std::sort("+viewName[incViewID]+".begin(),"+
-                viewName[incViewID]+".end(),"+"[ ](const "+viewName[incViewID]+
-                "_tuple& lhs, const "+viewName[incViewID]+"_tuple& rhs)\n"+
-                offset(2)+"{\n";
+            ERROR("We should only have one outgoing view in case we resort \n");
+            exit(1);
+        }
 
-            View* incView = _qc->getView(incViewID);
+        size_t viewID = viewGroups[group_id][0];
+        View* view = _qc->getView(viewID);
+    
+        if (resortRelation(view->_origin, viewID))
+        {
+            headerString += offset(2)+"std::sort("+relName+".begin(),"+
+                relName+".end(),[ ](const "+relName+"_tuple& lhs, const "+relName+
+                "_tuple& rhs)\n"+offset(2)+"{\n";
+
             size_t orderIdx = 0;
             for (const size_t& var : varOrder)
             {
-                if (incView->_fVars[var])
+                if (baseRelation->_bag[var])
                 {
                     const std::string& attrName = _td->getAttribute(var)->_name;
-                    headerString += offset(3);
-                    if (orderIdx+1 < incView->_fVars.count())
-                        headerString += "if(lhs."+attrName+" != rhs."+
-                            attrName+")\n"+offset(4);
-                    headerString += "return lhs."+attrName+" < rhs."+attrName+";\n";
-                    // Reset the viewSortOrder array for future calls
-                    sortOrders[incViewID + _td->numberOfRelations()][orderIdx] = var;
+                    headerString += offset(3)+"if(lhs."+attrName+" != rhs."+attrName+")\n"+
+                        offset(4)+"return lhs."+attrName+" < rhs."+attrName+";\n";
+                    // Reset the relSortOrder array for future calls 
+                    sortOrders[view->_origin][orderIdx] = var;
                     ++orderIdx;
                 }
             }
-            //headerString += offset(3)+"return 0;\n";
+            headerString += offset(3)+"return false;\n"+offset(2)+"});\n";
+        }
+    
+        for (const size_t& incViewID : incViews)
+        {
+            /*
+             * Compares viewSortOrder with the varOrder required - if orders are
+             * different we resort
+             */
+            if (resortView(incViewID, viewID))
+            {
+                headerString += offset(2)+"std::sort("+viewName[incViewID]+".begin(),"+
+                    viewName[incViewID]+".end(),"+"[ ](const "+viewName[incViewID]+
+                    "_tuple& lhs, const "+viewName[incViewID]+"_tuple& rhs)\n"+
+                    offset(2)+"{\n";
+
+                View* incView = _qc->getView(incViewID);
+                size_t orderIdx = 0;
+                for (const size_t& var : varOrder)
+                {
+                    if (incView->_fVars[var])
+                    {
+                        const std::string& attrName = _td->getAttribute(var)->_name;
+                        headerString += offset(3);
+                        if (orderIdx+1 < incView->_fVars.count())
+                            headerString += "if(lhs."+attrName+" != rhs."+
+                                attrName+")\n"+offset(4);
+                        headerString += "return lhs."+attrName+" < rhs."+attrName+";\n";
+                        // Reset the viewSortOrder array for future calls
+                        sortOrders[incViewID + _td->numberOfRelations()][orderIdx] = var;
+                        ++orderIdx;
+                    }
+                }
+                //headerString += offset(3)+"return 0;\n";
             
-            headerString += offset(2)+"});\n";
+                headerString += offset(2)+"});\n";
+            }
         }
     }
-#endif
+
+    if(MICRO_BENCH)
+        headerString += offset(2)+"INIT_MICRO_BENCH("+groupString+"_timer_aggregate);\n"+
+            offset(2)+"INIT_MICRO_BENCH("+groupString+"_timer_post_aggregate);\n"+
+            offset(2)+"INIT_MICRO_BENCH("+groupString+"_timer_seek);\n"+
+            offset(2)+"INIT_MICRO_BENCH("+groupString+"_timer_while);\n";
 
 #ifdef BENCH_INDIVIDUAL
     headerString += offset(2)+"int64_t startProcess = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count();\n\n";
 #endif
-    
+
     // Generate min and max values for the join varibales 
     headerString += genMaxMinValues(varOrder);
 
@@ -1404,6 +1462,13 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
         offset(2)+"ofs << \"\\t\" << endProcess;\n"+
         offset(2)+"ofs.close();\n\n";
 #endif
+
+    if (MICRO_BENCH)
+        returnString += offset(2)+
+            "PRINT_MICRO_BENCH("+groupString+"_timer_aggregate);\n"+
+            offset(2)+"PRINT_MICRO_BENCH("+groupString+"_timer_post_aggregate);\n"+
+            offset(2)+"PRINT_MICRO_BENCH("+groupString+"_timer_seek);\n"+
+            offset(2)+"PRINT_MICRO_BENCH("+groupString+"_timer_while);\n";
     
     if (_parallelizeGroup[group_id])
     {
@@ -5133,6 +5198,10 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
 
     if (numberContributing > 1)
     {
+        if (MICRO_BENCH)
+           returnString += offset(3+depth)+
+               "BEGIN_MICRO_BENCH(Group"+std::to_string(group_id)+"_timer_seek);\n";
+        
         // Seek Value
         returnString += offset(3+depth)+"found["+depthString+"] = false;\n"+
             offset(3+depth)+"// Seek Value\n" +
@@ -5170,8 +5239,16 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
         returnString += offset(3+depth)+"// If atEnd break loop\n"+
             offset(3+depth)+"if(atEnd["+depthString+"])\n"+
             offset(4+depth)+"break;\n";
+
+        if (MICRO_BENCH)
+            returnString += offset(3+depth)+"END_MICRO_BENCH(Group"+
+                std::to_string(group_id)+"_timer_seek);\n";
     }
-    
+
+    if (MICRO_BENCH)
+        returnString += offset(3+depth)+
+            "BEGIN_MICRO_BENCH(Group"+std::to_string(group_id)+"_timer_while);\n";
+
     off = 1;
     if (viewsPerVar[idx+1] == _qc->numberOfViews())
     {
@@ -5197,6 +5274,10 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
         returnString += updateRanges(depth,viewName[viewID],attrName,false);
     }
 
+    if (MICRO_BENCH)
+        returnString += offset(3+depth)+"END_MICRO_BENCH(Group"+std::to_string(group_id)+
+            "_timer_while);\n";
+
 #ifndef PREVIOUS
     registerAggregatesToLoops(depth,group_id);
 
@@ -5221,6 +5302,11 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
     // setting the addTuple bool to false;
     returnString += offset(3+depth)+"addTuple["+depthString+"] = false;\n";
 
+
+    if (MICRO_BENCH)
+        returnString += offset(3+depth)+
+            "BEGIN_MICRO_BENCH(Group"+std::to_string(group_id)+"_timer_aggregate);\n";
+    
     if (numAggsRegistered > 0)
     {
         returnString += offset(3 + depth)+"memset(&aggregateRegister["+
@@ -5229,7 +5315,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
     }
    
     // We add the definition of the Tuple references and aggregate pointers
-    // TODO: This could probably be simplified
+    // TODO: This could probably be simplified TODO: TODO: TODO: !!!!!
     returnString += offset(3+depth)+relName +"_tuple &"+node._name+"Tuple = "+
         relName+"[lowerptr_"+relName+"["+depthString+"]];\n";
 
@@ -5258,6 +5344,11 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
     // returnString += genAggLoopString(node,loopID,depth,contributingViews,0);
 
     returnString += resetString + loopString;
+    
+    if (MICRO_BENCH)
+        returnString += offset(3+depth)+"END_MICRO_BENCH(Group"+std::to_string(group_id)+
+            "_timer_aggregate);\n";
+
     
     // then you would need to go to next variable
     if (depth+1 < varOrder.size())
@@ -5382,15 +5473,24 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
     dyn_bitset depContributingViews(_qc->numberOfViews()+1);
     loopString += genDependentAggLoopString(
         node,depLoopID,depth,depContributingViews,varOrder.size(),resetString);
-    
+
     postComputationString += resetString+loopString;
 
     if (depth+1 < varOrder.size() && !postComputationString.empty())
         // The computation below is only done if we have satisfying join values 
         returnString += offset(3+depth)+"if (addTuple["+depthString+"]) \n"+
             offset(3+depth)+"{\n";
+    
+    if (MICRO_BENCH)
+        returnString += offset(3+depth)+
+            "BEGIN_MICRO_BENCH(Group"+std::to_string(group_id)+
+            "_timer_post_aggregate);\n";
 
     returnString += postComputationString;
+
+    if (MICRO_BENCH)
+        returnString += offset(3+depth)+"END_MICRO_BENCH(Group"+std::to_string(group_id)+
+            "_timer_post_aggregate);\n";
 
     if (depth+1 < varOrder.size() && !postComputationString.empty())
         returnString += offset(3+depth)+"}\n";

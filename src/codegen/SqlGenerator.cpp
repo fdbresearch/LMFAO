@@ -17,8 +17,9 @@
 using namespace std;
 using namespace multifaq::params;
 
-SqlGenerator::SqlGenerator(const std::string path,
-                           std::shared_ptr<Launcher> launcher) : _pathToData(path)
+SqlGenerator::SqlGenerator(const std::string path, const std::string outDirectory,
+                           std::shared_ptr<Launcher> launcher) :
+    _pathToData(path), _outputDirectory(outDirectory) 
 {
      DINFO("Constructing SQL - Generator \n");
    

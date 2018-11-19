@@ -93,7 +93,7 @@ void TreeDecomposition::buildFromFile(std::string fileName)
         exit(1);
     }
 
-    DINFO("Building the TD from file: " << fileName << "\n");
+    DINFO("Building the TD from file: " << fileName << " ... ");
    
     /* Number of attributes and tables. */
     size_t n, m, e;

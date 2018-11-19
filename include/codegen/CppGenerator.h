@@ -319,14 +319,14 @@ class CppGenerator: public CodeGenerator
 {
 public:
 
-    CppGenerator(const std::string path,
-                 std::shared_ptr<Launcher> launcher);
+    CppGenerator(const std::string path, const std::string outputDirectory,
+                 const bool multioutput_flag, const bool resort_flag,
+                 const bool microbench_flag, std::shared_ptr<Launcher> launcher);
 
     ~CppGenerator();
 
     void generateCode(const ParallelizationType parallelization_type,
-                      bool hasApplicationHandler,
-                      bool hasDynamicFunctions);
+                      bool hasApplicationHandler, bool hasDynamicFunctions);
 
     size_t numberOfGroups()
     {
@@ -335,6 +335,8 @@ public:
     
 private:
     std::string _pathToData;
+
+    std::string _outputDirectory;
 
     std::string _datasetName;
 

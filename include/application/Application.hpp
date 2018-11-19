@@ -12,7 +12,6 @@
 
 #include <memory>
 
-// #include <DataHandler.hpp>
 #include <CompilerUtils.hpp>
 #include <GlobalParams.hpp>
 #include <Logging.hpp>
@@ -52,7 +51,6 @@ public:
 protected:
 
     var_bitset _features;
-
     var_bitset _isFeature;
     var_bitset _isCategoricalFeature;
 

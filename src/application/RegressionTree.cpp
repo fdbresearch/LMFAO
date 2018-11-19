@@ -13,9 +13,7 @@
 
 #include <Launcher.h>
 #include <RegressionTree.h>
-#include <CodegenUtils.hpp>
-
-static const std::string FEATURE_CONF = "/features.conf";
+// #include <CodegenUtils.hpp>
 
 static const char COMMENT_CHAR = '#';
 static const char NUMBER_SEPARATOR_CHAR = ',';

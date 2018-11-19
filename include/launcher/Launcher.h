@@ -12,6 +12,7 @@
 
 #include <Application.hpp>
 #include <CodeGenerator.hpp>
+#include <GlobalParams.hpp>
 #include <Logging.hpp>
 #include <QueryCompiler.h>
 #include <TreeDecomposition.h>
@@ -43,12 +44,9 @@ public:
      * Launches the database operations.
      */
     int launch(const std::string& model, const std::string& codeGenerator,
-               const std::string& parallel);
-
-    // /**
-    //  * Returns a pointer to the DataHandler module.
-    //  */
-    // std::shared_ptr<DataHandler> getDataHandler();
+               const std::string& parallel, const std::string& featureFile,
+               const std::string& tdFile, const std::string& outDirectory,
+               const bool mo, const bool resort, const bool microbench);
 
     /**
      * Returns a pointer to the tree decomposition.
@@ -72,9 +70,6 @@ public:
     
 private:
 
-    // //! DataHandler module of the database.
-    // std::shared_ptr<DataHandler> _dataHandler;
-
     //! Query Compiler that turns queries into views. 
     std::shared_ptr<QueryCompiler> _compiler;
 
@@ -89,6 +84,9 @@ private:
     
     //! Path to the files used by the database.
     std::string _pathToFiles;
+
+    //! Path to the files used by the database.
+    std::string _outputDirectory;
 
     Model _model;
 
