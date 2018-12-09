@@ -45,6 +45,9 @@ void MutualInformation::run()
     _compiler->compile();
 }
 
+void MutualInformation::generateCode(const std::string& outputString)
+{}
+
 
 void MutualInformation::modelToQueries()
 {    

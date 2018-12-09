@@ -1,6 +1,6 @@
 //--------------------------------------------------------------------
 //
-// DataCube.h
+// KMeans.h
 //
 // Created on: Oct 18, 2019
 // Author: Max
@@ -8,8 +8,8 @@
 //--------------------------------------------------------------------
 
 
-#ifndef INCLUDE_APP_DATACUBE_H_
-#define INCLUDE_APP_DATACUBE_H_
+#ifndef INCLUDE_APP_KMEANS_H_
+#define INCLUDE_APP_KMEANS_H_
 
 #include <bitset>
 #include <string>
@@ -24,20 +24,19 @@ class Launcher;
 /**
  * Class that launches regression model on the data, using d-trees.
  */
-class DataCube: public Application
+class KMeans: public Application
 {
 public:
 
-    DataCube(const std::string& pathToFiles,
+    KMeans(const std::string& pathToFiles,
           std::shared_ptr<Launcher> launcher);
 
-    ~DataCube();
+    ~KMeans();
 
     void run();
-
-    void generateCode(const std::string& outputString);
-
     
+    void generateCode(const std::string& outputString);
+        
 private:
     
     //! Physical path to the schema and table files.
@@ -48,18 +47,16 @@ private:
     std::shared_ptr<TreeDecomposition> _td;
 
     size_t* _queryRootIndex = nullptr;
-
-    size_t _labelID;
-
-    var_bitset _measures;
     
     void modelToQueries();
 
     void loadFeatures();
+
+    std::string genComputeGridPointsFunction();
 
     // The two bitsets are defined in ApplicationHandler
     // var_bitset _isFeature;
     // var_bitset _isCategoricalFeature
 };
 
-#endif /* INCLUDE_APP_DATACUBE_H_ */
+#endif /* INCLUDE_APP_KMEANS_H_ */

@@ -36,6 +36,8 @@ public:
 
     void run();
 
+    void generateCode(const std::string& outputString);
+
 //    var_bitset getFeatures();
 
     var_bitset getCategoricalFeatures();

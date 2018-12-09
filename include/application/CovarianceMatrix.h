@@ -34,9 +34,9 @@ public:
     ~CovarianceMatrix();
 
     void run();
-    
-//     var_bitset getCategoricalFeatures();
-    
+  
+    void generateCode(const std::string& outputDirectory);
+
 private:
     
     //! Physical path to the schema and table files.
@@ -59,7 +59,6 @@ private:
     void loadFeatures();
 
     std::vector<Query*> listOfQueries;
-    void generateCode();
     // std::string offset(size_t off);
     // std::string typeToStr(Type t);
     // std::string generateTestDataEvaluation();   

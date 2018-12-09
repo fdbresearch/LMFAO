@@ -47,6 +47,9 @@ void LinearRegression::run()
     _compiler->compile();
 }
 
+void LinearRegression::generateCode(const std::string& outputString)
+{}
+
 // var_bitset LinearRegression::getFeatures()
 // {
 //     cout << _features << endl;

@@ -73,8 +73,6 @@ void RegressionTree::run()
         regressionTreeQueries();
     
     _compiler->compile();
-
-    generateCode();
 }
 
 void RegressionTree::computeCandidates()
@@ -1244,7 +1242,7 @@ std::string RegressionTree::genGiniComputation()
 
 
 
-void RegressionTree::generateCode()
+void RegressionTree::generateCode(const std::string& outDirectory)
 {
     std::string runFunction = offset(1)+"void runApplication()\n"+offset(1)+"{\n"+
         offset(2)+"int64_t startProcess = duration_cast<milliseconds>("+
@@ -1263,7 +1261,7 @@ void RegressionTree::generateCode()
         offset(1)+"}\n";
 
         
-    std::ofstream ofs("runtime/cpp/ApplicationHandler.h", std::ofstream::out);
+    std::ofstream ofs(outDirectory+"ApplicationHandler.h", std::ofstream::out);
     ofs << "#ifndef INCLUDE_APPLICATIONHANDLER_HPP_\n"<<
         "#define INCLUDE_APPLICATIONHANDLER_HPP_\n\n"<<
         "#include \"DataHandler.h\"\n\n"<<
@@ -1272,7 +1270,7 @@ void RegressionTree::generateCode()
         "}\n\n#endif /* INCLUDE_APPLICATIONHANDLER_HPP_*/\n";    
     ofs.close();
 
-    ofs.open("runtime/cpp/ApplicationHandler.cpp", std::ofstream::out);
+    ofs.open(outDirectory+"ApplicationHandler.cpp", std::ofstream::out);
     
     ofs << "#include \"ApplicationHandler.h\"\nnamespace lmfao\n{\n";
     if (_classification)

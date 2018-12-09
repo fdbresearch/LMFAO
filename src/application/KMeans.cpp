@@ -1,18 +1,19 @@
 //--------------------------------------------------------------------
 //
-// Percentile.cpp
+// KMeans.cpp
 //
-// Created on: Feb 1, 2018
+// Created on: Nov 2, 2018
 // Author: Max
 //
 //--------------------------------------------------------------------
+
 
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/phoenix_operator.hpp>
 #include <fstream>
 
 #include <Launcher.h>
-#include <Percentile.h>
+#include <KMeans.h>
 
 static const char COMMENT_CHAR = '#';
 static const char NUMBER_SEPARATOR_CHAR = ',';
@@ -23,9 +24,9 @@ using namespace multifaq::params;
 namespace phoenix = boost::phoenix;
 using namespace boost::spirit;
 
-const size_t numberOfPercentiles = 20;
+using namespace std;
 
-Percentile::Percentile(
+KMeans::KMeans(
     const string& pathToFiles, shared_ptr<Launcher> launcher) :
     _pathToFiles(pathToFiles)
 {
@@ -33,54 +34,58 @@ Percentile::Percentile(
     _td = launcher->getTreeDecomposition();
 }
 
-Percentile::~Percentile()
+KMeans::~KMeans()
 {
 }
 
-void Percentile::run()
-{    
+void KMeans::run()
+{
     loadFeatures();
     modelToQueries();
     _compiler->compile();
 }
 
 
-void Percentile::modelToQueries()
+void KMeans::modelToQueries()
 {
-    varToQuery = new Query*[NUM_OF_VARIABLES+1];
-
-    Aggregate* agg = new Aggregate();
-    agg->_agg.push_back(prod_bitset());
-
-    Query* count = new Query();
-    count->_rootID = _td->_root->_id;
-    count->_aggregates.push_back(agg);            
-    _compiler->addQuery(count);
-
-    varToQuery[NUM_OF_VARIABLES] = count;
-
-    // Create a query & Aggregate
-    for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+    std::vector<std::pair<size_t,Query*>> categoricalQueries;
+    std::vector<std::pair<size_t,Query*>> continuousQueries;
+    
+    for (size_t var = 0; var < NUM_OF_VARIABLES; ++var) 
     {
-        if (_isFeature[var] && !_isCategoricalFeature[var])
-        {
-            Aggregate* agg = new Aggregate();
-            agg->_agg.push_back(prod_bitset());
+        if (!_isFeature[var])
+            continue;
 
-            Query* query = new Query();
-            query->_rootID = _queryRootIndex[var];
-            query->_fVars.set(var);
-            query->_aggregates.push_back(agg);
+        // Categorical variable
+        Aggregate* agg = new Aggregate();
+        agg->_agg.push_back(prod_bitset());
+
+        // Create a query & Aggregate
+        Query* query = new Query();
+        query->_aggregates.push_back(agg);
+        query->_rootID = _queryRootIndex[var];
+        query->_fVars.set(var);
+
+        _compiler->addQuery(query);
+
+        
+        categoricalQueries.push_back(query);
             
-            _compiler->addQuery(query);
-
-            varToQuery[var] = query;
+        if (_isCategoricalFeature[var])
+        {
+            // Categorical variable
+            categoricalQueries.push_back({var,query});
+        }
+        else
+        {
+            // Continuous variable
+            continuousQueries.push_back({var,query});
         }
     }
 }
 
 
-void Percentile::loadFeatures()
+void KMeans::loadFeatures()
 {
     _queryRootIndex = new size_t[NUM_OF_VARIABLES]();
     
@@ -174,81 +179,29 @@ void Percentile::loadFeatures()
 
         if (categorical)
             _isCategoricalFeature.set(attributeID);
-
+        
         _queryRootIndex[attributeID] = rootID;
-
+        
         /* Clear string stream. */
         ssLine.clear();
     }
 }
 
-
-void Percentile::generateCode(const std::string& outputDirectory)
+void KMeans::generateCode(const std::string& outputDirectory)
 {
-    Query* countQuery = varToQuery[NUM_OF_VARIABLES];
-    size_t& countViewID = countQuery->_aggregates[0]->_incoming[0].first;
-    size_t& countAggID = countQuery->_aggregates[0]->_incoming[0].second;
-
-    std::string numPercStr = to_string(numberOfPercentiles);
-
-    std::string percentileComp =
-        // offset(1)+"void computePercentiles()\n"+offset(1)+"{\n"+
-        offset(2)+"size_t tupleCount = (size_t)V"+to_string(countViewID)+
-        "[0].aggregates["+to_string(countAggID)+"], offset = 0, pIndex = 0;\n"+
-        offset(2)+"size_t percentileCounts["+numPercStr+"];\n"+
-        offset(2)+"for (size_t i = 1; i < "+numPercStr+"; i++)\n"+
-        offset(3)+"percentileCounts[i-1] = ceil("+
-        to_string(100.0/(numberOfPercentiles*100))+"*i*tupleCount);\n\n";
-
-    std::string printPerc = "";
+    // TODO: Generate code for KMeans
     
-    // Create a query & Aggregate
-    for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
-    {
-        if (!_isFeature[var])
-            continue; 
+    // TODO: for each categorical query: sort the view by the count
+    // Then select the top k-1 as clusters and the others are one clusters
 
-        std::string& attName =  _td->getAttribute(var)->_name;
-
-        if (!_isCategoricalFeature[var])
-        {
-            Query* query = varToQuery[var];
-            const size_t& viewID = query->_aggregates[0]->_incoming[0].first;
-            const size_t& aggID = query->_aggregates[0]->_incoming[0].second;
-
-            std::string viewStr = "V"+to_string(viewID);
-            std::string typeStr = typeToStr(_td->getAttribute(var)->_type);
-            
-            percentileComp += offset(2)+"offset = 0; pIndex = 0;\n"+
-                offset(2)+typeStr+" percentiles"+attName+"["+
-                to_string(numberOfPercentiles-1)+"];\n"+
-                offset(2)+"for ("+viewStr+"_tuple& tuple : "+viewStr+")\n"+
-                offset(2)+"{\n"+
-                offset(3)+"offset += tuple.aggregates["+to_string(aggID)+"];\n"+
-                offset(3)+"while(offset >= percentileCounts[pIndex])\n"+offset(3)+"{\n"+
-                offset(4)+"percentiles"+attName+"[pIndex] = tuple."+attName+";\n"+
-                offset(4)+"++pIndex;\n"+offset(3)+"}\n"+
-                offset(2)+"}\n\n";
-
-            printPerc += offset(2)+"std::cout << \"{\"<<percentiles"+attName+"[0];\n"+
-                offset(2)+"for (size_t p = 1; p < "+
-                to_string(numberOfPercentiles-1)+"; ++p)\n"+
-                offset(3)+"if (percentiles"+attName+"[p] != "+
-                "percentiles"+attName+"[p-1])\n"+
-                offset(4)+"std::cout << \",\" << percentiles"+attName+"[p];\n"+
-                offset(2)+"std::cout << \"},// percentiles "+attName+"\"<< std::endl;\n";
-        }
-        else
-        {
-            printPerc += offset(2)+"std::cout << \"{},// percentiles "+attName+
-                "\"<<std::endl;\n";
-        }
-    }
-    // percentileComp += printPerc+offset(1)+"}\n\n";
+    // TODO: I need to turn the kmeans per dimension into a grid
+    // then find the weight for each grip point
+    // the latter is done 
     
     std::string runFunction = offset(1)+"void runApplication()\n"+offset(1)+"{\n"+
         offset(2)+"int64_t startProcess = duration_cast<milliseconds>("+
-        "system_clock::now().time_since_epoch()).count();\n"+percentileComp+
+        "system_clock::now().time_since_epoch()).count();\n"+
+        offset(2)+"computeGridPoints();\n"+
         "\n"+offset(2)+"int64_t endProcess = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count()-startProcess;\n"+
         offset(2)+"std::cout << \"Run Application: \"+"+
@@ -257,12 +210,9 @@ void Percentile::generateCode(const std::string& outputDirectory)
         "std::ofstream::app);\n"+
         offset(2)+"ofs << \"\\t\" << endProcess << std::endl;\n"+
         offset(2)+"ofs.close();\n\n"+
-        offset(2)+"std::cout << \"_thresholds = {\\n\";"+
-        printPerc+
-        offset(2)+"std::cout << \"};\\n\";"+
         offset(1)+"}\n";
-        
-    std::ofstream ofs(outputDirectory+"ApplicationHandler.h", std::ofstream::out);
+    
+    std::ofstream ofs(outputDirectory+"/ApplicationHandler.h", std::ofstream::out);
     ofs << "#ifndef INCLUDE_APPLICATIONHANDLER_HPP_\n"<<
         "#define INCLUDE_APPLICATIONHANDLER_HPP_\n\n"<<
         "#include \"DataHandler.h\"\n\n"<<
@@ -271,32 +221,94 @@ void Percentile::generateCode(const std::string& outputDirectory)
         "}\n\n#endif /* INCLUDE_APPLICATIONHANDLER_HPP_*/\n";    
     ofs.close();
 
-    ofs.open(outputDirectory+"ApplicationHandler.cpp", std::ofstream::out);
-    ofs << "#include \"ApplicationHandler.h\"\n"
-        << "namespace lmfao\n{\n";
+    ofs.open(outputDirectory+"/ApplicationHandler.cpp", std::ofstream::out);
+    
+    ofs << "#include \"ApplicationHandler.h\"\nnamespace lmfao\n{\n";
+    ofs << genComputeGridPointsFunction() << std::endl;
     ofs << runFunction << std::endl;
     ofs << "}\n";
     ofs.close();
-    
 }
 
+std::string KMeans::genComputeGridPointsFunction()
+{
+#if defined(__GNUC__) && defined(NDEBUG) && !defined(__clang__)
+    std::string sortAlgo = "__gnu_parallel::sort(";
+#else
+    std::string sortAlgo = "std::sort(";
+#endif
 
-// inline std::string Percentile::offset(size_t off)
-// {
-//     return std::string(off*3, ' ');
-// }
+    std::string returnString = offset(1)+"void computeClusters()\n"+offset(1)+"{\n";
+    
+    for (auto& varQueryPair : categoricalQueries)
+    {
+        // Get view for this query
+        std::pair<size_t,size_t>& viewAggPair =
+            varQueryPair.second->_aggregates[0]->_incoming[0];
 
-// std::string Percentile::typeToStr(Type t)
-// {
-//     switch(t)
-//     {
-//     case Type::Integer : return "int";
-//     case Type::Double : return "double";            
-//     case Type::Short : return "short";
-//     case Type::U_Integer : return "size_t";
-//     default :
-//         ERROR("This type does not exist \n");
-//         exit(1);
-//     }
-// }
+        std::string viewName = "V"+std::to_string(viewAggPair.first);
+        
+        // Sort the view on the count
+        returnString += offset(2)+sortAlgo+viewName+".begin(),"+
+            viewName+".end(),[ ](const "+viewName+"_tuple& lhs, const "+viewName+
+            "_tuple& rhs)\n"+offset(2)+"{\n"+
+            offset(3)+"return lhs.aggregates[0] < rhs.aggregates[0];\n"+
+            offset(2)+"});\n";
+        
+        // Create function for all k clusters
+        for (size_t i = 0; i < k; ++i)
+        {
+            // TODO: we should have an array which stores the values of the
+            // functions
 
+            // the functions then get this value and generate the count for each
+            // grid point
+
+            // so here I just need to set the value in the array 
+        }
+    }
+    
+
+    for (auto& varQueryPair : categoricalQueries)
+    {
+        // Get view for this query
+        std::pair<size_t,size_t>& viewAggPair =
+            varQueryPair.second->_aggregates[0]->_incoming[0];
+
+        std::string viewName = "V"+std::to_string(viewAggPair.first);
+        Attribute* att = _td->getAttribute(varQueryPair.first);
+        std::string& varName = att->_name;
+        
+        // Sort the view on the variable
+        returnString += offset(2)+sortAlgo+viewName+".begin(),"+
+            viewName+".end(),[ ](const "+viewName+"_tuple& lhs, const "+viewName+
+            "_tuple& rhs)\n"+offset(2)+"{\n"+
+            offset(3)+"return lhs."+varName+" < rhs."+varName+";\n"+
+            offset(2)+"});\n";
+        
+        // Gen Dynamic programming code TODO: TODO: create cluster!!
+
+        // First we create a vector of size number of tuples in View 
+        // Then we use that vector to compute running sums
+
+        // These running sums can be used to fill first row in matrix
+
+        // 
+    }
+    
+
+    returnString += offset(1)+"}\n";
+    
+    std::string returnString = offset(1)+"void computeGridPoints()\n"+offset(1)+"{\n";
+
+    
+    // Sort the categorical variables and choose the top k categories
+
+    // TODO: How do we exploit the FDs? And generate grid?
+    
+    // TODO: What is the dimensionality of the Grid? -- d or m ?
+
+    // TODO: What is the relational encoding of the Grid?
+    
+    return returnString+offset(1)+"}\n";
+}

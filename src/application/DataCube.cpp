@@ -47,6 +47,9 @@ void DataCube::run()
     _compiler->compile();
 }
 
+void DataCube::generateCode(const std::string& outputString)
+{}
+
 
 void DataCube::modelToQueries()
 {

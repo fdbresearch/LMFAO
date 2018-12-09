@@ -47,6 +47,8 @@ public:
     {
         return _features;
     }
+
+    virtual void generateCode(const std::string& outputDirectory) = 0;
     
 protected:
 

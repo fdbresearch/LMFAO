@@ -41,7 +41,6 @@ void CovarianceMatrix::run()
     loadFeatures();
     modelToQueries();
     _compiler->compile();
-    generateCode();
 }
 
 void CovarianceMatrix::modelToQueries()
@@ -353,7 +352,7 @@ void CovarianceMatrix::loadFeatures()
     }
 }
 
-void CovarianceMatrix::generateCode()
+void CovarianceMatrix::generateCode(const std::string& outputDirectory)
 {
     std::string dumpListOfQueries = "";
 
@@ -373,7 +372,7 @@ void CovarianceMatrix::generateCode()
         "#endif /* DUMP_OUTPUT */ \n"+
         offset(1)+"}\n";
     
-    std::ofstream ofs("runtime/cpp/ApplicationHandler.h", std::ofstream::out);
+    std::ofstream ofs(outputDirectory+"ApplicationHandler.h", std::ofstream::out);
     ofs << "#ifndef INCLUDE_APPLICATIONHANDLER_HPP_\n"<<
         "#define INCLUDE_APPLICATIONHANDLER_HPP_\n\n"<<
         "#include \"DataHandler.h\"\n\n"<<
@@ -382,7 +381,7 @@ void CovarianceMatrix::generateCode()
         "}\n\n#endif /* INCLUDE_APPLICATIONHANDLER_HPP_*/\n";    
     ofs.close();
 
-    ofs.open("runtime/cpp/ApplicationHandler.cpp", std::ofstream::out);
+    ofs.open(outputDirectory+"ApplicationHandler.cpp", std::ofstream::out);
     ofs << "#include \"ApplicationHandler.h\"\n"
         << "namespace lmfao\n{\n";
     ofs << runFunction << std::endl;

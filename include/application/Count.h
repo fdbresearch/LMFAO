@@ -35,6 +35,8 @@ public:
 
     void run();
     
+    void generateCode(const std::string& outputString);
+
 private:
     
     //! Physical path to the schema and table files.

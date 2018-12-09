@@ -34,6 +34,9 @@ public:
     ~MutualInformation();
 
     void run();
+
+    void generateCode(const std::string& outputString);
+
     
 private:
     
