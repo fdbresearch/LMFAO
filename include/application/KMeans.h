@@ -42,17 +42,30 @@ private:
     //! Physical path to the schema and table files.
     std::string _pathToFiles;
     
+    std::shared_ptr<Launcher> _launcher;
+    
     std::shared_ptr<QueryCompiler> _compiler;
     
     std::shared_ptr<TreeDecomposition> _td;
 
+    const size_t k = 3;
+
     size_t* _queryRootIndex = nullptr;
     
+    std::bitset<multifaq::params::NUM_OF_VARIABLES> clusterVariables;
+    std::vector<std::pair<size_t,Query*>> categoricalQueries;
+    std::vector<std::pair<size_t,Query*>> continuousQueries;
+
+    Query* varToQuery[multifaq::params::NUM_OF_VARIABLES];
+
     void modelToQueries();
 
     void loadFeatures();
 
     std::string genComputeGridPointsFunction();
+
+    std::string genClusterTuple();
+    std::string genKMeansFunction();
 
     // The two bitsets are defined in ApplicationHandler
     // var_bitset _isFeature;

@@ -13,6 +13,7 @@
 #include <fstream>
 
 #include <Launcher.h>
+#include <CppGenerator.h>
 #include <KMeans.h>
 
 static const char COMMENT_CHAR = '#';
@@ -26,31 +27,69 @@ using namespace boost::spirit;
 
 using namespace std;
 
+std::unordered_map<size_t, size_t> clusterToVariableMap;
+
 KMeans::KMeans(
     const string& pathToFiles, shared_ptr<Launcher> launcher) :
-    _pathToFiles(pathToFiles)
+    _pathToFiles(pathToFiles), _launcher(launcher)
 {
     _compiler = launcher->getCompiler();
     _td = launcher->getTreeDecomposition();
+
+    loadFeatures();
+
+    for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+    {
+        if (!_isFeature[var])
+            continue;
+
+        Attribute* att = _td->getAttribute(var);
+        TDNode* node = _td->getRelation(_queryRootIndex[var]);
+
+        if (_isCategoricalFeature[var]) 
+            _td->addAttribute("cluster_"+att->_name,Type::Integer,{true,0.0},node->_id);
+        else
+            _td->addAttribute("cluster_"+att->_name,Type::Double,{true,0.0},node->_id);
+            
+        size_t clusterID = _td->numberOfAttributes()-1;
+        
+        clusterVariables.set(clusterID);
+
+        if (_isCategoricalFeature[var])
+            _isCategoricalFeature.set(clusterID);
+
+        clusterToVariableMap[clusterID] = var;
+        
+    }
 }
 
 KMeans::~KMeans()
-{
+{    
 }
 
 void KMeans::run()
 {
-    loadFeatures();
     modelToQueries();
     _compiler->compile();
 }
 
+Query* countQuery = nullptr;
 
 void KMeans::modelToQueries()
 {
-    std::vector<std::pair<size_t,Query*>> categoricalQueries;
-    std::vector<std::pair<size_t,Query*>> continuousQueries;
-    
+    // Count aggregate
+    Aggregate* agg = new Aggregate();
+    agg->_agg.push_back(prod_bitset());
+
+    // Create count query
+    Query* query = new Query();
+    query->_aggregates.push_back(agg);
+    query->_rootID = _td->_root->_id;
+    query->_fVars = clusterVariables;
+
+    _compiler->addQuery(query);        
+    countQuery = query;
+
     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var) 
     {
         if (!_isFeature[var])
@@ -67,10 +106,7 @@ void KMeans::modelToQueries()
         query->_fVars.set(var);
 
         _compiler->addQuery(query);
-
         
-        categoricalQueries.push_back(query);
-            
         if (_isCategoricalFeature[var])
         {
             // Categorical variable
@@ -81,6 +117,8 @@ void KMeans::modelToQueries()
             // Continuous variable
             continuousQueries.push_back({var,query});
         }
+
+        varToQuery[var] = query;
     }
 }
 
@@ -193,24 +231,24 @@ void KMeans::generateCode(const std::string& outputDirectory)
     
     // TODO: for each categorical query: sort the view by the count
     // Then select the top k-1 as clusters and the others are one clusters
-
+    
     // TODO: I need to turn the kmeans per dimension into a grid
     // then find the weight for each grip point
     // the latter is done 
     
     std::string runFunction = offset(1)+"void runApplication()\n"+offset(1)+"{\n"+
         offset(2)+"int64_t startProcess = duration_cast<milliseconds>("+
-        "system_clock::now().time_since_epoch()).count();\n"+
-        offset(2)+"computeGridPoints();\n"+
-        "\n"+offset(2)+"int64_t endProcess = duration_cast<milliseconds>("+
+        "system_clock::now().time_since_epoch()).count();\n\n"+
+        offset(2)+"computeGrid();\n"+
+        offset(2)+"kMeans();\n\n"+
+        offset(2)+"int64_t endProcess = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count()-startProcess;\n"+
         offset(2)+"std::cout << \"Run Application: \"+"+
         "std::to_string(endProcess)+\"ms.\\n\";\n\n"+
         offset(2)+"std::ofstream ofs(\"times.txt\",std::ofstream::out | " +
         "std::ofstream::app);\n"+
         offset(2)+"ofs << \"\\t\" << endProcess << std::endl;\n"+
-        offset(2)+"ofs.close();\n\n"+
-        offset(1)+"}\n";
+        offset(2)+"ofs.close();\n\n"+offset(1)+"}\n";
     
     std::ofstream ofs(outputDirectory+"/ApplicationHandler.h", std::ofstream::out);
     ofs << "#ifndef INCLUDE_APPLICATIONHANDLER_HPP_\n"<<
@@ -223,12 +261,237 @@ void KMeans::generateCode(const std::string& outputDirectory)
 
     ofs.open(outputDirectory+"/ApplicationHandler.cpp", std::ofstream::out);
     
-    ofs << "#include \"ApplicationHandler.h\"\nnamespace lmfao\n{\n";
+    ofs << "#include \"ApplicationHandler.h\"\n";
+
+    std::shared_ptr<CppGenerator> cppGenerator =
+        std::dynamic_pointer_cast<CppGenerator> (_launcher->getCodeGenerator());
+
+    for (size_t group = 0; group < cppGenerator->numberOfGroups(); ++group)
+        ofs << "#include \"ComputeGroup"+std::to_string(group)+".h\"\n";
+
+    ofs << "\nnamespace lmfao\n{\n";
     ofs << genComputeGridPointsFunction() << std::endl;
     ofs << runFunction << std::endl;
     ofs << "}\n";
     ofs.close();
 }
+
+std::string KMeans::genKMeansFunction()
+{
+    // Get view for grid query -- equivalent to count query
+    const size_t& gridViewID = countQuery->_aggregates[0]->_incoming[0].first;
+    std::string gridViewName = "V"+std::to_string(gridViewID);
+    View* gridView = _compiler->getView(gridViewID);
+
+    const std::string numCategVar = std::to_string(_isCategoricalFeature.count()/2); 
+
+    std::string returnString = "\n";
+
+    // KMeans Function
+    returnString += offset(1)+"void kMeans()\n"+offset(1)+"{\n"+
+        offset(2)+"int64_t startProcess = duration_cast<milliseconds>("+
+        "system_clock::now().time_since_epoch()).count();\n\n"+
+        offset(2)+"const size_t grid_size = "+gridViewName+".size();\n"+
+        offset(2)+"double dist, min_dist, distance_to_mean["+numCategVar+" * k * k];\n"+
+        offset(2)+"size_t best_cluster, iteration = 0;\n\n"+
+        offset(2)+"size_t assignments[grid_size];\n"+
+        offset(2)+"Cluster_mean means[k], cluster_sums[k];\n\n";
+
+    // if (_isCategoricalFeature.any())
+    //     returnString += offset(2)+"onehotEncodeCategVars();\n\n";
+
+    returnString += offset(2)+"// Initialize the means\n"+
+        offset(2)+"for (size_t cluster = 0; cluster < k; ++cluster)\n"+
+        offset(3)+"means[cluster] += "+gridViewName+"[rand() % "+
+        gridViewName+".size()];\n";
+
+
+    returnString += offset(2)+"while(iteration < 1000)\n"+
+        offset(2)+"{\n"+offset(3)+"// Reset the cluster sums to default values \n"+
+        offset(3)+"for (size_t cluster = 0; cluster < k; ++cluster)\n"+
+        offset(4)+"cluster_sums[cluster].reset();\n\n"+
+        offset(3)+"computeMeanDistance(&distance_to_mean[0], &means[0]);\n\n"+
+        offset(3)+"// iterate over grid points and find best cluster for each tuple\n"+
+        offset(3)+"for (size_t tup = 0; tup < grid_size; ++tup)\n"+offset(3)+"{\n"+
+        offset(4)+"min_dist = std::numeric_limits<double>::max();\n"+
+        offset(4)+"best_cluster = k;\n\n"+
+        offset(4)+"// Find clostest cluster to this grid point\n"+
+        offset(4)+"for (size_t cluster = 0; cluster < k; ++cluster)\n"+offset(4)+"{\n"+
+        offset(5)+"distance(dist, "+gridViewName+"[tup], means[cluster],"+
+        " cluster, &distance_to_mean[0]);\n"+
+        offset(5)+"if (dist < min_dist)\n"+offset(5)+"{\n"+
+        offset(6)+"min_dist = dist;\n"+offset(6)+"best_cluster = cluster;\n"+
+        offset(5)+"}\n"+offset(4)+"}\n"+
+        offset(4)+"assignments[tup] = best_cluster;\n"+
+        offset(4)+"cluster_sums[best_cluster] += "+gridViewName+"[tup];\n"+
+        offset(3)+"}\n\n"+
+        offset(3)+"// Update the means\n"+
+        offset(3)+"for (size_t cluster = 0; cluster < k; ++cluster)\n"+offset(3)+"{\n";
+
+    std::string categUpdates = "";
+    // Compute the one-hot encoding for each categorical variable 
+    for (size_t var=0; var < NUM_OF_VARIABLES; ++var)
+    {
+        if (gridView->_fVars[var])
+        {
+            Attribute* att = _td->getAttribute(var);
+            const std::string& attName = att->_name;
+
+            if (_isCategoricalFeature[var])
+            {
+                const size_t& origVar = clusterToVariableMap[var];                
+                const size_t origViewID =
+                    varToQuery[origVar]->_aggregates[0]->_incoming[0].first;
+                const std::string origView = "V"+std::to_string(origViewID);
+                
+                categUpdates +=
+                    offset(4)+"for (size_t i = 0; i < "+origView+".size(); ++i)\n"+
+                    offset(6)+"means[cluster]."+attName+"[i] = "+
+                    "cluster_sums[cluster]."+attName+"[i] / "+
+                    "cluster_sums[cluster].count;\n";
+            }
+            else
+            {
+                returnString += offset(4)+"means[cluster]."+attName+" = "+
+                    "cluster_sums[cluster]."+attName+" / cluster_sums[cluster].count;\n";
+            }
+        }
+    }
+
+    returnString += categUpdates+offset(3)+"}\n";
+
+    returnString += 
+        "//TODO:TODO:check dispersion of the clusters and if clusters have converged\n";
+
+    returnString += offset(3)+"++iteration;\n"+offset(2)+"}\n\n"+
+        offset(2)+"int64_t endProcess = duration_cast<milliseconds>("+
+        "system_clock::now().time_since_epoch()).count()-startProcess;\n"+
+        offset(2)+"std::cout << \"Run kMeans: \"+"+
+        "std::to_string(endProcess)+\"ms.\\n\";\n\n"+
+        offset(2)+"std::ofstream ofs(\"times.txt\",std::ofstream::out | "+
+        "std::ofstream::app);\n"+
+        offset(2)+"ofs << \"\\t\" << endProcess << std::endl;\n"+
+        offset(2)+"ofs.close();\n"+offset(1)+"}\n\n";
+
+    return returnString;
+}
+
+std::string KMeans::genClusterTuple()
+{
+    // Get view for grid query -- equivalent to count query
+    const size_t& gridViewID = countQuery->_aggregates[0]->_incoming[0].first;
+    std::string gridViewName = "V"+std::to_string(gridViewID);
+    View* gridView = _compiler->getView(gridViewID);
+
+    std::string varList = "", initList = "", resetList = "",
+        deleteList = "", updateList = "", rsumList = "", distList = "";
+
+    size_t categVarIndex = 0;
+
+    std::string numCategVar = std::to_string(_isCategoricalFeature.count()/2); 
+    
+    for (size_t var=0; var < NUM_OF_VARIABLES; ++var)
+    {
+        if (gridView->_fVars[var])
+        {
+            Attribute* att = _td->getAttribute(var);
+            const std::string& attName = att->_name;
+            
+            if (_isCategoricalFeature[var])
+            {
+                const size_t& origVar = clusterToVariableMap[var];
+                const size_t origViewID =
+                    varToQuery[origVar]->_aggregates[0]->_incoming[0].first;
+                const std::string origView = "V"+std::to_string(origViewID);
+                
+                varList += offset(2)+"double* "+attName+" = nullptr;\n";
+                initList += offset(3)+attName+" = new double["+origView+".size()]();\n";
+                deleteList += offset(3)+"delete[] "+attName+";\n";
+                resetList += offset(3)+"memset("+attName+
+                    ", 0, "+origView+".size()+sizeof(double));\n";
+
+                updateList += offset(3)+"if (tuple."+attName+" != k-1)\n"+
+                    offset(4)+attName+"[tuple."+attName+"] += 1;\n"+
+                    offset(3)+"else\n"+
+                    offset(4)+"for (size_t t = k-1; t < "+origView+".size(); ++t)\n"+
+                    offset(5)+attName+"[t] += "+origView+"[t].aggregates[0];\n";
+
+                distList += offset(2)+"dist += distance_to_mean[k*(k*"+
+                    std::to_string(categVarIndex)+"+cluster) + tuple."+attName+"];\n";
+                // distList += offset(2)+"dist += distance_to_mean[("+
+                //     std::to_string(categVarIndex)+" * k) + cluster] + distance_to_mean[("+
+                //     numCategVar+"+"+std::to_string(categVarIndex)+"*k)*k + tuple."+
+                //     attName+"];\n";
+                
+                rsumList += "\n"+offset(2)+
+                    "for(size_t cluster = 0; cluster < k; ++cluster)\n"+
+                    offset(2)+"{\n"+
+                    offset(3)+"const Cluster_mean& mean_tuple = means[cluster];\n"+
+                    offset(3)+"sum_mean_squared = 0.0;\n"+
+                    offset(3)+"for (size_t i = 0; i < "+origView+".size(); ++i)\n"+
+                    offset(3)+"{\n"+
+                    offset(4)+"sum_mean_squared += mean_tuple."+attName+"[i] * "+
+                    "mean_tuple."+attName+"[i];\n"+
+                    offset(4)+"difference[std::min(i, k-1)] += "+
+                    origView+"[i].aggregates[0] - 2 * "+origView+"[i].aggregates[0] * "+
+                    "mean_tuple."+attName+"[i];\n"+offset(3)+"}\n"+
+                    offset(3)+"for(size_t cluster = 0; cluster < k; ++cluster)\n"+
+                    offset(3)+"{\n"+
+                    offset(4)+"distance_to_mean[sum_idx] = sum_mean_squared + "+
+                    "difference[cluster];\n"+offset(4)+"++sum_idx;\n"+
+                    offset(3)+"}\n"+offset(2)+"}\n";
+                // rsumList += "\n"+offset(2)+
+                //     "for(size_t cluster = 0; cluster < k; ++cluster)\n"+
+                //     offset(2)+"{\n"+
+                //     offset(3)+"const Cluster_mean& mean_tuple = means[cluster];\n"+
+                //     offset(3)+"for (size_t i = 0; i < "+origView+".size(); ++i)\n"+
+                //     offset(3)+"{\n"+
+                //     offset(4)+"means_squared = mean_tuple."+attName+"[i] * "+
+                //     "mean_tuple."+attName+"[i];\n"+
+                //     offset(4)+"distance_to_mean[sum_idx] += means_squared;\n"+
+                //     offset(4)+"diffs[diff_idx + std::min(i, k-1)] += "+
+                //     "std::pow("+origView+"[i].aggregates[0] - mean_tuple."+
+                //     attName+"[i], 2)"+" - means_squared;\n"+offset(3)+"}\n"+
+                //     offset(3)+"++sum_idx;\n"+offset(3)+"diff_idx += k;\n"+
+                //     offset(2)+"}\n";
+
+                ++categVarIndex;
+                // TODO: TODO: TODO: TODO: find correct view for each categ variable
+            }
+            else
+            {
+                varList +=  offset(2)+"double "+attName+";\n";
+                // initList += attName+"(tuple."+attName+"),";
+                resetList += offset(3)+ attName+" = 0.0;\n";
+                updateList +=  offset(3)+attName+" += tuple."+attName+";\n";
+
+                distList += offset(2)+"dist += std::pow(tuple."+attName+
+                    " - mean_tuple."+attName+", 2);\n";
+            }
+        }
+    }
+    
+    return offset(1)+"struct Cluster_mean\n"+offset(1)+"{\n"+varList+
+        offset(2)+"size_t count;\n\n"+
+        offset(2)+"Cluster_mean()\n"+offset(2)+"{\n"+initList+offset(2)+"}\n\n"+
+        offset(2)+"~Cluster_mean()\n"+offset(2)+"{\n"+deleteList+offset(2)+"}\n\n"+
+        offset(2)+"void reset()\n"+offset(2)+"{\n"+resetList+
+        offset(3)+"count = 0;\n"+offset(2)+"}\n\n"+
+        offset(2)+"Cluster_mean& operator+=(const "+gridViewName+"_tuple& tuple)\n"+
+        offset(2)+"{\n"+updateList+offset(3)+"++count;\n"+offset(3)+"return *this;\n"+
+        offset(2)+"}\n"+offset(1)+"};\n\n"+
+        offset(1)+"void distance(double& dist, const "+gridViewName+"_tuple& tuple, "+
+        "const Cluster_mean& mean_tuple, const size_t& cluster, "+
+        "double* distance_to_mean)\n"+offset(1)+"{\n"+
+        offset(2)+"dist = 0.0;\n"+distList+
+        offset(1)+"}\n\n"+
+        offset(1)+"void computeMeanDistance(double* distance_to_mean, "+
+        "const Cluster_mean *means)\n"+offset(1)+"{\n"+
+        offset(2)+"size_t sum_idx = 0;\n"+
+        offset(2)+"double sum_mean_squared = 0.0, difference[k];\n"+
+        rsumList+offset(1)+"}\n";
+}
+
 
 std::string KMeans::genComputeGridPointsFunction()
 {
@@ -238,39 +501,84 @@ std::string KMeans::genComputeGridPointsFunction()
     std::string sortAlgo = "std::sort(";
 #endif
 
-    std::string returnString = offset(1)+"void computeClusters()\n"+offset(1)+"{\n";
+    // Get view for count query
+    const std::pair<size_t,size_t>& countViewAggPair =
+        countQuery->_aggregates[0]->_incoming[0];
+    const View* countView = _compiler->getView(countViewAggPair.first);
+    std::string countViewName = "V"+std::to_string(countViewAggPair.first);
+
+
+    std::string returnString = offset(1)+"const size_t k = "+std::to_string(k)+";\n";
+
+    returnString += genClusterTuple();
+    returnString += genKMeansFunction();
     
-    for (auto& varQueryPair : categoricalQueries)
+    if (!continuousQueries.empty())
     {
-        // Get view for this query
-        std::pair<size_t,size_t>& viewAggPair =
-            varQueryPair.second->_aggregates[0]->_incoming[0];
+        // Define the auxhiliary arrays
+        returnString += offset(1)+"double *psum_linear = nullptr,*psum_quad = nullptr,"+
+            "**D_matrix = nullptr;\n"+
+            offset(1)+"size_t **T_matrix = nullptr, *rsum_count = nullptr;\n\n";
 
-        std::string viewName = "V"+std::to_string(viewAggPair.first);
-        
-        // Sort the view on the count
-        returnString += offset(2)+sortAlgo+viewName+".begin(),"+
-            viewName+".end(),[ ](const "+viewName+"_tuple& lhs, const "+viewName+
-            "_tuple& rhs)\n"+offset(2)+"{\n"+
-            offset(3)+"return lhs.aggregates[0] < rhs.aggregates[0];\n"+
-            offset(2)+"});\n";
-        
-        // Create function for all k clusters
-        for (size_t i = 0; i < k; ++i)
-        {
-            // TODO: we should have an array which stores the values of the
-            // functions
+        // Define function for clustering continuous variables - with aux fields
+        returnString += offset(1)+"void cluster_cont_var(size_t* offsets, "+
+            "double* means, size_t n)\n"+offset(1)+"{\n"+
+            offset(2)+"double lin = 0.0, quad = 0.0;\n"+
+            offset(2)+"size_t count = 0;\n";
 
-            // the functions then get this value and generate the count for each
-            // grid point
+        // Compute the first row in D and T matrices. 
+        returnString += offset(2)+"// for the first row - i.e. only one cluster \n"+
+            offset(2)+"for (size_t i = 0; i < n; ++i)\n"+offset(2)+"{\n"+
+            offset(3)+"lin = psum_linear[i];\n"+
+            offset(3)+"quad = psum_quad[i];\n"+
+            offset(3)+"D_matrix[0][i] = quad - (lin * lin) / rsum_count[i];\n"+
+            offset(3)+"T_matrix[0][i] = 0;\n"+offset(2)+"}\n\n";
 
-            // so here I just need to set the value in the array 
-        }
+        returnString += offset(2)+"// for each clusters\n"+
+            offset(2)+"for (size_t j = 1; j < k; ++j)\n"+offset(2)+"{\n"+
+            offset(3)+"// for the number of data points \n"+
+            offset(3)+"for (size_t i = j; i < n; ++i)\n"+offset(3)+"{\n"+
+            offset(4)+"lin = psum_linear[i] - psum_linear[j-1];\n"+
+            offset(4)+"quad = psum_quad[i] - psum_quad[j-1];\n"+
+            offset(4)+"count = rsum_count[i] - rsum_count[j-1];\n"+
+            offset(4)+"double min_cost = D_matrix[j-1][i-1] + "+
+            "quad - (lin * lin) / count;\n"+
+            offset(4)+"D_matrix[j][i] = min_cost;\n"+
+            offset(4)+"T_matrix[j][i] = j;\n"+
+            offset(4)+"for (size_t i2 = j+1; i2 <= i; ++i2)\n"+offset(4)+"{\n"+
+            offset(5)+"lin = psum_linear[i] - psum_linear[i2-1];\n"+
+            offset(5)+"quad = psum_quad[i] - psum_quad[i2-1];\n"+
+            offset(5)+"count = rsum_count[i] - rsum_count[i2-1];\n"+
+            offset(5)+"double cost = D_matrix[j-1][i2-1] + "+
+            "quad - (lin * lin) / count;\n"+
+            offset(5)+"if (cost < min_cost)\n"+offset(5)+"{\n"+
+            offset(6)+"D_matrix[j][i] = cost;\n"+
+            offset(6)+"T_matrix[j][i] = i2;\n"+
+            offset(6)+"min_cost = cost;\n"+
+            offset(5)+"}\n"+offset(4)+"}\n"+
+            offset(3)+"}\n"+offset(2)+"}\n";
+
+        returnString += offset(2)+"size_t last = n;\n"+
+            offset(2)+"for (size_t i = k-1; i > 0; --i)\n"+offset(2)+"{\n"+
+            offset(3)+"offsets[i] = T_matrix[i][last-1];\n\n"+
+            offset(3)+"lin = psum_linear[last-1] - "+
+            "(offsets[i] > 0 ? psum_linear[offsets[i]-1] : 0);\n"+
+            offset(3)+"count = rsum_count[last-1] - "+
+            "(offsets[i] > 0 ? rsum_count[offsets[i]-1] : 0);\n"+
+            offset(3)+"means[i] = lin / count;\n\n"+
+            offset(3)+"last = offsets[i];\n"+
+            offset(2)+"}\n";
+
+        returnString += offset(1)+"}\n\n";
     }
     
-
+    returnString += offset(1)+"void computeGrid()\n"+offset(1)+"{\n"+
+        offset(2)+"int64_t startProcess = duration_cast<milliseconds>("+
+        "system_clock::now().time_since_epoch()).count();\n\n"+
+        offset(2)+"double size_of_query_result = "+countViewName+"[0].aggregates[0];\n";
+    
     for (auto& varQueryPair : categoricalQueries)
-    {
+    {        
         // Get view for this query
         std::pair<size_t,size_t>& viewAggPair =
             varQueryPair.second->_aggregates[0]->_incoming[0];
@@ -278,37 +586,263 @@ std::string KMeans::genComputeGridPointsFunction()
         std::string viewName = "V"+std::to_string(viewAggPair.first);
         Attribute* att = _td->getAttribute(varQueryPair.first);
         std::string& varName = att->_name;
+
+        returnString += "\n"+offset(2)+"// For categorical variable "+varName+"\n";
         
-        // Sort the view on the variable
+        // Sort the view on the count
         returnString += offset(2)+sortAlgo+viewName+".begin(),"+
             viewName+".end(),[ ](const "+viewName+"_tuple& lhs, const "+viewName+
             "_tuple& rhs)\n"+offset(2)+"{\n"+
-            offset(3)+"return lhs."+varName+" < rhs."+varName+";\n"+
+            offset(3)+"return lhs.aggregates[0] < rhs.aggregates[0];\n"+
             offset(2)+"});\n";
+
+        // returnString += offset(2)+"std::unordered_map<"+
+        //     typeToStr(att->_type)+", size_t> "+
+        //     varName+"_clusters("+viewName+".size());\n"+
+        //     // offset(2)+varName+"_clusters.reserve("+viewName+".size());\n"+
+        //     offset(2)+"for (size_t l=0; l<k-1; ++l)\n"+
+        //     offset(3)+varName+"_clusters["+viewName+"[l]."+varName+"] = l;\n"+
+        //     offset(2)+"for (size_t l=k-1; l<"+viewName+".size(); ++l)\n"+
+        //     offset(3)+varName+"_clusters["+viewName+"[l]."+varName+"] = k-1;\n";
+    }
+    
+    std::string maxString = "", offsetArrays = "", meanArrays = "";
+    for (auto& varQueryPair : continuousQueries)
+    {
+        // Get view for this query
+        const std::pair<size_t,size_t>& viewAggPair =
+            varQueryPair.second->_aggregates[0]->_incoming[0];
         
-        // Gen Dynamic programming code TODO: TODO: create cluster!!
+        maxString +=  "V"+std::to_string(viewAggPair.first)+".size(),";
+        offsetArrays +=
+            _td->getAttribute(varQueryPair.first)->_name+"_offsets[k+1] = {},";
+        meanArrays +=
+            _td->getAttribute(varQueryPair.first)->_name+"_means[k] = {},";    }
 
-        // First we create a vector of size number of tuples in View 
-        // Then we use that vector to compute running sums
+    if (!continuousQueries.empty())
+    {
+        maxString.pop_back();
+        offsetArrays.pop_back();
+        meanArrays.pop_back();
 
-        // These running sums can be used to fill first row in matrix
+        returnString += "\n"+offset(2)+"size_t "+offsetArrays+";\n"+
+            offset(2)+"double "+meanArrays+";\n"+
+            offset(2)+"size_t max_size = std::max({"+maxString+"});\n\n";
 
-        // 
+        returnString += offset(2)+"psum_linear = new double[max_size]();\n"+
+            offset(2)+"psum_quad = new double[max_size]();\n"+
+            offset(2)+"rsum_count = new size_t[max_size]();\n\n"+
+            offset(2)+"D_matrix = new double*[k];\n"+
+            offset(2)+"T_matrix = new size_t*[k];\n"+
+            offset(2)+"for (size_t i = 0; i < k; ++i)\n"+
+            offset(2)+"{\n"+
+            offset(3)+"D_matrix[i] = new double[max_size+1]();\n"+
+            offset(3)+"T_matrix[i] = new size_t[max_size+1]();\n"+
+            offset(2)+"}\n";        
+    }
+    
+    
+    for (auto& varQueryPair : continuousQueries)
+    {
+        // Get view for this query
+        const std::pair<size_t,size_t>& viewAggPair =
+            varQueryPair.second->_aggregates[0]->_incoming[0];
+
+        std::string viewName = "V"+std::to_string(viewAggPair.first);
+        Attribute* att = _td->getAttribute(varQueryPair.first);
+        std::string& varName = att->_name;
+
+        returnString += "\n"+offset(2)+
+            "// Compute prefix sums for variable "+varName+"\n"+
+            offset(2)+"psum_linear[0] = "+viewName+"[0]."+varName+
+            " * "+viewName+"[0].aggregates[0];\n"+
+            offset(2)+"psum_quad[0] = "+viewName+"[0]."+varName+" * "+
+            viewName+"[0]."+varName+" * "+viewName+"[0].aggregates[0];\n"+
+            offset(2)+"rsum_count[0] = "+viewName+"[0].aggregates[0];\n"+
+            offset(2)+"for(size_t t = 1; t < "+viewName+".size(); ++t)\n"+
+            offset(2)+"{\n"+
+            offset(3)+"const "+viewName+"_tuple& tup = "+viewName+"[t];\n"+
+            offset(3)+"psum_linear[t] = psum_linear[t-1] + tup."+
+            varName+" * tup.aggregates[0];\n"+
+            offset(3)+"psum_quad[t] = psum_quad[t-1] + (tup."+varName+
+            " * tup."+varName+" * tup.aggregates[0]);\n"+
+            offset(3)+"rsum_count[t] = rsum_count[t-1] + tup.aggregates[0];\n"+
+            offset(2)+"}\n\n"+
+            offset(2)+"// Dynamic Programming algo for variable "+varName+"\n"+
+            offset(2)+"cluster_cont_var(&"+varName+"_offsets[0],&"+varName+"_means[0],"+
+            viewName+".size());\n";
+    }
+
+    // replace the cluster variables by their cluster ids
+    returnString += "\n"+offset(2)+
+        "// Update the cluster variables for each tuple\n";
+
+    for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
+    {
+        TDNode* relation = _td->getRelation(rel);
+        
+        returnString += offset(2)+"for ("+relation->_name+"_tuple& tup : "+
+            relation->_name+")\n"+offset(2)+"{\n";
+        
+        for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+        {
+            if (!clusterVariables[var])
+                continue;
+
+            size_t origVar = clusterToVariableMap[var];
+
+            if (_queryRootIndex[origVar] == rel)
+            {
+                Attribute* clusterAtt = _td->getAttribute(var);
+                Attribute* origAtt = _td->getAttribute(origVar);
+
+                const size_t origViewID =
+                    varToQuery[origVar]->_aggregates[0]->_incoming[0].first;
+                
+                if (_isCategoricalFeature[var])
+                {
+                    std::string updateFunction = "(tup."+origAtt->_name+" == "+
+                        "V"+std::to_string(origViewID)+"["+std::to_string(k-1)+"]."+
+                        origAtt->_name+" ? "+std::to_string(k-2)+" : "+
+                        std::to_string(k-1)+")"; 
+                    
+                    for (int c = k-3; c >= 0; --c)
+                    {
+                       updateFunction = "(tup."+origAtt->_name+" == "+
+                           "V"+std::to_string(origViewID)+"["+std::to_string(c+1)+"]."+
+                           origAtt->_name+" ? "+std::to_string(c)+" : "+
+                           updateFunction+")";
+                    }
+
+                    returnString += offset(3)+"tup."+clusterAtt->_name+" = "+
+                        updateFunction+";\n";
+                }
+                else
+                {
+                    const std::string& attName = origAtt->_name;
+                    
+                    // compare value to each threshold and set k accordingly
+                    std::string updateFunction = "(tup."+attName+" < "+
+                        "V"+std::to_string(origViewID)+"["+
+                        attName+"_offsets["+std::to_string(k-2)+"]]."+attName+" ? "+
+                        attName+"_means["+std::to_string(k-2)+"] : "+
+                        attName+"_means["+std::to_string(k-1)+"])";
+
+                    for (int c = k-3; c >= 0; --c)
+                    {
+                       updateFunction = "(tup."+origAtt->_name+" < "+
+                           "V"+std::to_string(origViewID)+"["+
+                           attName+"_offsets["+std::to_string(c)+"]]."+attName+" ? "+
+                           attName+"_means["+std::to_string(c)+"] : "+
+                           updateFunction+")";
+                    }
+                     
+                    returnString += offset(3)+"tup."+clusterAtt->_name+" = "+
+                        updateFunction+" ;\n";
+                }
+            }
+        }
+
+        returnString += offset(2)+"}\n";
     }
     
 
-    returnString += offset(1)+"}\n";
-    
-    std::string returnString = offset(1)+"void computeGridPoints()\n"+offset(1)+"{\n";
+    bool containsView = true;
 
-    
-    // Sort the categorical variables and choose the top k categories
+    std::shared_ptr<CppGenerator> cppGenerator =
+        std::dynamic_pointer_cast<CppGenerator> (_launcher->getCodeGenerator());
+            
+    boost::dynamic_bitset<> recomputedGroups(cppGenerator->numberOfGroups());
+        
+    for (size_t group = 0; group < cppGenerator->numberOfGroups(); ++group)
+    {
+        containsView = false;
+        for (const size_t& view : cppGenerator->getGroup(group))
+        {
+            if (view <= countViewAggPair.first)
+            {
+                // add view as deleted view
+                containsView = true;
+            }
+        }
 
-    // TODO: How do we exploit the FDs? And generate grid?
-    
-    // TODO: What is the dimensionality of the Grid? -- d or m ?
+        if (containsView)
+        {
+            // add this group to be cleared and recomputed
+            recomputedGroups.set(group);
+        }
+    }
 
-    // TODO: What is the relational encoding of the Grid?
+    for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
+    {
+        TDNode* node = _td->getRelation(rel);
+        returnString += offset(2)+"sort"+node->_name+"();\n";
+    }
+        
+    // clear views and re-compute the groups that are need to compute grid 
+    for (size_t group = 0; group < cppGenerator->numberOfGroups(); ++group)
+    {
+        if (recomputedGroups[group])
+        {
+            for  (const size_t& view : cppGenerator->getGroup(group))
+                returnString += offset(2)+"V"+std::to_string(view)+".clear();\n";
+
+            returnString += offset(2)+"computeGroup"+std::to_string(group)+"();\n";
+        }
+    }
+
+    // We resort categorical variables and set their aggregates to the one-hot encoding
+    if(_isCategoricalFeature.any())
+    {
+        returnString += offset(2)+"double last_cluster_size;\n";
     
-    return returnString+offset(1)+"}\n";
+        // Compute the one-hot encoding for each categorical variable 
+        for (size_t var=0; var < NUM_OF_VARIABLES; ++var)
+        {
+            if (countView->_fVars[var] && _isCategoricalFeature[var])
+            {
+                Attribute* att = _td->getAttribute(var);
+                const std::string& attName = att->_name;
+
+                const size_t& origVar = clusterToVariableMap[var];
+                const size_t origViewID =
+                    varToQuery[origVar]->_aggregates[0]->_incoming[0].first;
+                const std::string origView = "V"+std::to_string(origViewID);
+                const std::string& origAttName = _td->getAttribute(origVar)->_name;
+
+
+                returnString += "\n"+offset(2)+
+                    "// For categorical variable "+origAttName+"\n";
+        
+                // Sort the view on the count
+                returnString += offset(2)+sortAlgo+origView+".begin(),"+
+                    origView+".end(),[ ](const "+origView+"_tuple& lhs, const "+origView+
+                    "_tuple& rhs)\n"+offset(2)+"{\n"+
+                    offset(3)+"return lhs.aggregates[0] < rhs.aggregates[0];\n"+
+                    offset(2)+"});\n";
+            
+                returnString += offset(2)+"// one-hot encoding for "+attName+"\n"+
+                    offset(2)+"last_cluster_size = size_of_query_result;\n"+
+                    offset(2)+"for (size_t t = 0; t < "+origView+".size(); ++t)\n"+
+                    offset(2)+"{\n"+offset(3)+"if (t < k-1)\n"+offset(3)+"{\n"+
+                    offset(4)+"last_cluster_size -= "+origView+"[t].aggregates[0];\n"+
+                    offset(4)+""+origView+"[t].aggregates[0] = 1;\n"+
+                    offset(3)+"}\n"+offset(3)+"else\n"+offset(3)+"{\n"+
+                    offset(4)+""+origView+"[t].aggregates[0] = "+
+                    origView+"[t].aggregates[0] / last_cluster_size;\n"+
+                    offset(3)+"}\n"+offset(2)+"}\n";
+            }
+        }
+    }
+
+    returnString += "\n"+offset(2)+"int64_t endProcess = duration_cast<milliseconds>("+
+        "system_clock::now().time_since_epoch()).count()-startProcess;\n"+
+        offset(2)+"std::cout << \"Compute Grid: \"+"+
+        "std::to_string(endProcess)+\"ms.\\n\";\n\n"+
+        offset(2)+"std::ofstream ofs(\"times.txt\",std::ofstream::out | "+
+        "std::ofstream::app);\n"+
+        offset(2)+"ofs << \"\\t\" << endProcess << std::endl;\n"+
+        offset(2)+"ofs.close();\n"+offset(1)+"}\n\n";
+
+    return returnString;
 }

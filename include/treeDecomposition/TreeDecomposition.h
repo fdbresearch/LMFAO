@@ -34,6 +34,8 @@ struct Attribute
     std::string _name;
     Type _type;
 
+    std::pair<bool, double> _constant = {0,0.0};
+    
     Attribute(std::string n, int i) :
         _id(i), _name(n)
     {
@@ -41,6 +43,11 @@ struct Attribute
 
     Attribute(std::string n, int i, Type t) :
         _id(i), _name(n), _type(t)
+    {    
+    }
+
+    Attribute(std::string n, int i, Type t, double d) :
+        _id(i), _name(n), _type(t), _constant(1, d)
     {    
     }
 };
@@ -89,6 +96,9 @@ public:
 
     size_t getRelationIndex(const std::string& name);
 
+    void addAttribute(const std::string name, const Type t,
+                      std::pair<bool,double> constantValue, const size_t relID);
+
 //    const std::vector<size_t>& getLeafNodes();
     
 private:
@@ -115,12 +125,14 @@ private:
     std::unordered_map<std::string, size_t> _relationsMap;
 
     //! Vector storing the IDs for each attribute in each table.
-    std::vector<var_bitset> _attributesInRelation;
+    // std::vector<var_bitset> _attributesInRelation;
     //TODO: This could be taken from the bag bitsets - thus redundant 
     
     void neighborSchema(TDNode* node, size_t originID, var_bitset& schema);
 
     void parentNeighborSchema(TDNode* node, size_t originID, var_bitset schema);
+
+    void updateNeighborSchema(TDNode* node, size_t originID, size_t newAttrID);
 };
 
 #endif /* INCLUDE_TREEDECOMPOSITION_H_ */

@@ -102,8 +102,8 @@ int main(int argc, char *argv[])
    /* Retrieve compulsory path. */
    if (vm.count("path"))
    {
-      pathString = vm["path"].as<std::string>();
-
+      pathString = boost::filesystem::canonical(vm["path"].as<std::string>()).string();
+      
       /*If provided path is not a directory, return failure. */
       if (!boost::filesystem::is_directory(pathString))
       {

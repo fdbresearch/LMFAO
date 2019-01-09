@@ -119,20 +119,20 @@ struct Function
     Function(std::set<size_t> v, Operation o) :
         _operation(o), _dynamic(false)
     {
-        for (int i : v) _fVars.set(i);
+        for (size_t i : v) _fVars.set(i);
     }
 
     Function(std::set<size_t> v, Operation o, double* parameter) :
         _operation(o), _parameter(parameter), _dynamic(false)
     {
-        for (int i : v) _fVars.set(i);
+        for (size_t i : v) _fVars.set(i);
     }
 
     Function(std::set<size_t> v, Operation o, bool dynamic,
              const std::string& name) :
         _operation(o), _dynamic(dynamic), _name(name)
     {
-        for (int i : v) _fVars.set(i);
+        for (size_t i : v) _fVars.set(i);
     }
 
     ~Function()
@@ -205,7 +205,7 @@ struct Query
     Query(std::set<size_t> v, int root) :
         _rootID(root)
     {
-        for (int i : v) _fVars.set(i);
+        for (size_t i : v) _fVars.set(i);
     }
     
     Query() {}

@@ -69,7 +69,12 @@ public:
      * Returns a pointer to the Query Compiler.
      */
     std::shared_ptr<QueryCompiler> getCompiler();
-    
+
+    /**
+     * Returns a pointer to the Code Generator.
+     */
+    std::shared_ptr<CodeGenerator> getCodeGenerator();
+
 private:
 
     //! Query Compiler that turns queries into views. 

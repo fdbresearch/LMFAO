@@ -65,7 +65,7 @@ void SqlGenerator::generateLmfaoQuery()
         View* v = _qc->getView(viewID);
         TDNode* node = _td->getRelation(v->_origin);
 
-        int numberIncomingViews =
+        size_t numberIncomingViews =
             (v->_origin == v->_destination ? node->_numOfNeighbors :
              node->_numOfNeighbors - 1);
         
@@ -96,7 +96,7 @@ void SqlGenerator::generateLmfaoQuery()
                 agg += localAgg;
                 
                 string viewAgg = "";
-                for (int n = 0; n < numberIncomingViews; ++n)
+                for (size_t n = 0; n < numberIncomingViews; ++n)
                 {
                     std::pair<size_t,size_t> viewAggID =
                         aggregate->_incoming[incomingCounter];

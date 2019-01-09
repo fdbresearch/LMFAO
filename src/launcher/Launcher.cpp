@@ -56,6 +56,10 @@ shared_ptr<Application> Launcher::getApplication()
     return _application;
 }
 
+shared_ptr<CodeGenerator> Launcher::getCodeGenerator()
+{
+    return _codeGenerator;
+}
 // Model Launcher::getModel()
 // {
 //     return _model;
@@ -138,7 +142,7 @@ int Launcher::launch(const string& model, const string& codeGenerator,
     {
         _application.reset(
             new KMeans(_pathToFiles, shared_from_this()));
-        // hasApplicationHandler = true;
+        hasApplicationHandler = true;
     }
     else
     {
