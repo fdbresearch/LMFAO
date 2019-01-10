@@ -64,9 +64,11 @@ int main(int argc, char *argv[])
        ("resort", "enables resorting of views / relations, requires multiout off.")
        /* Option to turn off mutlti output operator. */
        ("microbench", "enables micro benchmarking.")
+       ("k", boost::program_options::value<int>()->default_value(3),
+        "k for k-means algorithm. (Default = 3).")
        /* Option for parallellization. */
        ("degree", boost::program_options::value<int>()->default_value(1),
-        "Degree of interactions for regression models and FMs. (Default = 1.)");
+        "Degree of interactions for regression models and FMs. (Default = 1).");
    
 
    /* Register previous options and do command line parsing. */
@@ -171,7 +173,8 @@ int main(int argc, char *argv[])
                                  vm["mo"].as<bool>(),
                                  vm.count("resort"),
                                  vm.count("microbench"),
-                                 vm["compress"].as<bool>()
+                                 vm["compress"].as<bool>(),
+                                 vm["k"].as<int>()
        );
    
 #ifdef BENCH

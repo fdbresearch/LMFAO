@@ -29,7 +29,8 @@ class KMeans: public Application
 public:
 
     KMeans(const std::string& pathToFiles,
-          std::shared_ptr<Launcher> launcher);
+           std::shared_ptr<Launcher> launcher,
+           const int k);
 
     ~KMeans();
 
@@ -48,8 +49,10 @@ private:
     
     std::shared_ptr<TreeDecomposition> _td;
 
-    const size_t k = 3;
+    const size_t _k;
 
+    size_t numberOfOriginalVariables;
+    
     size_t* _queryRootIndex = nullptr;
     
     std::bitset<multifaq::params::NUM_OF_VARIABLES> clusterVariables;
@@ -66,6 +69,7 @@ private:
 
     std::string genClusterTuple();
     std::string genKMeansFunction();
+    std::string genModelEvaluationFunction();
 
     // The two bitsets are defined in ApplicationHandler
     // var_bitset _isFeature;

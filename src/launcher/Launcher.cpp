@@ -69,7 +69,8 @@ int Launcher::launch(const string& model, const string& codeGenerator,
                      const string& parallel, const string& featureFile,
                      const string& tdFile, const string& outDirectory,
                      const bool multioutput_flag, const bool resort_flag,
-                     const bool microbench_flag, const bool compression_flag
+                     const bool microbench_flag, const bool compression_flag,
+                     const int k
     )
 {
     /* Define the Feature Conf File */
@@ -141,7 +142,7 @@ int Launcher::launch(const string& model, const string& codeGenerator,
     else if (model.compare("kmeans") == 0)
     {
         _application.reset(
-            new KMeans(_pathToFiles, shared_from_this()));
+            new KMeans(_pathToFiles, shared_from_this(), k));
         hasApplicationHandler = true;
     }
     else
