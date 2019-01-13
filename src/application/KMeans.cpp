@@ -310,6 +310,7 @@ std::string KMeans::genKMeansFunction()
         offset(2)+"double dist, min_dist, distance_to_mean["+numCategVar+" * k * k];\n"+
         offset(2)+"size_t best_cluster, iteration = 0;\n\n"+
         offset(2)+"size_t assignments[grid_size];\n"+
+        offset(2)+"bool clustersChanged = true;\n\n"+
         offset(2)+"Cluster_mean means[k], cluster_sums[k];\n\n";
 
     // if (_isCategoricalFeature.any())
@@ -321,8 +322,10 @@ std::string KMeans::genKMeansFunction()
         gridViewName+".size()];\n";
 
 
-    returnString += offset(2)+"while(iteration < 1000)\n"+
-        offset(2)+"{\n"+offset(3)+"// Reset the cluster sums to default values \n"+
+    returnString += offset(2)+"do\n"+
+        offset(2)+"{\n"+
+        offset(3)+"clustersChanged = false;\n"+
+        offset(3)+"// Reset the cluster sums to default values \n"+
         offset(3)+"for (size_t cluster = 0; cluster < k; ++cluster)\n"+
         offset(4)+"cluster_sums[cluster].reset();\n\n"+
         offset(3)+"computeMeanDistance(&distance_to_mean[0], &means[0]);\n\n"+
@@ -337,6 +340,8 @@ std::string KMeans::genKMeansFunction()
         offset(5)+"if (dist < min_dist)\n"+offset(5)+"{\n"+
         offset(6)+"min_dist = dist;\n"+offset(6)+"best_cluster = cluster;\n"+
         offset(5)+"}\n"+offset(4)+"}\n"+
+        offset(4)+"clustersChanged = clustersChanged || "+
+        "(assignments[tup] != best_cluster);\n"+
         offset(4)+"assignments[tup] = best_cluster;\n"+
         offset(4)+"cluster_sums[best_cluster] += "+gridViewName+"[tup];\n"+
         offset(3)+"}\n\n"+
@@ -375,19 +380,22 @@ std::string KMeans::genKMeansFunction()
 
     returnString += categUpdates+offset(3)+"}\n";
 
-    returnString += 
-        "//TODO:TODO:check dispersion of the clusters and if clusters have converged\n";
+    // returnString += 
+    // "//TODO:TODO:check dispersion of the clusters and if clusters have converged\n";
 
-    returnString += offset(3)+"++iteration;\n"+offset(2)+"}\n\n"+
+    returnString += offset(3)+"++iteration;\n"+
+        offset(2)+"} while(clustersChanged && iteration < 1000);\n\n"+
         offset(2)+"int64_t endProcess = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count()-startProcess;\n"+
-        offset(2)+"std::cout << \"Run kMeans: \"+"+
-        "std::to_string(endProcess)+\"ms.\\n\";\n\n"+
         offset(2)+"std::ofstream ofs(\"times.txt\",std::ofstream::out | "+
         "std::ofstream::app);\n"+
         offset(2)+"ofs << \"\\t\" << endProcess << std::endl;\n"+
-        offset(2)+"ofs.close();\n\n";
-                                
+        offset(2)+"ofs.close();\n\n"+
+        offset(2)+"std::cout << \"Run kMeans: \"+"+
+        "std::to_string(endProcess)+\"ms.\\n\";\n\n"+
+        offset(2)+"std::cout << \"Number of Iterations: \"+"+
+        "std::to_string(iteration)+\"\\n\";\n\n";
+    
     if (INCLUDE_EVALUATION)
         returnString += offset(2)+"evaluateModel(means);\n";
     return returnString+offset(1)+"}\n\n";
@@ -443,9 +451,8 @@ std::string KMeans::genModelEvaluationFunction()
             const std::string& viewName = "V"+std::to_string(
                 varToQuery[var]->_aggregates[0]->_incoming[0].first);
             
-            distance += "(sum_mean_squared[k*"+std::to_string(categVarIdx)+"+cluster]"+
-                "+1+means[cluster].cluster_"+varName+"["+
-                varName+"_clusterIndex[tuple."+varName+"]])+";
+            distance += "-2*means[cluster].cluster_"+varName+"["+
+                varName+"_clusterIndex[tuple."+varName+"]]";
 
             valueToMeanMap += "\n"+offset(2)+"std::unordered_map<"+
                 typeToStr(att->_type)+", size_t> "+
@@ -456,12 +463,10 @@ std::string KMeans::genModelEvaluationFunction()
             ++categVarIdx;
         }
         else
-            distance += "std::pow(tuple."+att->_name+"-means[cluster].cluster_"+
-                att->_name+",2)+";
+            distance += "+std::pow(tuple."+att->_name+"-means[cluster].cluster_"+
+                att->_name+",2)";
     }
-    distance.pop_back();
-
-
+    
     std::string numCategVar = std::to_string(_isCategoricalFeature.count()/2); 
 
     std::string precompMeanSum = "";
@@ -476,11 +481,14 @@ std::string KMeans::genModelEvaluationFunction()
 
         const std::string& attName = _td->getAttribute(var)->_name;
 
-        precompMeanSum += offset(2)+"for (size_t cluster = 0; cluster < k; ++cluster)\n"+
-            offset(2)+"{\n"+offset(3)+"double s = 0.0;\n"+offset(3)+
-            "for (size_t i = 0; i < "+origView+".size(); ++i)\n"+offset(4)+
-            "sum_mean_squared[idx] += std::pow(means[cluster]."+attName+"[i],2);\n"+
-            offset(3)+"++idx;\n"+offset(2)+"}\n\n";
+        // precompMeanSum += offset(2)+"for (size_t cluster = 0; cluster < k; ++cluster)\n"+
+        //     Offset(2)+"{\N"+offset(3)+"for (size_t i = 0; i < "+origView+".size(); ++i)\n"+
+        //     offset(4)+"sum_mean_squared[idx] += std::pow(means[cluster]."
+        //     +attName+"[i],2);\n"+offset(3)+"++idx;\n"+offset(2)+"}\n\n";
+        
+        precompMeanSum += offset(3)+"for (size_t i = 0; i < "+origView+".size(); ++i)\n"+
+            offset(4)+"sum_mean_squared[cluster] += std::pow(mean_tuple."
+            +attName+"[i],2);\n\n";
     }
     
     std::string evalFunction = offset(1)+"void evaluateModel(Cluster_mean* means)\n"+
@@ -488,18 +496,20 @@ std::string KMeans::genModelEvaluationFunction()
         offset(2)+"std::vector<Test_tuple> TestDataset;\n"+
         offset(2)+"loadTestDataset(TestDataset);\n"+
         offset(2)+"size_t idx = 0;\n"+valueToMeanMap+"\n"+
-        offset(2)+"double sum_mean_squared[k * "+numCategVar+"] = {};\n"+precompMeanSum+
+        offset(2)+"double sum_mean_squared[k] = {};\n"+
+        offset(2)+"for (size_t cluster = 0; cluster < k; ++cluster)\n"+
+        offset(2)+"{\n"+offset(3)+"Cluster_mean& mean_tuple = means[cluster];\n"+
+        precompMeanSum+offset(2)+"}\n"+
         offset(2)+"double distance, error = 0.0, "+
         "min_distance;\n"+
         offset(2)+"for (Test_tuple& tuple : TestDataset)\n"+offset(2)+"{\n"+
         offset(3)+"min_distance = std::numeric_limits<double>::max();\n"+
         offset(3)+"for (size_t cluster = 0; cluster < k; ++cluster)\n"+offset(3)+"{\n"+
-        offset(4)+"distance = "+distance+";\n"+
-        offset(4)+"if (distance < min_distance)\n"+
-        offset(5)+"min_distance = distance;\n"+
-        offset(3)+"}\n"+offset(3)+"error += min_distance;\n"+
-        offset(2)+"}\n"+offset(2)+"error /= TestDataset.size();\n"+
-        offset(2)+"std::cout << \"MSE: \" << error << std::endl;\n"+
+        offset(4)+"distance = "+numCategVar+"+sum_mean_squared[cluster]"+distance+";\n"+
+        offset(4)+"min_distance = std::min(distance, min_distance);\n"+
+        offset(3)+"}\n"+offset(3)+"error += std::sqrt(min_distance);\n"+
+        offset(2)+"}\n"+offset(2)+
+        "std::cout << \"Within Cluster l2-distance: \" << error << std::endl;\n"+
         offset(1)+"}\n";
 
     return testTuple + loadFunction + evalFunction;
