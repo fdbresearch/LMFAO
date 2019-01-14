@@ -309,7 +309,7 @@ std::string KMeans::genKMeansFunction()
         offset(2)+"const size_t grid_size = "+gridViewName+".size();\n"+
         offset(2)+"double dist, min_dist, distance_to_mean["+numCategVar+" * k * k];\n"+
         offset(2)+"size_t best_cluster, iteration = 0;\n\n"+
-        offset(2)+"size_t assignments[grid_size];\n"+
+        offset(2)+"std::vector<size_t> assignments(grid_size,0);\n"+
         offset(2)+"bool clustersChanged = true;\n\n"+
         offset(2)+"Cluster_mean means[k] = {}, cluster_sums[k] = {};\n\n";
 
@@ -609,7 +609,7 @@ std::string KMeans::genClusterTuple()
             }
             else
             {
-                varList +=  offset(2)+"double "+attName+";\n";
+                varList +=  offset(2)+"double "+attName+" = 0.0;\n";
                 // initList += attName+"(tuple."+attName+"),";
                 resetList += offset(3)+ attName+" = 0.0;\n";
                 updateList +=  offset(3)+attName+" += tuple."+attName+
@@ -623,7 +623,7 @@ std::string KMeans::genClusterTuple()
     }
     
     return offset(1)+"struct Cluster_mean\n"+offset(1)+"{\n"+varList+
-        offset(2)+"size_t count;\n\n"+
+        offset(2)+"size_t count = 0;\n\n"+
         offset(2)+"Cluster_mean()\n"+offset(2)+"{\n"+initList+offset(2)+"}\n\n"+
         offset(2)+"~Cluster_mean()\n"+offset(2)+"{\n"+deleteList+offset(2)+"}\n\n"+
         offset(2)+"void reset()\n"+offset(2)+"{\n"+resetList+
