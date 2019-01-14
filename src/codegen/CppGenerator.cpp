@@ -332,13 +332,14 @@ void CppGenerator::genMakeFile()
         std::string groupString = std::to_string(group);
         objectList += "computegroup"+groupString+".o ";
         objectConstruct += "computegroup"+groupString+".o : ComputeGroup"+
-            groupString+".cpp\n\t$(CXX) $(FLAG) $(CXXFLAG) -xc++ -c ComputeGroup"+
+            groupString+".cpp\n\t$(CXX) $(FLAG) $(CXXFLAG) -c ComputeGroup"+
             groupString+".cpp -o computegroup"+groupString+".o\n\n";
     }
     
     std::ofstream ofs(_outputDirectory+"Makefile",std::ofstream::out);
 
-    ofs << "CXXFLAG  += -std=c++11 -O2 -pthread -mtune=native -ftree-vectorize";
+    ofs << "## You can set costum flags by adding: FLAG=-D... \n\n";
+    ofs << "CXXFLAG  += -std=c++11 -O3 -pthread -mtune=native -ftree-vectorize";
 
 #if defined(__GNUC__) && defined(NDEBUG) && !defined(__clang__)
     ofs << " -fopenmp";
@@ -377,6 +378,9 @@ void CppGenerator::genMakeFile()
         << ".PHONY : dump\n"
         << "dump : FLAG = -DDUMP_OUTPUT\n"
         << "dump : lmfao\n\n"
+        << ".PHONY : debug\n"
+        << "debug : CXXFLAG += -std=c++11 -g\n"
+        << "debug : lmfao\n\n"
         << ".PHONY : clean\n"
         << "clean :\n"
 	<< "\trm *.o lmfao";

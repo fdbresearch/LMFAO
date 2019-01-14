@@ -311,7 +311,7 @@ std::string KMeans::genKMeansFunction()
         offset(2)+"size_t best_cluster, iteration = 0;\n\n"+
         offset(2)+"size_t assignments[grid_size];\n"+
         offset(2)+"bool clustersChanged = true;\n\n"+
-        offset(2)+"Cluster_mean means[k], cluster_sums[k];\n\n";
+        offset(2)+"Cluster_mean means[k] = {}, cluster_sums[k] = {};\n\n";
 
     // if (_isCategoricalFeature.any())
     //     returnString += offset(2)+"onehotEncodeCategVars();\n\n";
@@ -319,7 +319,7 @@ std::string KMeans::genKMeansFunction()
     returnString += offset(2)+"// Initialize the means\n"+
         offset(2)+"for (size_t cluster = 0; cluster < k; ++cluster)\n"+
         offset(3)+"means[cluster] = "+gridViewName+"[rand() % "+
-        gridViewName+".size()];\n";
+        gridViewName+".size()];\n\n";
 
 
     returnString += offset(2)+"do\n"+
