@@ -507,7 +507,7 @@ std::string KMeans::genModelEvaluationFunction()
         offset(3)+"for (size_t cluster = 0; cluster < k; ++cluster)\n"+offset(3)+"{\n"+
         offset(4)+"distance = "+numCategVar+"+sum_mean_squared[cluster]"+distance+";\n"+
         offset(4)+"min_distance = std::min(distance, min_distance);\n"+
-        offset(3)+"}\n"+offset(3)+"error += std::sqrt(min_distance);\n"+
+        offset(3)+"}\n"+offset(3)+"error += min_distance;\n"+
         offset(2)+"}\n"+offset(2)+
         "std::cout << \"Within Cluster l2-distance: \" << error << std::endl;\n"+
         offset(1)+"}\n";

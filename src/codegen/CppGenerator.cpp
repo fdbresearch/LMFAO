@@ -379,8 +379,13 @@ void CppGenerator::genMakeFile()
         << "dump : FLAG = -DDUMP_OUTPUT\n"
         << "dump : lmfao\n\n"
         << ".PHONY : debug\n"
-        << "debug : CXXFLAG += -std=c++11 -g\n"
-        << "debug : lmfao\n\n"
+        << "debug : CXXFLAG += -std=c++11 -g";
+
+#if defined(__GNUC__) && defined(NDEBUG) && !defined(__clang__)
+    ofs << " -fopenmp";
+#endif
+    
+    ofs << "\ndebug : lmfao\n\n"
         << ".PHONY : clean\n"
         << "clean :\n"
 	<< "\trm *.o lmfao";
