@@ -20,6 +20,9 @@
 #include <Logging.hpp>
 
 
+std::string multifaq::params::PATH_TO_DATA = "";
+std::string multifaq::params::DATASET_NAME = "";
+
 int main(int argc, char *argv[])
 {
    /* Object containing a description of all the options available in the
@@ -104,7 +107,10 @@ int main(int argc, char *argv[])
    /* Retrieve compulsory path. */
    if (vm.count("path"))
    {
-      pathString = boost::filesystem::canonical(vm["path"].as<std::string>()).string();
+       boost::filesystem::path p =
+           boost::filesystem::canonical(vm["path"].as<std::string>());
+       
+      pathString = p.string();
       
       /*If provided path is not a directory, return failure. */
       if (!boost::filesystem::is_directory(pathString))
@@ -112,6 +118,9 @@ int main(int argc, char *argv[])
          ERROR("Provided path is not a directory. \n");
          return EXIT_FAILURE;   
       }
+
+      multifaq::params::DATASET_NAME += p.filename().string();
+      multifaq::params::PATH_TO_DATA += p.string();
    }
    else
    {

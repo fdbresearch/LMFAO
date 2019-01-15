@@ -313,7 +313,7 @@ void CovarianceMatrix::loadFeatures()
 
         if (rootID == -1)
         {
-            ERROR("Relation |"+rootName+"| does not exist.");
+            ERROR("Relation |"+rootName+"| for "+attrName+" does not exist.");
             exit(1);
         }
 

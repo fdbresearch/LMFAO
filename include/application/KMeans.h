@@ -70,6 +70,7 @@ private:
     std::string genClusterTuple();
     std::string genKMeansFunction();
     std::string genModelEvaluationFunction();
+    std::string genClusterInitialization(const std::string& gridName);
 
     // The two bitsets are defined in ApplicationHandler
     // var_bitset _isFeature;

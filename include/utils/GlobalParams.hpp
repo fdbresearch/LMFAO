@@ -56,11 +56,14 @@ namespace multifaq
 #else
         const size_t NUM_OF_TABLES = 10;
 #endif
-
+        
         extern std::string FEATURE_CONF;
         
         extern std::string TREEDECOMP_CONF;
+        
+        extern std::string PATH_TO_DATA;
 
+        extern std::string DATASET_NAME;
     }
 }
 
