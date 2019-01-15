@@ -463,8 +463,8 @@ std::string KMeans::genModelEvaluationFunction()
             ++categVarIdx;
         }
         else
-            distance += "+(tuple."+att->_name+"-means[cluster].cluster_"+att->_name+
-                "*tuple."+att->_name+"-means[cluster].cluster_"+att->_name+")";
+            distance += "+((tuple."+att->_name+"-means[cluster].cluster_"+att->_name+")"+
+                "*(tuple."+att->_name+"-means[cluster].cluster_"+att->_name+"))";
     }
     
     std::string numCategVar = std::to_string(_isCategoricalFeature.count()/2); 
@@ -524,7 +524,8 @@ std::string KMeans::genClusterTuple()
     View* gridView = _compiler->getView(gridViewID);
 
     std::string varList = "", initList = "", resetList = "", deleteList = "",
-        updateList = "", setList = "", rsumList = "", distList = "", categDistList = "";
+        updateList = "", setList = "", rsumList = "", distList = "", categDistList = "",
+        categResetList = "";
 
     size_t categVarIndex = 0;
 
@@ -543,12 +544,13 @@ std::string KMeans::genClusterTuple()
                 const size_t origViewID =
                     varToQuery[origVar]->_aggregates[0]->_incoming[0].first;
                 const std::string origView = "V"+std::to_string(origViewID);
+                const std::string& origAtt = _td->getAttribute(origVar)->_name;
                 
                 varList += offset(2)+"double* "+attName+" = nullptr;\n";
                 initList += offset(3)+attName+" = new double["+origView+".size()]();\n";
                 deleteList += offset(3)+"delete[] "+attName+";\n";
-                resetList += offset(3)+"memset("+attName+
-                    ", 0, "+origView+".size()+sizeof(double));\n";
+                categResetList += offset(3)+"memset("+attName+
+                    ", 0, "+origView+".size()*sizeof(double));\n";
 
                 updateList += offset(3)+"if (tuple."+attName+" != k-1)\n"+
                     offset(4)+attName+"[tuple."+attName+"] += tuple.aggregates[0];\n"+
@@ -556,18 +558,17 @@ std::string KMeans::genClusterTuple()
                     offset(4)+"for (size_t t = k-1; t < "+origView+".size(); ++t)\n"+
                     offset(5)+attName+"[t] += "+origView+"[t].aggregates[0] * "+
                     "tuple.aggregates[0];\n";
-
                 
-                setList += offset(3)+"if (tuple."+attName+" != k-1)\n"+
-                    offset(4)+attName+"[tuple."+attName+"] = 1;\n"+
-                    offset(3)+"else\n"+
-                    offset(4)+"for (size_t t = k-1; t < "+origView+".size(); ++t)\n"+
-                    offset(5)+attName+"[t] = "+origView+"[t].aggregates[0];\n";
+                setList +=
+                    offset(3)+"for (size_t t = 0; t < "+origView+".size(); ++t)\n"+
+                    offset(4)+"if (tuple."+attName+" == "+origView+"[t]."+origAtt+")\n"+
+                    offset(4)+"{\n"+offset(5)+attName+"[t] = 1;\n"+
+                    offset(5)+"break;\n"+offset(4)+"}\n";
 
                 categDistList += offset(2)+"dist += distance_to_mean[k*(k*"+
                     std::to_string(categVarIndex)+"+cluster) + tuple."+attName+"];\n";
                 // distList += offset(2)+"dist += distance_to_mean[("+
-                //     std::to_string(categVarIndex)+" * k) + cluster] + distance_to_mean[("+
+                // std::to_string(categVarIndex)+" * k) + cluster] + distance_to_mean[("+
                 //     numCategVar+"+"+std::to_string(categVarIndex)+"*k)*k + tuple."+
                 //     attName+"];\n";
                 
@@ -627,15 +628,14 @@ std::string KMeans::genClusterTuple()
         offset(2)+"size_t count = 0;\n\n"+
         offset(2)+"Cluster_mean()\n"+offset(2)+"{\n"+initList+offset(2)+"}\n\n"+
         offset(2)+"~Cluster_mean()\n"+offset(2)+"{\n"+deleteList+offset(2)+"}\n\n"+
-        offset(2)+"void reset()\n"+offset(2)+"{\n"+resetList+
+        offset(2)+"void reset()\n"+offset(2)+"{\n"+resetList+categResetList+
         offset(3)+"count = 0;\n"+offset(2)+"}\n\n"+
         offset(2)+"Cluster_mean& operator+=(const "+gridViewName+"_tuple& tuple)\n"+
         offset(2)+"{\n"+updateList+offset(3)+"count += tuple.aggregates[0];\n"+
-        offset(3)+"return *this;\n"+
-        offset(2)+"}\n"+
+        offset(3)+"return *this;\n"+offset(2)+"}\n"+
         offset(2)+"Cluster_mean& operator=(const "+gridViewName+"_tuple& tuple)\n"+
-        offset(2)+"{\n"+setList+offset(3)+"count = 0;\n"+offset(3)+"return *this;\n"+
-        offset(2)+"}\n"+offset(1)+"};\n\n"+
+        offset(2)+"{\n"+categResetList+setList+offset(3)+"count = 0;\n"+
+        offset(3)+"return *this;\n"+offset(2)+"}\n"+offset(1)+"};\n\n"+
         offset(1)+"void distance(double& dist, const "+gridViewName+"_tuple& tuple, "+
         "const Cluster_mean& mean_tuple, const size_t& cluster, "+
         "double* distance_to_mean)\n"+offset(1)+"{\n"+
@@ -823,7 +823,8 @@ std::string KMeans::genComputeGridPointsFunction()
             offset(4)+varName+"_means[t] = std::numeric_limits<double>::infinity();\n"+
             offset(3)+"}\n"+
             offset(3)+"if ("+viewName+".size() != k)\n"+
-            offset(4)+viewName+".push_back(std::numeric_limits<double>::infinity());\n"+
+            offset(4)+viewName+".push_back(std::numeric_limits<"+
+            typeToStr(att->_type)+">::infinity());\n"+
             offset(2)+"}\n"+offset(2)+"else\n"+offset(2)+"{\n"+
             offset(3)+"// Compute prefix sums for variable "+varName+"\n"+
             offset(3)+"psum_linear[0] = "+viewName+"[0]."+varName+
@@ -1050,15 +1051,13 @@ std::string KMeans::genClusterInitialization(const std::string& gridName)
             {
                 continue;
             }
-
-            std::cout << line << std::endl;
             initList.push_back(line+"\n");
         }
     }
 
     std::string returnString = offset(2)+"// Initialize the means\n";
     
-    for (size_t str = 0; str < initList.size(); ++str)
+    for (size_t str = 0; str < std::min(initList.size(), _k); ++str)
     {
         returnString += offset(2)+"means["+std::to_string(str)+"] = "+
             initList[str];
