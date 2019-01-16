@@ -8,7 +8,7 @@ def read_views(file_name: str):
     with open(file_name) as file:
         first_line= file.readline()
         second_line = file.readline().strip()
-        array = [int(x) for x in second_line.split("|")]
+        array = [float(x) for x in second_line.split("|")]
         return array
 
 def get_triangualar_array(views_path, views):

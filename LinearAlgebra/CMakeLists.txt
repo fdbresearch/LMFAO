@@ -16,8 +16,9 @@ set(CMAKE_BUILD_TYPE Debug)
 
 set(LMFAO_LA_ROOT .)
 set(LMFAO_LA_TEST ${LMFAO_LA_ROOT}/tests)
+set(LMFAO_LA_INCLUDE ${LMFAO_LA_ROOT}/include)
 
-include_directories(include)
+include_directories(${LMFAO_LA_INCLUDE})
  
 file(GLOB SOURCES "src/*.cpp")
 add_executable(lmfaola main.cpp)

@@ -6669,9 +6669,11 @@ std::string CppGenerator::genDumpFunction()
             ".size(); ++i)\n"+offset(2)+"{\n"+offset(3)+
             viewName[viewID]+"_tuple& tuple = "+viewName[viewID]+"[i];\n"+
             offset(3)+"ofs "+fields+"\"\\n\";\n"+offset(2)+"}\n";
+        returnString += offset(2)+"ofs.close();\n";
     }
 
-    returnString += offset(2)+"ofs.close();\n"+offset(1)+"}\n"+"#endif\n";
+    returnString += offset(1)+"}\n"+"#endif\n";
+
     return returnString;
 }
 
