@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <fstream>
 #include <string>
+#include <thread>
 #include <queue>
 #include <unordered_set>
 
@@ -996,7 +997,8 @@ void CppGenerator::computeParallelizeGroup(bool paralleize_groups)
         if (node->_threads > 1)
         {
             _parallelizeGroup[gid] = true;            
-            _threadsPerGroup[gid] = 8;
+            _threadsPerGroup[gid] =
+                std::min(node->_threads, (size_t)std::thread::hardware_concurrency());
         }        
     }
 }
