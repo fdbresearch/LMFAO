@@ -379,7 +379,7 @@ void CppGenerator::genMakeFile()
         << "dump : FLAG = -DDUMP_OUTPUT\n"
         << "dump : lmfao\n\n"
         << ".PHONY : debug\n"
-        << "debug : CXXFLAG += -std=c++11 -g";
+        << "debug : CXXFLAG = -std=c++11 -g";
 
 #if defined(__GNUC__) && defined(NDEBUG) && !defined(__clang__)
     ofs << " -fopenmp";

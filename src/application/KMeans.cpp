@@ -335,8 +335,8 @@ std::string KMeans::genKMeansFunction()
     std::string nthreadString = std::to_string(nthreads);
     
     // Open do loop
-    returnString += offset(2)+"std::vector<std::vector<Cluster_mean>> localClusterSums("+
-        nthreadString+", std::vector<Cluster_mean>(k));\n"+
+    returnString += offset(2)+"Cluster_mean localClusterSums[k*"+
+        nthreadString+"] = {};\n"+
         offset(2)+"bool localClustersChanged["+nthreadString+"];\n\n"+
         offset(2)+"do\n"+offset(2)+"{\n"+
         offset(3)+"clustersChanged = false;\n"+
@@ -348,10 +348,8 @@ std::string KMeans::genKMeansFunction()
         "private(min_dist,dist,best_cluster)\n"+
         offset(3)+"{\n"+
         offset(4)+"size_t thread_num = omp_get_thread_num();\n"+
-        offset(4)+"std::vector<Cluster_mean> &locClusterSum = "+
-        "localClusterSums[thread_num];\n"+
         offset(4)+"for (size_t cluster = 0; cluster < k; ++cluster)\n"+
-        offset(4)+"locClusterSum[cluster].reset();\n"+
+        offset(4)+"localClusterSums[k*"+nthreadString+"+cluster].reset();\n"+
         offset(4)+"localClustersChanged[thread_num] = false;\n\n"+
         offset(4)+"// iterate over grid points and find best cluster for each tuple\n"+
         offset(4)+"#pragma omp for\n"+
@@ -368,14 +366,14 @@ std::string KMeans::genKMeansFunction()
         offset(5)+"localClustersChanged[thread_num] = "+
         "localClustersChanged[thread_num] || (assignments[tup] != best_cluster);\n"+
         offset(5)+"assignments[tup] = best_cluster;\n"+
-        offset(5)+"locClusterSum[best_cluster] += "+gridViewName+"[tup];\n"+
-        offset(4)+"}\n"+offset(3)+"}\n\n";
+        offset(5)+"localClusterSums[k*"+nthreadString+"+best_cluster] += "+
+        gridViewName+"[tup];\n"+offset(4)+"}\n"+offset(3)+"}\n\n";
 
     std::string clusterCount = "size_t cluster_count = ",
         clusterChange = "clustersChanged =";
     for (size_t thread = 0; thread < nthreads; ++thread)
     {
-        clusterCount += "localClusterSums["+std::to_string(thread)+"][cluster].count+";
+        clusterCount += "localClusterSums["+std::to_string(thread)+"*k+cluster].count+";
         clusterChange += " localClustersChanged["+std::to_string(thread)+"] |";
     }
     clusterCount.pop_back();
@@ -408,8 +406,8 @@ std::string KMeans::genKMeansFunction()
 
                   for (size_t thread = 0; thread < nthreads; ++thread)
                 {
-                    categLocalUpdates += "localClusterSums["+std::to_string(thread)+"]"+
-                        "[cluster]."+attName+"[i]+";
+                    categLocalUpdates += "localClusterSums["+std::to_string(thread)+
+                        "*k+cluster]."+attName+"[i]+";
                 }
                 categLocalUpdates.pop_back();
                 categLocalUpdates += ") / cluster_count;\n";
@@ -419,8 +417,8 @@ std::string KMeans::genKMeansFunction()
                 contLocalUpdates += offset(4)+"means[cluster]."+attName+" = (";
                 for (size_t thread = 0; thread < nthreads; ++thread)
                 {
-                    contLocalUpdates += "localClusterSums["+std::to_string(thread)+"]"+
-                        "[cluster]."+attName+"+";
+                    contLocalUpdates += "localClusterSums["+std::to_string(thread)+
+                        "*k+cluster]."+attName+"+";
                 }
                 contLocalUpdates.pop_back();
                 contLocalUpdates += ") / cluster_count;\n";
