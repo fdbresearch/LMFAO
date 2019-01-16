@@ -11,10 +11,13 @@
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/phoenix_operator.hpp>
 #include <fstream>
+#include <thread>
 
 #include <Launcher.h>
 #include <CppGenerator.h>
 #include <KMeans.h>
+
+// #define USE_OMP
 
 static const char COMMENT_CHAR = '#';
 static const char NUMBER_SEPARATOR_CHAR = ',';
@@ -307,8 +310,8 @@ std::string KMeans::genKMeansFunction()
         offset(2)+"int64_t startProcess = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count();\n\n"+
         offset(2)+"const size_t grid_size = "+gridViewName+".size();\n"+
-        offset(2)+"double dist, min_dist, distance_to_mean["+numCategVar+" * k * k];\n"+
         offset(2)+"size_t best_cluster, iteration = 0;\n\n"+
+        offset(2)+"double dist, min_dist, distance_to_mean["+numCategVar+" * k * k];\n"+
         offset(2)+"std::vector<size_t> assignments(grid_size,0);\n"+
         offset(2)+"bool clustersChanged = true;\n\n"+
         offset(2)+"Cluster_mean means[k] = {}, cluster_sums[k] = {};\n\n";
@@ -320,10 +323,121 @@ std::string KMeans::genKMeansFunction()
     //     offset(3)+"means[cluster] = "+gridViewName+"[rand() % "+
     //     gridViewName+".size()];\n\n";
 
+    // Code that initializes the clusters
     returnString += genClusterInitialization(gridViewName);
+
+
+    // If we are gcc, we can use openmp to paralellize the computation do loop
+    // for KMeans
+#if defined(USE_OMP) || defined(__GNUC__) && defined(NDEBUG) && !defined(__clang__)
+
+    size_t nthreads = std::thread::hardware_concurrency();
+    std::string nthreadString = std::to_string(nthreads);
     
-    returnString += offset(2)+"do\n"+
-        offset(2)+"{\n"+
+    // Open do loop
+    returnString += offset(2)+"std::vector<std::vector<Cluster_mean>> localClusterSums("+
+        nthreadString+", std::vector<Cluster_mean>(k));\n"+
+        offset(2)+"bool localClustersChanged["+nthreadString+"];\n\n"+
+        offset(2)+"do\n"+offset(2)+"{\n"+
+        offset(3)+"clustersChanged = false;\n"+
+        offset(3)+"// Reset the cluster sums to default values \n"+
+        offset(3)+"for (size_t cluster = 0; cluster < k; ++cluster)\n"+
+        offset(4)+"cluster_sums[cluster].reset();\n\n"+
+        offset(3)+"computeMeanDistance(&distance_to_mean[0], &means[0]);\n\n"+
+        offset(3)+"#pragma omp parallel num_threads("+nthreadString+") "+
+        "private(min_dist,dist,best_cluster)\n"+
+        offset(3)+"{\n"+
+        offset(4)+"size_t thread_num = omp_get_thread_num();\n"+
+        offset(4)+"std::vector<Cluster_mean> &locClusterSum = "+
+        "localClusterSums[thread_num];\n"+
+        offset(4)+"for (size_t cluster = 0; cluster < k; ++cluster)\n"+
+        offset(4)+"locClusterSum[cluster].reset();\n"+
+        offset(4)+"localClustersChanged[thread_num] = false;\n\n"+
+        offset(4)+"// iterate over grid points and find best cluster for each tuple\n"+
+        offset(4)+"#pragma omp for\n"+
+        offset(4)+"for (size_t tup = 0; tup < grid_size; ++tup)\n"+offset(4)+"{\n"+
+        offset(5)+"min_dist = std::numeric_limits<double>::max();\n"+
+        offset(5)+"best_cluster = k;\n\n"+
+        offset(5)+"// Find clostest cluster to this grid point\n"+
+        offset(5)+"for (size_t cluster = 0; cluster < k; ++cluster)\n"+offset(5)+"{\n"+
+        offset(6)+"distance(dist, "+gridViewName+"[tup], means[cluster],"+
+        " cluster, &distance_to_mean[0]);\n"+
+        offset(6)+"if (dist < min_dist)\n"+offset(6)+"{\n"+
+        offset(7)+"min_dist = dist;\n"+offset(7)+"best_cluster = cluster;\n"+
+        offset(6)+"}\n"+offset(5)+"}\n"+
+        offset(5)+"localClustersChanged[thread_num] = "+
+        "localClustersChanged[thread_num] || (assignments[tup] != best_cluster);\n"+
+        offset(5)+"assignments[tup] = best_cluster;\n"+
+        offset(5)+"locClusterSum[best_cluster] += "+gridViewName+"[tup];\n"+
+        offset(4)+"}\n"+offset(3)+"}\n\n";
+
+    std::string clusterCount = "size_t cluster_count = ",
+        clusterChange = "clustersChanged =";
+    for (size_t thread = 0; thread < nthreads; ++thread)
+    {
+        clusterCount += "localClusterSums["+std::to_string(thread)+"][cluster].count+";
+        clusterChange += " localClustersChanged["+std::to_string(thread)+"] |";
+    }
+    clusterCount.pop_back();
+    clusterChange.pop_back();
+    clusterChange.pop_back();
+
+    clusterCount += ";\n";
+    clusterChange += ";\n";
+    
+    std::string contLocalUpdates = "", categLocalUpdates = "";
+
+    // Compute the one-hot encoding for each categorical variable 
+    for (size_t var=0; var < NUM_OF_VARIABLES; ++var)
+    {
+        if (gridView->_fVars[var])
+        {
+            Attribute* att = _td->getAttribute(var);
+            const std::string& attName = att->_name;
+
+            if (_isCategoricalFeature[var])
+            {
+                const size_t& origVar = clusterToVariableMap[var];                
+                const size_t origViewID =
+                    varToQuery[origVar]->_aggregates[0]->_incoming[0].first;
+                const std::string origView = "V"+std::to_string(origViewID);
+                
+                categLocalUpdates +=
+                    offset(4)+"for (size_t i = 0; i < "+origView+".size(); ++i)\n"+
+                    offset(6)+"means[cluster]."+attName+"[i] = (";
+
+                  for (size_t thread = 0; thread < nthreads; ++thread)
+                {
+                    categLocalUpdates += "localClusterSums["+std::to_string(thread)+"]"+
+                        "[cluster]."+attName+"[i]+";
+                }
+                categLocalUpdates.pop_back();
+                categLocalUpdates += ") / cluster_count;\n";
+            }
+            else
+            {
+                contLocalUpdates += offset(4)+"means[cluster]."+attName+" = (";
+                for (size_t thread = 0; thread < nthreads; ++thread)
+                {
+                    contLocalUpdates += "localClusterSums["+std::to_string(thread)+"]"+
+                        "[cluster]."+attName+"+";
+                }
+                contLocalUpdates.pop_back();
+                contLocalUpdates += ") / cluster_count;\n";
+            }
+        }
+    }
+        
+    returnString += offset(3)+"// Combine the clusters and update mean\n"+
+        offset(3)+clusterChange+
+        offset(3)+"for (size_t cluster = 0; cluster < k; ++cluster)\n"+offset(3)+"{\n"+
+        offset(4)+clusterCount+contLocalUpdates+categLocalUpdates+offset(3)+"}\n";
+    
+#else // If we are on clang and cannot use openmp
+
+    // Open do loop
+    returnString +=
+        offset(2)+"do\n"+offset(2)+"{\n"+
         offset(3)+"clustersChanged = false;\n"+
         offset(3)+"// Reset the cluster sums to default values \n"+
         offset(3)+"for (size_t cluster = 0; cluster < k; ++cluster)\n"+
@@ -344,8 +458,9 @@ std::string KMeans::genKMeansFunction()
         "(assignments[tup] != best_cluster);\n"+
         offset(4)+"assignments[tup] = best_cluster;\n"+
         offset(4)+"cluster_sums[best_cluster] += "+gridViewName+"[tup];\n"+
-        offset(3)+"}\n\n"+
-        offset(3)+"// Update the means\n"+
+        offset(3)+"}\n\n";
+
+    returnString += offset(3)+"// Update the means\n"+
         offset(3)+"for (size_t cluster = 0; cluster < k; ++cluster)\n"+offset(3)+"{\n";
 
     std::string categUpdates = "";
@@ -379,6 +494,7 @@ std::string KMeans::genKMeansFunction()
     }
 
     returnString += categUpdates+offset(3)+"}\n";
+#endif
 
     // returnString += 
     // "//TODO:TODO:check dispersion of the clusters and if clusters have converged\n";
