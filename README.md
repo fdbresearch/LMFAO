@@ -5,7 +5,17 @@ It does not compute the parameters. The code to compute the final model is curre
 be added once completed. The convergence step, however, does not take a lot of time, and therefore the provided code 
 is a good indicator of the over all runtime.
 
-# Scripts To Run:
+## Installation
+
+In order to compile the LMFAO project, you need to have `cmake` installed.
+Then, you need to run the following commands:
+
+```
+cmake .
+make
+```
+
+## Scripts To Run:
 
 The following script runs LMFAO 5 times and reports the performance in the runtime directory.
 
