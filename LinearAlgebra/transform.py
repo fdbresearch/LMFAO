@@ -22,13 +22,28 @@ def get_triangualar_array(views_path, views):
     return array
 
 def get_uppper_cell_value(triangular_array, n: int, row_idx: int, col_idx: int):
+    if (row_idx == 1) and (col_idx == 1):
+        return triagnular_array[0]
+    #print("Before row_idx: {} col_idx:{}".format(row_idx, col_idx))
+    if (row_idx == 1):
+        row_idx = col_idx - 1
+        col_idx = row_idx
+    else: 
+        row_idx = row_idx - 1
+    # The part above is used to make mapping possible because 
+    # value of triangular matrix are not outputted in the right order
+    # They are sorted IF^2 IF * F1 F1^2 F1 * F2 F1 * F3 ... F1 * FN
+    #                      IF * F2 F2^2 F2 * F3   ....      F2 * FN
+    #                                               IF * FN FN^2
+    # When we omit IF^2 and sort data, we get triangular matrix of size n,
+    # whose correct column is one in the right, and whose correct row is one 
+    # above. 
+
     idx_cur  = n - row_idx + 1
-    offset = col_idx - row_idx
-    #print("idx_cur: {} offset: {}".format(idx_cur, offset))
     idx = int(n * (n + 1) / 2 - idx_cur  * (idx_cur + 1) / 2)
-    #print(idx)
-    #print(triagnular_array[idx + offset])
-    return triagnular_array[idx + offset]
+    offset = col_idx - row_idx
+    #print("row_idx: {} col_idx:{} idx:{} offset:{}".format(row_idx, col_idx, idx, offset))
+    return triagnular_array[idx + offset + 1]
 
 def get_cell_value(triagnular_array, n: int, row: int, col: int):
     if row > col:
@@ -48,7 +63,6 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--path", dest="path", required=True)
 
     args = parser.parse_args()
-    #print(args.path)
     runtime_path = args.path
     views = {}
 
@@ -68,5 +82,4 @@ if __name__ == "__main__":
             val = get_cell_value(triagnular_array, n, row, col)
             print("{:>2}".format(val), end=" ")
         print()
-
 
