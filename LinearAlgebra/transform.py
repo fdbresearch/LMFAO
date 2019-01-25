@@ -29,6 +29,7 @@ def parse_features_order(data_path: str):
             features.append({
                 'name': feature_id_name['name'], 
                 'is_cat': False,
+                'domain_size': 0,
                 'is_valid': False})
 
     # Parse features.conf for type of features and to see which features are included
@@ -45,21 +46,47 @@ def parse_features_order(data_path: str):
             if line.strip().startswith('#'):
                 continue
             feature_name_is_cat = {'name': line.strip().split(':')[0], 
-                               'is_cat':  int(line.strip().split(':')[1]) != 0}
+                               'is_cat':  int(line.strip().split(':')[1]) != 0,
+                               'domain_size': int(line.strip().split(':')[1])}
             feature_idx = features_name_idx[feature_name_is_cat['name']]
             features[feature_idx]['is_cat'] = feature_name_is_cat['is_cat']
+            features[feature_idx]['domain_size'] = feature_name_is_cat['domain_size']
             features[features_name_idx[feature_name_is_cat['name']]]['is_valid'] = True
             cnt += 1
     features = [feature for feature in features if feature['is_valid']]
     #print(features)
     return features
 
-def read_views(file_name: str):
+def read_view(file_name: str):
+    #print(file_name)
     with open(file_name) as file:
-        first_line= file.readline()
-        second_line = file.readline().strip()
-        array = [float(x) for x in second_line.split("|")]
-        return array
+        first_line = file.readline()
+        value_dimension = int(first_line.strip().split(" ")[0])
+        num_elements = int(first_line.strip().split(" ")[1])
+
+        array_line_splits = []
+        while True:
+            second_line = file.readline().strip()
+            if not second_line:
+                break
+            array_line_splits.append(second_line.split("|"))
+   
+    vectors = []
+    for idx_elem in range(0, num_elements):
+        vector = {}
+        for line in array_line_splits:
+            if value_dimension == 0:
+                tuple_key = ()
+            elif value_dimension == 1:
+                tuple_key = (float(line[0]), )
+            elif value_dimension == 2:
+                tuple_key = (float(line[0]), float(line[1]))
+            vector[tuple_key] = float(line[idx_elem + value_dimension])
+        vectors.append(vector)
+    #print(vectors)
+
+    return vectors            
+
 
 def get_triangualar_array(views_path, views):
     array = []
@@ -115,35 +142,92 @@ def get_cell_value(triangular_array, n: int, row: int, col: int, cat_features_cn
         (row, col) = (col, row)
     return get_uppper_cell_value(triangular_array, n, row, col, cat_features_cnt, features)
 
+
+def print_cell(row, col, val, cell_type, domain_size_cnt):
+    row = row - 1
+    col = col - 1
+    if cell_type == 'c':
+        print("{} {} {}".format(row + domain_size_cnt[row], col + domain_size_cnt[col], 
+                                val[()]))
+    elif cell_type == 'rv':
+        for dom_val in val:
+            print("{} {} {}".format(row + domain_size_cnt[row] + int(dom_val[0]), 
+                                    col + domain_size_cnt[col], val[dom_val]))
+    elif cell_type == 'cv':
+        for dom_val in val:
+            print("{} {} {}".format(row + domain_size_cnt[row] , 
+                                    col + domain_size_cnt[col] + int(dom_val[0]), val[dom_val]))
+    elif cell_type == 'd':
+        #print(row, col)
+        #print('matd{}'.format(val))
+        for dom_val in val:
+            print("{} {} {}".format(row + domain_size_cnt[row] + int(dom_val[0]), 
+                                    col + domain_size_cnt[col] + int(dom_val[0]), val[dom_val])) 
+    elif cell_type == 'm':
+        #print(row, col)
+        #print('matp{}'.format(val))
+        for dom_val in val:
+            print("{} {} {}".format(row + domain_size_cnt[row] + int(dom_val[0]), 
+                                    col + domain_size_cnt[col] + int(dom_val[1]), val[dom_val])) 
+        pass
+
 def parse_faqs(output_path: str, features):
     views = {}
 
     for file_name in os.listdir(output_path):
         if file_name.endswith(".tbl"):
-            view = read_views(os.path.join(output_path, file_name))
-            #print(read_views(file_name))
+            view = read_view(os.path.join(output_path, file_name))
+            #print(read_view(file_name))
             views[int(file_name.split(".")[0][1:])] = view
     #print(views)
+
 
     triangular_array = get_triangualar_array(output_path, views)
     #print ("Len of trarray: {0}".format(len(triangular_array)))
     n = int(math.floor(math.sqrt(len(triangular_array) * 2)))
-    print("{0} {0}".format(n))
+    #print("{0} {0}".format(n))
 
-    cat_features_cnt = [0] * (len(features) + 1)
-    for idx in range(1, len(features) + 1):
+    features = [{
+                'name': 'intercept', 
+                'is_cat': False,
+                'domain_size': 0,
+                'is_valid': True}] + features
+
+    #print(features)
+
+    cat_features_cnt = [0] * (len(features))
+    domain_size_cnt = [0] * (len(features))
+    for idx in range(1, len(features)):
         cat_features_cnt[idx] = cat_features_cnt[idx - 1]
-        #print(features[idx -1])
-        if features[idx -1]['is_cat']:
+        domain_size_cnt[idx] = domain_size_cnt[idx - 1] + features[idx]['domain_size']
+        if features[idx]['is_cat']:
             cat_features_cnt[idx] += 1
 
-
-    #print(cat_features_cnt)
+    domain_size_cnt = [0] + domain_size_cnt
+    #print(domain_size_cnt)
+    print('{:0}'.format(n + domain_size_cnt[-1]))
     for row in range (1, n + 1):
         for col in range(1, n + 1):
+            feature_row = features[row-1]
+            feature_col  = features[col-1]
+            #print(feature_row)
+            #print(feature_col)
             val = get_cell_value(triangular_array, n, row, col, cat_features_cnt, features)
-            print("{:>2}".format(val), end=" ")
-        print()
+            cell_type = ''
+            # Continuous * categorical is row vector.
+            if (not feature_row['is_cat']) and (not (feature_col['is_cat'])):
+                cell_type = 'c'
+            elif (feature_col['is_cat']) and not (feature_row['is_cat']):
+                cell_type = 'cv'
+            elif not (feature_col['is_cat']) and feature_row['is_cat']:
+                cell_type = 'rv'
+            elif (feature_col['is_cat']) and feature_row['is_cat'] and (row == col):
+                cell_type = 'd'
+            else:
+                cell_type = 'm'
+            #print(row, col)
+            print_cell(row, col, val, cell_type, domain_size_cnt)
+        #print()
 
 ''' 
 For usage of this program, user should pass the argument path which represents 
