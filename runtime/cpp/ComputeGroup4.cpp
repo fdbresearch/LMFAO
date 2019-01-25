@@ -116,16 +116,16 @@ namespace lmfao
          {
             ++upperptr_V3[0];
          }
-            if(max_locn > Inventory[Inventory.size()-1].locn)
+            if(max_locn > Inventory_locn[Inventory.size()-1])
             {
                atEnd[0] = true;
                break;
             }
-            else if (max_locn > Inventory[lowerptr_Inventory[0]].locn)
+            else if (max_locn > Inventory_locn[lowerptr_Inventory[0]])
             {
                leap = 1;
                high = lowerptr_Inventory[0];
-               while (high <= Inventory.size()-1 && Inventory[high].locn < max_locn)
+               while (high <= Inventory.size()-1 && Inventory_locn[high] < max_locn)
                {
                   high += leap;
                   leap *= 2;
@@ -137,9 +137,9 @@ namespace lmfao
                while (low <= high)
                {
                   mid = (high + low) / 2;
-                  if (max_locn < Inventory[mid].locn)
+                  if (max_locn < Inventory_locn[mid])
                      high = mid - 1;
-                  else if(max_locn > Inventory[mid].locn)
+                  else if(max_locn > Inventory_locn[mid])
                      low = mid + 1;
                   else if  (low != mid)
                      high = mid;
@@ -147,17 +147,17 @@ namespace lmfao
                      break;
                }
                lowerptr_Inventory[0] = mid;
-               if (max_locn > Inventory[lowerptr_Inventory[0]].locn)
+               if (max_locn > Inventory_locn[lowerptr_Inventory[0]])
                   std::cout << "ERROR: max_locn > Inventory[lowerptr_Inventory[0]].locn\n";
             }
-               if (max_locn < Inventory[lowerptr_Inventory[0]].locn)
+               if (max_locn < Inventory_locn[lowerptr_Inventory[0]])
                {
-                  max_locn = Inventory[lowerptr_Inventory[0]].locn;
+                  max_locn = Inventory_locn[lowerptr_Inventory[0]];
                   found[0] = false;
                   continue;
                }
          upperptr_Inventory[0] = lowerptr_Inventory[0];
-         while(upperptr_Inventory[0]<Inventory.size()-1 && Inventory[upperptr_Inventory[0]+1].locn == max_locn)
+         while(upperptr_Inventory[0]<Inventory.size()-1 && Inventory_locn[upperptr_Inventory[0]+1] == max_locn)
          {
             ++upperptr_Inventory[0];
          }
@@ -168,7 +168,7 @@ namespace lmfao
             break;
          addTuple[0] = false;
          memset(&aggregateRegister[0], 0, sizeof(double) * 1);
-         Inventory_tuple &InventoryTuple = Inventory[lowerptr_Inventory[0]];
+         // Inventory_tuple &InventoryTuple = Inventory[lowerptr_Inventory[0]];
          V1_tuple &V1Tuple = V1[lowerptr_V1[0]];
          double *aggregates_V1 = V1Tuple.aggregates;
          V2_tuple &V2Tuple = V2[lowerptr_V2[0]];
@@ -234,16 +234,16 @@ namespace lmfao
             {
                ++upperptr_V3[1];
             }
-               if(max_dateid > Inventory[upperptr_Inventory[0]].dateid)
+               if(max_dateid > Inventory_dateid[upperptr_Inventory[0]])
                {
                   atEnd[1] = true;
                   break;
                }
-               else if (max_dateid > Inventory[lowerptr_Inventory[1]].dateid)
+               else if (max_dateid > Inventory_dateid[lowerptr_Inventory[1]])
                {
                   leap = 1;
                   high = lowerptr_Inventory[1];
-                  while (high <= upperptr_Inventory[0] && Inventory[high].dateid < max_dateid)
+                  while (high <= upperptr_Inventory[0] && Inventory_dateid[high] < max_dateid)
                   {
                      high += leap;
                      leap *= 2;
@@ -255,9 +255,9 @@ namespace lmfao
                   while (low <= high)
                   {
                      mid = (high + low) / 2;
-                     if (max_dateid < Inventory[mid].dateid)
+                     if (max_dateid < Inventory_dateid[mid])
                         high = mid - 1;
-                     else if(max_dateid > Inventory[mid].dateid)
+                     else if(max_dateid > Inventory_dateid[mid])
                         low = mid + 1;
                      else if  (low != mid)
                         high = mid;
@@ -265,17 +265,17 @@ namespace lmfao
                         break;
                   }
                   lowerptr_Inventory[1] = mid;
-                  if (max_dateid > Inventory[lowerptr_Inventory[1]].dateid)
+                  if (max_dateid > Inventory_dateid[lowerptr_Inventory[1]])
                      std::cout << "ERROR: max_dateid > Inventory[lowerptr_Inventory[1]].dateid\n";
                }
-                  if (max_dateid < Inventory[lowerptr_Inventory[1]].dateid)
+                  if (max_dateid < Inventory_dateid[lowerptr_Inventory[1]])
                   {
-                     max_dateid = Inventory[lowerptr_Inventory[1]].dateid;
+                     max_dateid = Inventory_dateid[lowerptr_Inventory[1]];
                      found[1] = false;
                      continue;
                   }
             upperptr_Inventory[1] = lowerptr_Inventory[1];
-            while(upperptr_Inventory[1]<upperptr_Inventory[0] && Inventory[upperptr_Inventory[1]+1].dateid == max_dateid)
+            while(upperptr_Inventory[1]<upperptr_Inventory[0] && Inventory_dateid[upperptr_Inventory[1]+1] == max_dateid)
             {
                ++upperptr_Inventory[1];
             }
@@ -286,7 +286,7 @@ namespace lmfao
                break;
             addTuple[1] = false;
             memset(&aggregateRegister[1], 0, sizeof(double) * 1);
-            Inventory_tuple &InventoryTuple = Inventory[lowerptr_Inventory[1]];
+            // Inventory_tuple &InventoryTuple = Inventory[lowerptr_Inventory[1]];
             V1_tuple &V1Tuple = V1[lowerptr_V1[1]];
             double *aggregates_V1 = V1Tuple.aggregates;
             V2_tuple &V2Tuple = V2[lowerptr_V2[1]];
@@ -352,16 +352,16 @@ namespace lmfao
                {
                   ++upperptr_V2[2];
                }
-                  if(max_ksn > Inventory[upperptr_Inventory[1]].ksn)
+                  if(max_ksn > Inventory_ksn[upperptr_Inventory[1]])
                   {
                      atEnd[2] = true;
                      break;
                   }
-                  else if (max_ksn > Inventory[lowerptr_Inventory[2]].ksn)
+                  else if (max_ksn > Inventory_ksn[lowerptr_Inventory[2]])
                   {
                      leap = 1;
                      high = lowerptr_Inventory[2];
-                     while (high <= upperptr_Inventory[1] && Inventory[high].ksn < max_ksn)
+                     while (high <= upperptr_Inventory[1] && Inventory_ksn[high] < max_ksn)
                      {
                         high += leap;
                         leap *= 2;
@@ -373,9 +373,9 @@ namespace lmfao
                      while (low <= high)
                      {
                         mid = (high + low) / 2;
-                        if (max_ksn < Inventory[mid].ksn)
+                        if (max_ksn < Inventory_ksn[mid])
                            high = mid - 1;
-                        else if(max_ksn > Inventory[mid].ksn)
+                        else if(max_ksn > Inventory_ksn[mid])
                            low = mid + 1;
                         else if  (low != mid)
                            high = mid;
@@ -383,17 +383,17 @@ namespace lmfao
                            break;
                      }
                      lowerptr_Inventory[2] = mid;
-                     if (max_ksn > Inventory[lowerptr_Inventory[2]].ksn)
+                     if (max_ksn > Inventory_ksn[lowerptr_Inventory[2]])
                         std::cout << "ERROR: max_ksn > Inventory[lowerptr_Inventory[2]].ksn\n";
                   }
-                     if (max_ksn < Inventory[lowerptr_Inventory[2]].ksn)
+                     if (max_ksn < Inventory_ksn[lowerptr_Inventory[2]])
                      {
-                        max_ksn = Inventory[lowerptr_Inventory[2]].ksn;
+                        max_ksn = Inventory_ksn[lowerptr_Inventory[2]];
                         found[2] = false;
                         continue;
                      }
                upperptr_Inventory[2] = lowerptr_Inventory[2];
-               while(upperptr_Inventory[2]<upperptr_Inventory[1] && Inventory[upperptr_Inventory[2]+1].ksn == max_ksn)
+               while(upperptr_Inventory[2]<upperptr_Inventory[1] && Inventory_ksn[upperptr_Inventory[2]+1] == max_ksn)
                {
                   ++upperptr_Inventory[2];
                }
@@ -404,7 +404,7 @@ namespace lmfao
                   break;
                addTuple[2] = false;
                memset(&aggregateRegister[2], 0, sizeof(double) * 1);
-               Inventory_tuple &InventoryTuple = Inventory[lowerptr_Inventory[2]];
+               // Inventory_tuple &InventoryTuple = Inventory[lowerptr_Inventory[2]];
                V1_tuple &V1Tuple = V1[lowerptr_V1[2]];
                double *aggregates_V1 = V1Tuple.aggregates;
                V2_tuple &V2Tuple = V2[lowerptr_V2[2]];
