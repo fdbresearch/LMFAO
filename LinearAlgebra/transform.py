@@ -143,32 +143,52 @@ def get_cell_value(triangular_array, n: int, row: int, col: int, cat_features_cn
     return get_uppper_cell_value(triangular_array, n, row, col, cat_features_cnt, features)
 
 
+SKIP_CAT_F = True
+
 def print_cell(row, col, val, cell_type, domain_size_cnt):
     row = row - 1
     col = col - 1
+
+    SKIP_DISP = 1 if SKIP_CAT_F else 0
+
     if cell_type == 'c':
         print("{} {} {}".format(row + domain_size_cnt[row], col + domain_size_cnt[col], 
                                 val[()]))
     elif cell_type == 'rv':
         for dom_val in val:
-            print("{} {} {}".format(row + domain_size_cnt[row] + int(dom_val[0]), 
+            first_cat_dom  = int(dom_val[0])
+            if SKIP_CAT_F and (first_cat_dom == 0):
+                continue
+            print("{} {} {}".format(row + domain_size_cnt[row] + int(dom_val[0]) - SKIP_DISP, 
                                     col + domain_size_cnt[col], val[dom_val]))
     elif cell_type == 'cv':
         for dom_val in val:
-            print("{} {} {}".format(row + domain_size_cnt[row] , 
-                                    col + domain_size_cnt[col] + int(dom_val[0]), val[dom_val]))
+            first_cat_dom  = int(dom_val[0])
+            if SKIP_CAT_F and (first_cat_dom == 0):
+                continue
+            print("{} {} {}".format(row + domain_size_cnt[row], 
+                                    col + domain_size_cnt[col] + int(dom_val[0]) - SKIP_DISP , val[dom_val]))
     elif cell_type == 'd':
         #print(row, col)
         #print('matd{}'.format(val))
         for dom_val in val:
-            print("{} {} {}".format(row + domain_size_cnt[row] + int(dom_val[0]), 
-                                    col + domain_size_cnt[col] + int(dom_val[0]), val[dom_val])) 
+            first_cat_dom  = int(dom_val[0])
+            if SKIP_CAT_F and (first_cat_dom == 0):
+                continue
+            print("{} {} {}".format(row + domain_size_cnt[row] + int(dom_val[0]) - SKIP_DISP , 
+                                    col + domain_size_cnt[col] + int(dom_val[0]) - SKIP_DISP, 
+                                    val[dom_val])) 
     elif cell_type == 'm':
         #print(row, col)
         #print('matp{}'.format(val))
         for dom_val in val:
-            print("{} {} {}".format(row + domain_size_cnt[row] + int(dom_val[0]), 
-                                    col + domain_size_cnt[col] + int(dom_val[1]), val[dom_val])) 
+            first_cat_dom1  = int(dom_val[0])
+            first_cat_dom2  = int(dom_val[0])
+            if SKIP_CAT_F and ((first_cat_dom1 == 0) or (first_cat_dom2 == 0)):
+                continue
+            print("{} {} {}".format(row + domain_size_cnt[row] + int(dom_val[0]) - SKIP_DISP, 
+                                    col + domain_size_cnt[col] + int(dom_val[1]) - SKIP_DISP, 
+                                    val[dom_val])) 
         pass
 
 def parse_faqs(output_path: str, features):
@@ -199,9 +219,12 @@ def parse_faqs(output_path: str, features):
     domain_size_cnt = [0] * (len(features))
     for idx in range(1, len(features)):
         cat_features_cnt[idx] = cat_features_cnt[idx - 1]
+
         domain_size_cnt[idx] = domain_size_cnt[idx - 1] + features[idx]['domain_size']
         if features[idx]['is_cat']:
             cat_features_cnt[idx] += 1
+            if SKIP_CAT_F:
+                domain_size_cnt[idx] -= 1
 
     domain_size_cnt = [0] + domain_size_cnt
     #print(domain_size_cnt)
