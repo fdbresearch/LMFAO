@@ -294,6 +294,7 @@ public:
     CppGenerator(const std::string path, const std::string outputDirectory,
                  const bool multioutput_flag, const bool resort_flag,
                  const bool microbench_flag, const bool compression_flag,
+                 const bool column_flag,
                  std::shared_ptr<Launcher> launcher);
 
     ~CppGenerator();
@@ -651,6 +652,12 @@ private:
         const TDNode& node, const size_t loop, size_t depth,
         const boost::dynamic_bitset<>& contributingViews,
         const size_t numOfOutViewLoops, std::string& resetString);
+
+    bool isRelation(std::string relName);
+
+    std::string relationFieldAccess(std::string relName, std::string field, std::string index);
+
+    std::string relationSize(std::string relName);
 
 #ifdef OLD
     // TODO: RENAME 
