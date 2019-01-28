@@ -1,11 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <matrix.h>
-#include <matrixutil.h>
-#include <clusteringutility.h>
-#include <distributions.h>
-#include <polynomial.h>
-
+/*
 TEST(Matrix, Compare) {
     Matrix<long double> init({
                               { 1,2,2},
@@ -24,3 +19,4 @@ TEST(Matrix, Compare) {
     A = Q * R;
     ASSERT_EQ(MatrixUtil<long double>::compareEquals(A, init), true);
 }
+*/
