@@ -11,6 +11,7 @@
 namespace lmfao
 {
    std::vector<Inventory_tuple> Inventory;
+   size_t Inventory_size;
    int* Inventory_locn;
    int* Inventory_dateid;
    int* Inventory_ksn;
@@ -111,11 +112,12 @@ namespace lmfao
       int64_t endProcess = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count()-startProcess;
       std::cout << "Sort Relation Inventory: "+std::to_string(endProcess)+"ms.\n";
       startProcess = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
-      Inventory_locn = (int*)malloc(sizeof(int) * Inventory.size());
-      Inventory_dateid = (int*)malloc(sizeof(int) * Inventory.size());
-      Inventory_ksn = (int*)malloc(sizeof(int) * Inventory.size());
-      Inventory_inventoryunits = (double*)malloc(sizeof(double) * Inventory.size());
-      for(int i = 0; i<Inventory.size(); i++) {
+      Inventory_size = Inventory.size();
+      Inventory_locn = (int*)malloc(sizeof(int) * Inventory_size);
+      Inventory_dateid = (int*)malloc(sizeof(int) * Inventory_size);
+      Inventory_ksn = (int*)malloc(sizeof(int) * Inventory_size);
+      Inventory_inventoryunits = (double*)malloc(sizeof(double) * Inventory_size);
+      for(int i = 0; i<Inventory_size; i++) {
          Inventory_locn[i] = Inventory[i].locn;
          Inventory_dateid[i] = Inventory[i].dateid;
          Inventory_ksn[i] = Inventory[i].ksn;

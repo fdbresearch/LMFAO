@@ -11,7 +11,7 @@ namespace lmfao
       bool found[3] = {}, atEnd[3] = {}, addTuple[3] = {};
       size_t leap, low, mid, high;
       size_t lowerptr_Inventory[3] = {}, upperptr_Inventory[3] = {}; 
-      upperptr_Inventory[0] = Inventory.size()-1;
+      upperptr_Inventory[0] = Inventory_size-1;
       size_t lowerptr_V1[3] = {}, upperptr_V1[3] = {}; 
       upperptr_V1[0] = V1.size()-1;
       size_t lowerptr_V2[3] = {}, upperptr_V2[3] = {}; 
@@ -116,7 +116,7 @@ namespace lmfao
          {
             ++upperptr_V3[0];
          }
-            if(max_locn > Inventory_locn[Inventory.size()-1])
+            if(max_locn > Inventory_locn[Inventory_size-1])
             {
                atEnd[0] = true;
                break;
@@ -125,14 +125,14 @@ namespace lmfao
             {
                leap = 1;
                high = lowerptr_Inventory[0];
-               while (high <= Inventory.size()-1 && Inventory_locn[high] < max_locn)
+               while (high <= Inventory_size-1 && Inventory_locn[high] < max_locn)
                {
                   high += leap;
                   leap *= 2;
                }
                /* Backtrack with binary search */
                leap /= 2;
-               high = std::min(high,Inventory.size()-1);
+               high = std::min(high,Inventory_size-1);
                low = high - leap; mid = 0;
                while (low <= high)
                {
@@ -157,7 +157,7 @@ namespace lmfao
                   continue;
                }
          upperptr_Inventory[0] = lowerptr_Inventory[0];
-         while(upperptr_Inventory[0]<Inventory.size()-1 && Inventory_locn[upperptr_Inventory[0]+1] == max_locn)
+         while(upperptr_Inventory[0]<Inventory_size-1 && Inventory_locn[upperptr_Inventory[0]+1] == max_locn)
          {
             ++upperptr_Inventory[0];
          }
@@ -439,7 +439,7 @@ namespace lmfao
             postRegister[2] += aggregateRegister[0]*postRegister[1];
          }
          lowerptr_Inventory[0] = upperptr_Inventory[0] + 1;
-         if(lowerptr_Inventory[0] > Inventory.size()-1)
+         if(lowerptr_Inventory[0] > Inventory_size-1)
             atEnd[0] = true;
          lowerptr_V1[0] = upperptr_V1[0] + 1;
          if(lowerptr_V1[0] > V1.size()-1)

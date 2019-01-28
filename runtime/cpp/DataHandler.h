@@ -25,11 +25,11 @@ namespace lmfao
       Inventory_tuple(const std::string& tuple);
    };
 
-   extern std::vector<Inventory_tuple> Inventory;
    extern int* Inventory_locn;
    extern int* Inventory_dateid;
    extern int* Inventory_ksn;
    extern double* Inventory_inventoryunits;
+   extern size_t Inventory_size;
 
    struct Location_tuple
    {
