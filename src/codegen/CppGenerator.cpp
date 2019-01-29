@@ -3452,9 +3452,15 @@ std::string CppGenerator::genDependentAggLoopString(
                     offset(3+depth+numOfLoops)+"while(ptr_"+node._name+
                     " <= upperptr_"+node._name+"["+depthString+"])\n"+
                     offset(3+depth+numOfLoops)+"{\n"+
-                    offset(4+depth+numOfLoops)+node._name +
+                    offset(4+depth+numOfLoops);
+                if(COLUMNAR_LAYOUT) {
+                    loopString += "int " + node._name +
+                    "__index = ptr_"+node._name+";\n";
+                } else {
+                    loopString += node._name +
                     "_tuple &"+node._name+"Tuple = "+node._name+
                     "[ptr_"+node._name+"];\n";
+                }
                 
                 closeLoopString = offset(4+depth+numOfLoops)+"++ptr_"+node._name+";\n"+
                     offset(3+depth+numOfLoops)+"}\n"+closeLoopString;
@@ -4253,9 +4259,15 @@ std::string CppGenerator::genAggLoopStringCompressed(
                     offset(3+depth+numOfLoops)+"while(ptr_"+node._name+
                     " <= upperptr_"+node._name+"["+depthString+"])\n"+
                     offset(3+depth+numOfLoops)+"{\n"+
-                    offset(4+depth+numOfLoops)+node._name +
+                    offset(4+depth+numOfLoops);
+                if(COLUMNAR_LAYOUT) {
+                    loopString += "int " + node._name +
+                    "__index = ptr_"+node._name+";\n";
+                } else {
+                    loopString += node._name +
                     "_tuple &"+node._name+"Tuple = "+node._name+
                     "[ptr_"+node._name+"];\n";
+                }
                 
                 closeLoopString = offset(4+depth+numOfLoops)+"++ptr_"+node._name+";\n"+
                     offset(3+depth+numOfLoops)+"}\n"+closeLoopString;
@@ -5215,8 +5227,11 @@ std::string CppGenerator::genProductString(
                 {
                     if (node._bag[v])
                     {
-                        freeVarString += node._name+"Tuple."+
-                            _td->getAttribute(v)->_name+",";                            
+                        if(COLUMNAR_LAYOUT && isRelation(node._name)) {
+                          freeVarString += relationFieldAccess(node._name, _td->getAttribute(v)->_name, node._name + "__index")+",";
+                        } else {
+                          freeVarString += node._name+"Tuple."+ _td->getAttribute(v)->_name+",";
+                        }                          
                     }
                     else
                     {
@@ -5907,8 +5922,14 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
    
     // We add the definition of the Tuple references and aggregate pointers
     // TODO: This could probably be simplified TODO: TODO: TODO: !!!!!
-    returnString += offset(3+depth)+relName +"_tuple &"+node._name+"Tuple = "+
+    if(COLUMNAR_LAYOUT) {
+      // TODO
+      returnString += offset(3+depth)+"int "+relName +"__index = "+
+        "lowerptr_"+relName+"["+depthString+"];\n";
+    } else {
+      returnString += offset(3+depth)+relName +"_tuple &"+node._name+"Tuple = "+
         relName+"[lowerptr_"+relName+"["+depthString+"]];\n";
+    }
 
     for (const size_t& viewID : incViews)
     {
