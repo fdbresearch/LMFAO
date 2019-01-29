@@ -493,7 +493,8 @@ std::string CppGenerator::genSortFunction(const size_t& rel_id)
           }
       }
       returnString += offset(2) + "}\n";
-      returnString += "\n"+offset(2)+"endProcess = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count()-startProcess;\n";
+      returnString += offset(2)+"std::vector<"+relName+"_tuple>().swap("+relName+");\n";
+      returnString += offset(2)+"endProcess = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count()-startProcess;\n";
       returnString += offset(2)+"std::cout << \"CStoring Relation "+relName+": \"+"+
         "std::to_string(endProcess)+\"ms.\\n\";\n\n";    
     }
