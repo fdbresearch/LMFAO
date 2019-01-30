@@ -10,17 +10,32 @@ namespace LMFAO::LinearAlgebra
     void QRDecomposition::readMatrix(const std::string& path)
     {
         std::ifstream f(path);
-        int dim, row, col;
+        unsigned int dim, row, col;
+        bool isCategorical;
         float val;
         f >> dim;
         mSigma = Eigen::MatrixXd::Zero(dim, dim);
-        while (f >> row >> col >> val) 
-        {
-            std::cout << row << " " <<  col << " " << val << std::endl;
-            mSigma(row, col) = val;
-        }
-        mNumFeatsExp = mSigma.rows();
+        mIsCategorical.setConstant(dim, dim, false);
+
+        mNumFeatsExp = dim;
+        mNumFeats = 35;
+        mNumFeatsCont = 32;
         mNumFeatsCat = mNumFeats - mNumFeatsCont;
+
+        while (f >> row >> col >> val >> isCategorical) 
+        {
+            std::cout << row << " " <<  col << " " << val << " " 
+                      << isCategorical << std::endl;
+            mSigma(row, col) = val;
+            //mIsCategorical(row, col) = isCategorical;
+            if (isCategorical &&
+                 (find(mCatIdxs.begin(), mCatIdxs.end(), row) == mCatIdxs.end()))
+            {
+                // TODO: Add for col the same. 
+                mCatIdxs.push_back(row);
+            }
+        }
+        sort(mCatIdxs.begin(), mCatIdxs.end());
     } 
 
     void QRDecomposition::expandSigma(vector <long double> &sigmaExpanded, bool isNaive) 
@@ -112,9 +127,24 @@ namespace LMFAO::LinearAlgebra
     {
 
         if (mNumFeatsCat < 1) return;
-        unsigned int aggNo = 0, aggIdx = 0;
 
         _cofactorPerFeature.resize(mNumFeatsExp - mNumFeatsCont);
+        // TODO: refactor to iterate through categorical features only 
+        // by using some vector? 
+        for (unsigned int row = 0; row < mNumFeatsExp; row ++)
+            for (unsigned int col = 0; col < mNumFeatsExp; col ++)
+            {
+                unsigned int minIdx, maxIdx;
+                double aggregate = mSigma(row, col);
+                minIdx = min(row, col);
+                maxIdx = max(row, col);
+                if (aggregate != 0)
+                {
+                    _cofactorList.emplace_back(minIdx, maxIdx, aggregate);
+                    // TODO: add remapping of idx 
+                    _cofactorPerFeature[maxIdx - mNumFeatsCont].emplace_back(minIdx, aggregate);
+                }
+            }
         //_counts.resize(mNumFeatsExp - mNumFeatsCont);
 
         /*
@@ -268,7 +298,6 @@ namespace LMFAO::LinearAlgebra
         unsigned int N = mNumFeatsExp;
 
         processCofactors();
-
         // Used to store constants (A = ACR), initialises mC = Identity[N,N]
         mC.resize(N * N);
         for (unsigned int row = 0; row < N; row++) {
@@ -276,9 +305,9 @@ namespace LMFAO::LinearAlgebra
         }
         // R is stored column-major
         mR.resize((N-1)*(N-1));
-        
+        return;
         calculateCR();
-
+        return;
         // Normalise R' to obtain R
         for (unsigned int row = 0; row < N-1; row++) {
             double norm = sqrt(mR[row * (N-1) + row]);

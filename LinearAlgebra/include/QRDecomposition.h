@@ -19,10 +19,12 @@ namespace LMFAO::LinearAlgebra
     #define likely(x) x
     #define unlikely(x) x
     #endif
-    
+
     typedef std::tuple<unsigned int, unsigned  int,  
                        long double> Triple;
     typedef std::tuple<unsigned int, long double> Pair;
+
+    typedef Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic> MatrixBool;
 
     class QRDecomposition 
     {
@@ -30,6 +32,8 @@ namespace LMFAO::LinearAlgebra
 
     protected:
         Eigen::MatrixXd mSigma;
+        MatrixBool mIsCategorical = MatrixBool::Constant(1, 1, true);
+        std::vector <unsigned int> mCatIdxs;
         std::vector <long double> mC;
         std::vector <long double> mR;
         
