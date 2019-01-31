@@ -17,7 +17,7 @@ namespace LMFAO::LinearAlgebra
         MatrixBool mIsCategorical = MatrixBool::Constant(dim, dim, false);
 
         mNumFeatsExp = dim;
-        mNumFeats = 34;
+        mNumFeats = 35;
         mNumFeatsCont = 32;
         mNumFeatsCat = mNumFeats - mNumFeatsCont;
 
@@ -169,11 +169,11 @@ namespace LMFAO::LinearAlgebra
             double aggregate = get<2>(triple);
             minIdx = min(row, col);
             maxIdx = max(row, col);
-            _cofactorList.emplace_back(minIdx, maxIdx, aggregate);
             // Because matrix is symetric, we don't need need to insert two 
             // times in aggregates for one feature.
-            if ((row >= mNumFeatsCont) || (minIdx >= mNumFeatsCont))
+            if ((row >= col) && (minIdx !=  0))
             {
+                _cofactorList.emplace_back(minIdx, maxIdx, aggregate);
                 _cofactorPerFeature[maxIdx - mNumFeatsCont].emplace_back(minIdx, aggregate);
             }
         }
@@ -283,7 +283,7 @@ namespace LMFAO::LinearAlgebra
                     // mC[j,k] -= R(i,k) * mC(j, i) / R(i,i);
                 }
             }
-
+            // Sum of sigma submatrix for continuous values.
             long double D_k = 0; // stores R'(k,k)
             for (unsigned int l = 1; l <= min(k, T - 1); l++) {
                 long double res = 0;
@@ -307,9 +307,9 @@ namespace LMFAO::LinearAlgebra
                     if (unlikely(p > k || l > k))
                         break;
 
-                    //unsigned int factor = 1;//(p != l) ? 2 : 1;
+                    unsigned int factor = (p != l) ? 2 : 1;
 
-                    D_k +=  mC[l * N + k] * mC[p * N + k] * agg;
+                    D_k +=  factor * mC[l * N + k] * mC[p * N + k] * agg;
                     // D_k += mC(l, k) * mC(p, k) * Cofactor(l, p);
 
                 }
