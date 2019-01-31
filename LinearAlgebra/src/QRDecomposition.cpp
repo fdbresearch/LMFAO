@@ -11,11 +11,10 @@ namespace LMFAO::LinearAlgebra
     {
         std::ifstream f(path);
         unsigned int dim, row, col;
-        bool isCategorical;
-        float val;
+        bool isCategorical; float val;
         f >> dim;
         mSigma = Eigen::MatrixXd::Zero(dim, dim);
-        mIsCategorical.setConstant(dim, dim, false);
+        MatrixBool mIsCategorical = MatrixBool::Constant(dim, dim, false);
 
         mNumFeatsExp = dim;
         mNumFeats = 35;
@@ -27,15 +26,48 @@ namespace LMFAO::LinearAlgebra
             std::cout << row << " " <<  col << " " << val << " " 
                       << isCategorical << std::endl;
             mSigma(row, col) = val;
-            //mIsCategorical(row, col) = isCategorical;
-            if (isCategorical &&
-                 (find(mCatIdxs.begin(), mCatIdxs.end(), row) == mCatIdxs.end()))
+            mIsCategorical(row, col) = isCategorical;
+        }
+        
+        vector <unsigned int> dispCont(mNumFeatsExp, 0);
+        vector<unsigned int> dispCat(mNumFeatsExp, 0);
+        for (unsigned int idx = 1; idx < mNumFeatsExp; idx ++)
+        {
+            dispCont[idx] = dispCont[idx - 1] +  mIsCategorical(idx - 1, 0);
+            dispCat[idx] = dispCat[idx - 1] + !mIsCategorical(idx - 1, 0);
+        }
+
+        
+        for (unsigned int row = 0; row < mNumFeatsExp; row ++)
+        {
+            for (unsigned int col = 0; col < mNumFeatsExp; col++)
             {
-                // TODO: Add for col the same. 
-                mCatIdxs.push_back(row);
+                unsigned int row_idx = mIsCategorical(row, 0) ? 
+                (row - dispCat[row] + mNumFeatsCont) : (row - dispCont[row]);
+                unsigned int col_idx = mIsCategorical(col, 0) ? 
+                (col - dispCat[col] + mNumFeatsCont) : (col - dispCont[col]);
+                if (mIsCategorical(row, col) && (mSigma(row, col) != 0))
+                {
+                    mCatVals.push_back(make_tuple(row_idx, col_idx, mSigma(row, col)));
+                }
+                mSigma(row - dispCont[row], col - dispCont[col]) = mSigma(row, col);
             }
         }
-        sort(mCatIdxs.begin(), mCatIdxs.end());
+        for (const Triple& triple: mCatVals)
+        {
+            unsigned int row = get<0>(triple);
+            unsigned int col = get<1>(triple);
+            long double  aggregate = get<2>(triple);
+            mSigma(row, col) = aggregate;
+        }
+
+        for (unsigned int row = 0; row < mNumFeatsExp; row ++)
+        {
+            for (unsigned int col = 0; col < mNumFeatsExp; col++)
+            {
+                cout << row << " " << col << " " << mSigma(row, col) << endl; 
+            }
+        }
     } 
 
     void QRDecomposition::expandSigma(vector <long double> &sigmaExpanded, bool isNaive) 
@@ -107,7 +139,7 @@ namespace LMFAO::LinearAlgebra
         // Normalise R
         for (unsigned int row = 0; row < N-1; row++) {
             double norm = sqrt(mR[expIdx(row, row, N - 1)]);
-            //std::cout << "NormBef " << mR[row * (N-1) + row]  << std::endl;
+            //cout << "NormBef " << mR[row * (N-1) + row]  << std::endl;
             for (unsigned int col = row; col < N-1; col++) {
                 mR[col*(N-1) + row] /= norm;
                 mSigma(row, col) = mR[col*(N-1) + row];
@@ -129,22 +161,17 @@ namespace LMFAO::LinearAlgebra
         if (mNumFeatsCat < 1) return;
 
         _cofactorPerFeature.resize(mNumFeatsExp - mNumFeatsCont);
-        // TODO: refactor to iterate through categorical features only 
-        // by using some vector? 
-        for (unsigned int row = 0; row < mNumFeatsExp; row ++)
-            for (unsigned int col = 0; col < mNumFeatsExp; col ++)
-            {
-                unsigned int minIdx, maxIdx;
-                double aggregate = mSigma(row, col);
-                minIdx = min(row, col);
-                maxIdx = max(row, col);
-                if (aggregate != 0)
-                {
-                    _cofactorList.emplace_back(minIdx, maxIdx, aggregate);
-                    // TODO: add remapping of idx 
-                    _cofactorPerFeature[maxIdx - mNumFeatsCont].emplace_back(minIdx, aggregate);
-                }
-            }
+        for (const Triple &triple : mCatVals)
+        {
+            unsigned int row = get<0>(triple);
+            unsigned int col = get<1>(triple);
+            unsigned int minIdx, maxIdx;
+            double aggregate = get<2>(triple);
+            minIdx = min(row, col);
+            maxIdx = max(row, col);
+            _cofactorList.emplace_back(minIdx, maxIdx, aggregate);
+            _cofactorPerFeature[maxIdx - mNumFeatsCont].emplace_back(minIdx, aggregate);
+        }
         //_counts.resize(mNumFeatsExp - mNumFeatsCont);
 
         /*
@@ -305,16 +332,25 @@ namespace LMFAO::LinearAlgebra
         }
         // R is stored column-major
         mR.resize((N-1)*(N-1));
-        return;
         calculateCR();
-        return;
         // Normalise R' to obtain R
         for (unsigned int row = 0; row < N-1; row++) {
             double norm = sqrt(mR[row * (N-1) + row]);
+            cout << "NormBef " << mR[row * (N-1) + row]  << std::endl;
             for (unsigned int col = row; col < N-1; col++) {
                 mR[col*(N-1) + row] /= norm;
+                mSigma(row, col) = mR[col*(N-1) + row];
             }
         }
+        Eigen::BDCSVD<Eigen::MatrixXd> svd(mSigma, Eigen::ComputeFullU | Eigen::ComputeFullV);
+
+        cout << "Its singular values are:" << endl
+             << svd.singularValues() << endl;
+        cout << "Its left singular vectors are the columns of the thin U matrix:" << endl
+             << svd.matrixU() << endl;
+        cout << "Its right singular vectors are the columns of the thin V matrix:" << endl
+             << svd.matrixV() << endl;
+        cout << "Heheh";
     }
 
 }

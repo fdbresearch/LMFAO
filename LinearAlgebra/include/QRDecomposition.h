@@ -32,10 +32,9 @@ namespace LMFAO::LinearAlgebra
 
     protected:
         Eigen::MatrixXd mSigma;
-        MatrixBool mIsCategorical = MatrixBool::Constant(1, 1, true);
-        std::vector <unsigned int> mCatIdxs;
         std::vector <long double> mC;
         std::vector <long double> mR;
+        std::vector <Triple> mCatVals;
         
         // Number of features (categorical + continuous) in sigma matrix.
         //

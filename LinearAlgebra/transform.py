@@ -152,21 +152,21 @@ def print_cell(row, col, val, cell_type, domain_size_cnt):
     SKIP_DISP = 1 if SKIP_CAT_F else 0
 
     if cell_type == 'c':
-        print("{} {} {}".format(row + domain_size_cnt[row], col + domain_size_cnt[col], 
+        print("{} {} {} 0".format(row + domain_size_cnt[row], col + domain_size_cnt[col], 
                                 val[()]))
     elif cell_type == 'rv':
         for dom_val in val:
             first_cat_dom  = int(dom_val[0])
             if SKIP_CAT_F and (first_cat_dom == 0):
                 continue
-            print("{} {} {}".format(row + domain_size_cnt[row] + int(dom_val[0]) - SKIP_DISP, 
+            print("{} {} {} 1".format(row + domain_size_cnt[row] + int(dom_val[0]) - SKIP_DISP, 
                                     col + domain_size_cnt[col], val[dom_val]))
     elif cell_type == 'cv':
         for dom_val in val:
             first_cat_dom  = int(dom_val[0])
             if SKIP_CAT_F and (first_cat_dom == 0):
                 continue
-            print("{} {} {}".format(row + domain_size_cnt[row], 
+            print("{} {} {} 1".format(row + domain_size_cnt[row], 
                                     col + domain_size_cnt[col] + int(dom_val[0]) - SKIP_DISP , val[dom_val]))
     elif cell_type == 'd':
         #print(row, col)
@@ -175,7 +175,7 @@ def print_cell(row, col, val, cell_type, domain_size_cnt):
             first_cat_dom  = int(dom_val[0])
             if SKIP_CAT_F and (first_cat_dom == 0):
                 continue
-            print("{} {} {}".format(row + domain_size_cnt[row] + int(dom_val[0]) - SKIP_DISP , 
+            print("{} {} {} 1".format(row + domain_size_cnt[row] + int(dom_val[0]) - SKIP_DISP , 
                                     col + domain_size_cnt[col] + int(dom_val[0]) - SKIP_DISP, 
                                     val[dom_val])) 
     elif cell_type == 'm':
@@ -183,13 +183,13 @@ def print_cell(row, col, val, cell_type, domain_size_cnt):
         #print('matp{}'.format(val))
         for dom_val in val:
             first_cat_dom1  = int(dom_val[0])
-            first_cat_dom2  = int(dom_val[0])
+            first_cat_dom2  = int(dom_val[1])
+            # Temporary hack, I won't bother with this anymore when I start implementing API for Max's code
             if SKIP_CAT_F and ((first_cat_dom1 == 0) or (first_cat_dom2 == 0)):
                 continue
-            print("{} {} {}".format(row + domain_size_cnt[row] + int(dom_val[0]) - SKIP_DISP, 
+            print("{} {} {} 1".format(row + domain_size_cnt[row] + int(dom_val[0]) - SKIP_DISP, 
                                     col + domain_size_cnt[col] + int(dom_val[1]) - SKIP_DISP, 
                                     val[dom_val])) 
-        pass
 
 def parse_faqs(output_path: str, features):
     views = {}
