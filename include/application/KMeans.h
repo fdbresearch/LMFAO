@@ -50,6 +50,7 @@ private:
     std::shared_ptr<TreeDecomposition> _td;
 
     const size_t _k;
+    size_t _dimensionK;
 
     size_t numberOfOriginalVariables;
     

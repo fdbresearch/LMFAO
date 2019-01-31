@@ -1286,7 +1286,7 @@ void RegressionTree::generateCode(const std::string& outDirectory)
 
 void RegressionTree::initializeThresholds()
 {
-    if (_pathToFiles.compare("data/example") == 0)
+    if (DATASET_NAME.compare("example") == 0)
     {
        _thresholds =
             {
@@ -1298,11 +1298,10 @@ void RegressionTree::initializeThresholds()
                 {1,2}
             };
     }
-
     
-    if (_pathToFiles.compare("data/usretailer") == 0 ||
-        _pathToFiles.compare("../../data/usretailer") == 0 ||
-        _pathToFiles.compare("../datasets/usretailer_ml") == 0)
+    if (DATASET_NAME.compare("retailer") == 0 ||
+        DATASET_NAME.compare("usretailer") == 0 ||
+        DATASET_NAME.compare("usretailer_ml") == 0)
     {
         // _thresholds =
         //     {
@@ -1397,9 +1396,8 @@ void RegressionTree::initializeThresholds()
         };
     }
 
-    if (_pathToFiles.compare("data/favorita") == 0 ||
-        _pathToFiles.compare("../../data/favorita") == 0 ||
-        _pathToFiles.compare("../datasets/favorita_ml") == 0)
+    if (DATASET_NAME.compare("favorita") == 0 ||
+        DATASET_NAME.compare("favorita_ml") == 0)
     {
         _thresholds = {
             {},// percentiles date
@@ -1423,9 +1421,9 @@ void RegressionTree::initializeThresholds()
         };   
     }
     
-    if (_pathToFiles.compare("../../../benchmarking/datasets/yelp") == 0 ||
-        _pathToFiles.compare("../benchmarking/datasets/yelp") == 0)
-    {_thresholds = {
+    if (DATASET_NAME.compare("yelp") == 0)
+    {
+        _thresholds = {
             {},// percentiles business_id
             {},// percentiles user_id
             {},// percentiles review_id

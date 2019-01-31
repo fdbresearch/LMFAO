@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
        /* Option for parallellization. */
        ("degree", boost::program_options::value<int>()->default_value(1),
         "Degree of interactions for regression models and FMs. (Default = 1).");
-   
+
 
    /* Register previous options and do command line parsing. */
    boost::program_options::variables_map vm;
@@ -109,18 +109,17 @@ int main(int argc, char *argv[])
    {
        boost::filesystem::path p =
            boost::filesystem::canonical(vm["path"].as<std::string>());
-       
-      pathString = p.string();
-      
-      /*If provided path is not a directory, return failure. */
-      if (!boost::filesystem::is_directory(pathString))
-      {
-         ERROR("Provided path is not a directory. \n");
-         return EXIT_FAILURE;   
-      }
+       pathString = p.string();
 
-      multifaq::params::DATASET_NAME += p.filename().string();
-      multifaq::params::PATH_TO_DATA += p.string();
+       /*If provided path is not a directory, return failure. */
+       if (!boost::filesystem::is_directory(pathString))
+       {
+           ERROR("Provided path is not a directory. \n");
+           return EXIT_FAILURE;
+       }
+
+       multifaq::params::DATASET_NAME += p.filename().string();
+       multifaq::params::PATH_TO_DATA += p.string();
    }
    else
    {
@@ -130,7 +129,7 @@ int main(int argc, char *argv[])
       ERROR(
          "Run program with --help for more information about " <<
          "command line options.\n");
-      
+
       return EXIT_FAILURE;
    }
 
@@ -151,7 +150,10 @@ int main(int argc, char *argv[])
 
    /* Set the path for outDirectory */
    if (vm.count("out"))
-       outputDirectory = vm["out"].as<std::string>();
+   {
+       outputDirectory = boost::filesystem::weakly_canonical(
+           vm["out"].as<std::string>()).string()+"/";
+   }
    else
        outputDirectory = "runtime/"+codeGenerator+"/";
 
@@ -161,10 +163,10 @@ int main(int argc, char *argv[])
        DINFO("INFO: Output directory " << outputDirectory << " created." << std::endl);
    }
    else
-   {    
+   {
        DINFO("INFO: Output directory " << outputDirectory << " exists." << std::endl);
    }
-   
+
    std::shared_ptr<Launcher> launcher(new Launcher(pathString));
 
 #ifdef BENCH
@@ -185,7 +187,7 @@ int main(int argc, char *argv[])
                                  vm["compress"].as<bool>(),
                                  vm["k"].as<int>()
        );
-   
+
 #ifdef BENCH
    int64_t end = std::chrono::duration_cast<std::chrono::milliseconds>(
        std::chrono::system_clock::now().time_since_epoch()).count() - start;
@@ -193,6 +195,6 @@ int main(int argc, char *argv[])
 
    BINFO("MAIN - overall time: " + std::to_string(end) + "ms.\n");
    DINFO("Completed execution \n");
-   
+
    return result;
 };
