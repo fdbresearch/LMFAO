@@ -14,10 +14,11 @@ using namespace LMFAO::LinearAlgebra;
 
 void unitTestNaive() 
 {
-    QRDecompositionNaive qrDecomposition(FILE_INPUT);
-    //QRDecompositionSingleThreaded  qrDecomposition(FILE_INPUT);
+    QRDecompositionNaive qrDecompositionNaive(FILE_INPUT);
+    QRDecompositionSingleThreaded  qrDecompositionST(FILE_INPUT);
     auto begin_timer = std::chrono::high_resolution_clock::now();
-    qrDecomposition.decompose();
+    qrDecompositionNaive.decompose();
+    qrDecompositionST.decompose();
     auto end_timer = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_time = end_timer - begin_timer;
     double time_spent = elapsed_time.count();

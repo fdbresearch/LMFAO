@@ -17,7 +17,7 @@ namespace LMFAO::LinearAlgebra
         MatrixBool mIsCategorical = MatrixBool::Constant(dim, dim, false);
 
         mNumFeatsExp = dim;
-        mNumFeats = 35;
+        mNumFeats = 34;
         mNumFeatsCont = 32;
         mNumFeatsCat = mNumFeats - mNumFeatsCont;
 
@@ -46,7 +46,7 @@ namespace LMFAO::LinearAlgebra
                 (row - dispCat[row] + mNumFeatsCont) : (row - dispCont[row]);
                 unsigned int col_idx = mIsCategorical(col, 0) ? 
                 (col - dispCat[col] + mNumFeatsCont) : (col - dispCont[col]);
-                if (mIsCategorical(row, col) && (mSigma(row, col) != 0))
+                if (mIsCategorical(row, col)  && (mSigma(row, col) != 0))
                 {
                     mCatVals.push_back(make_tuple(row_idx, col_idx, mSigma(row, col)));
                 }
@@ -139,7 +139,7 @@ namespace LMFAO::LinearAlgebra
         // Normalise R
         for (unsigned int row = 0; row < N-1; row++) {
             double norm = sqrt(mR[expIdx(row, row, N - 1)]);
-            //cout << "NormBef " << mR[row * (N-1) + row]  << std::endl;
+            cout << "NormBef " << mR[row * (N-1) + row]  << std::endl;
             for (unsigned int col = row; col < N-1; col++) {
                 mR[col*(N-1) + row] /= norm;
                 mSigma(row, col) = mR[col*(N-1) + row];
@@ -170,7 +170,12 @@ namespace LMFAO::LinearAlgebra
             minIdx = min(row, col);
             maxIdx = max(row, col);
             _cofactorList.emplace_back(minIdx, maxIdx, aggregate);
-            _cofactorPerFeature[maxIdx - mNumFeatsCont].emplace_back(minIdx, aggregate);
+            // Because matrix is symetric, we don't need need to insert two 
+            // times in aggregates for one feature.
+            if ((row >= mNumFeatsCont) || (minIdx >= mNumFeatsCont))
+            {
+                _cofactorPerFeature[maxIdx - mNumFeatsCont].emplace_back(minIdx, aggregate);
+            }
         }
         //_counts.resize(mNumFeatsExp - mNumFeatsCont);
 
@@ -281,7 +286,6 @@ namespace LMFAO::LinearAlgebra
 
             long double D_k = 0; // stores R'(k,k)
             for (unsigned int l = 1; l <= min(k, T - 1); l++) {
-
                 long double res = 0;
                 for (unsigned p = 1; p <= min(k, T - 1); p++) {
                     res += mC[p*N + k] * sigmaExpanded[l*T + p];
@@ -303,9 +307,9 @@ namespace LMFAO::LinearAlgebra
                     if (unlikely(p > k || l > k))
                         break;
 
-                    unsigned int factor = (p != l) ? 2 : 1;
+                    //unsigned int factor = 1;//(p != l) ? 2 : 1;
 
-                    D_k += factor * mC[l * N + k] * mC[p * N + k] * agg;
+                    D_k +=  mC[l * N + k] * mC[p * N + k] * agg;
                     // D_k += mC(l, k) * mC(p, k) * Cofactor(l, p);
 
                 }
@@ -333,6 +337,9 @@ namespace LMFAO::LinearAlgebra
         // R is stored column-major
         mR.resize((N-1)*(N-1));
         calculateCR();
+        
+        mSigma.resize(N - 1, N - 1);
+        mSigma =  Eigen::MatrixXd::Zero(mSigma.rows(), mSigma.cols());
         // Normalise R' to obtain R
         for (unsigned int row = 0; row < N-1; row++) {
             double norm = sqrt(mR[row * (N-1) + row]);
