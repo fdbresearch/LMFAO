@@ -362,7 +362,7 @@ void SqlGenerator::generateAggregateQueries()
         it_pair.first->second += aggregateString;        
     }
 
-    ofstream ofs("runtime/sql/aggregates.sql", std::ofstream::out);
+    ofstream ofs("runtime/sql/aggregates_merged.sql", std::ofstream::out);
 
     size_t aggID = 0;
     for (auto& fvarAggPair : fVarAggregateMap)
@@ -389,10 +389,78 @@ void SqlGenerator::generateAggregateQueries()
 
     ofs.close();
 
-    ofs.open("runtime/sql/aggregate_cleanup.sql", std::ofstream::out);
+    ofs.open("runtime/sql/aggregates.sql", std::ofstream::out);
+
+    size_t aggID_unmerged = 0;
+    for (size_t queryID = 0; queryID < _qc->numberOfQueries(); ++queryID)
+    {
+        Query* query = _qc->getQuery(queryID);
+
+        string fVarString = "";
+        for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+        {
+            if (query->_fVars[var])
+                fVarString += _td->getAttribute(var)->_name + ",";
+        }
+        if (!fVarString.empty())
+            fVarString.pop_back();
+        
+        for (size_t agg = 0; agg < query->_aggregates.size(); ++agg)
+        {
+            Aggregate* aggregate = query->_aggregates[agg];
+            
+            size_t aggIdx = 0;
+
+            string sumString = "", aggregateString = "";
+            for (size_t i = 0; i < aggregate->_agg.size(); i++)
+            {
+                const prod_bitset prod = aggregate->_agg[aggIdx];
+
+                string prodString = "";
+                for (size_t f = 0; f < NUM_OF_FUNCTIONS; f++)
+                {
+                    if (prod.test(f))
+                    {
+                        prodString += getFunctionString(f)+"*";
+                    }
+                }
+
+                if (!prodString.empty())
+                    prodString.pop_back();
+                else
+                    prodString += "1";
+                
+                sumString += prodString+"+";
+                ++aggIdx;
+            }
+            sumString.pop_back();
+
+            
+            std::string groupByString = "";
+            if (!fVarString.empty())
+            {
+                groupByString += "\nGROUP BY "+fVarString;
+                aggregateString += fVarString+",";
+            }
+            aggregateString += "SUM("+sumString+") AS agg_"+to_string(aggID_unmerged);
+            ofs << "CREATE TABLE agg_"+to_string(aggID_unmerged++)+" AS (\nSELECT "+
+                aggregateString+"\nFROM "+joinString+groupByString+");\n\n";
+        }
+    }
+
+    ofs.close();
+
+    ofs.open("runtime/sql/aggregate_merged_cleanup.sql", std::ofstream::out);
     for (size_t i = 0; i < aggID; ++i)
         ofs << "DROP TABLE IF EXISTS agg_"+to_string(i)+";\n";
     ofs.close();
+
+    ofs.open("runtime/sql/aggregate_cleanup.sql", std::ofstream::out);
+    for (size_t i = 0; i < aggID_unmerged; ++i)
+        ofs << "DROP TABLE IF EXISTS agg_"+to_string(i)+";\n";
+    ofs.close();
+
+
 }
 
 
