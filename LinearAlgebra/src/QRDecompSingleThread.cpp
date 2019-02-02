@@ -1,6 +1,6 @@
 #include <fstream>
 #include <iostream>
-#include "QRDecomposition.h"
+#include "QRDecomp.h"
 
 using namespace std;
 
@@ -20,8 +20,9 @@ namespace LMFAO::LinearAlgebra
             double aggregate = get<2>(triple);
             minIdx = min(row, col);
             maxIdx = max(row, col);
+
             // Because matrix is symetric, we don't need need to insert two
-            // times in aggregates for one feature.
+            // times in aggregates for one feature, also we skip intercept row.
             if ((row >= col) && (minIdx != 0))
             {
                 _cofactorList.emplace_back(minIdx, maxIdx, aggregate);
@@ -67,7 +68,7 @@ namespace LMFAO::LinearAlgebra
                 {
                     for (unsigned int l = 1; l <= i; l++)
                     {
-                        mR[idxR + i - 1] += mC[N * l + i] * sigmaExpanded[T * l + k];
+                        mR[idxR + i - 1] += mC[expIdx(l, i, N)] * sigmaExpanded[expIdx(l, k, T)];
                         // R(i,k) += mC(l, i) * Cofactor(l, k);
                     }
                 }
@@ -83,7 +84,7 @@ namespace LMFAO::LinearAlgebra
                         if (unlikely(l > i))
                             break;
 
-                        mR[idxR + i - 1] += mC[N * l + i] * get<1>(tl);
+                        mR[idxR + i - 1] += mC[expIdx(l, i, N)] * get<1>(tl);
                         // R(i,k) += mC(l, i) * Cofactor(l, k);
                     }
                 }
@@ -96,7 +97,7 @@ namespace LMFAO::LinearAlgebra
                 // note that $i in \{ j, ..., k-1 \} -- i.e. mC is upper triangular
                 for (unsigned int i = j; i < k; i++)
                 {
-                    mC[rowIdx + k] -= mR[idxR + i - 1] * mC[rowIdx + i] / mR[(i - 1) * (N - 1) + i - 1];
+                    mC[rowIdx + k] -= mR[idxR + i - 1] * mC[rowIdx + i] / mR[expIdx(i-1, i-1, N-1)];
                     // mC[j,k] -= R(i,k) * mC(j, i) / R(i,i);
                 }
             }
@@ -107,11 +108,11 @@ namespace LMFAO::LinearAlgebra
                 long double res = 0;
                 for (unsigned p = 1; p <= min(k, T - 1); p++)
                 {
-                    res += mC[p * N + k] * sigmaExpanded[l * T + p];
+                    res += mC[expIdx(p, k, N)] * sigmaExpanded[expIdx(l, p, T)];
                     // res += mC(p, k) * Cofactor(l, p);
                 }
 
-                D_k += mC[l * N + k] * res;
+                D_k += mC[expIdx(l, k, N)] * res;
                 // D_K += mC(l,k) * SUM[ mC(p,k) * Cofactor(l,p) ]
             }
 
@@ -130,7 +131,7 @@ namespace LMFAO::LinearAlgebra
 
                     unsigned int factor = (p != l) ? 2 : 1;
 
-                    D_k += factor * mC[l * N + k] * mC[p * N + k] * agg;
+                    D_k += factor * mC[expIdx(l, k, N)] * mC[expIdx(p, k, N)] * agg;
                     // D_k += mC(l, k) * mC(p, k) * Cofactor(l, p);
                 }
             }
@@ -144,12 +145,12 @@ namespace LMFAO::LinearAlgebra
 
     void QRDecompositionSingleThreaded::decompose(void)
     {
-        unsigned int T = mNumFeatsCont;
         // We omit the first column of each categorical column matrix because they are linearly
         // among themselves (for specific column).
         unsigned int N = mNumFeatsExp;
 
         processCofactors();
+
         // Used to store constants (A = ACR), initialises mC = Identity[N,N]
         mC.resize(N * N);
         for (unsigned int row = 0; row < N; row++)
@@ -160,8 +161,6 @@ namespace LMFAO::LinearAlgebra
         mR.resize((N - 1) * (N - 1));
         calculateCR();
 
-        mSigma.resize(N - 1, N - 1);
-        mSigma = Eigen::MatrixXd::Zero(mSigma.rows(), mSigma.cols());
         // Normalise R' to obtain R
         for (unsigned int row = 0; row < N - 1; row++)
         {
@@ -170,16 +169,7 @@ namespace LMFAO::LinearAlgebra
             for (unsigned int col = row; col < N - 1; col++)
             {
                 mR[col * (N - 1) + row] /= norm;
-                mSigma(row, col) = mR[col * (N - 1) + row];
             }
         }
-        Eigen::BDCSVD<Eigen::MatrixXd> svd(mSigma, Eigen::ComputeFullU | Eigen::ComputeFullV);
-
-        cout << "Its singular values are:" << endl
-            << svd.singularValues() << endl;
-        cout << "Its left singular vectors are the columns of the thin U matrix:" << endl
-            << svd.matrixU() << endl;
-        cout << "Its right singular vectors are the columns of the thin V matrix:" << endl
-            << svd.matrixV() << endl;
     }
 }

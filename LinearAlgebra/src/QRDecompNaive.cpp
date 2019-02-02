@@ -1,6 +1,6 @@
 #include <fstream>
 #include <iostream>
-#include "QRDecomposition.h"
+#include "QRDecomp.h"
 
 using namespace std;
 
@@ -66,9 +66,6 @@ namespace LMFAO::LinearAlgebra
         mR.resize((N - 1) * (N - 1));
         calculateCR();
 
-        mSigma.resize(N - 1, N - 1);
-        mSigma = Eigen::MatrixXd::Zero(mSigma.rows(), mSigma.cols());
-
         // Normalise R
         for (unsigned int row = 0; row < N - 1; row++)
         {
@@ -77,17 +74,7 @@ namespace LMFAO::LinearAlgebra
             for (unsigned int col = row; col < N - 1; col++)
             {
                 mR[col * (N - 1) + row] /= norm;
-                mSigma(row, col) = mR[col * (N - 1) + row];
             }
         }
-
-        Eigen::BDCSVD<Eigen::MatrixXd> svd(mSigma, Eigen::ComputeFullU | Eigen::ComputeFullV);
-
-        cout << "Its singular values are:" << endl
-            << svd.singularValues() << endl;
-        cout << "Its left singular vectors are the columns of the thin U matrix:" << endl
-            << svd.matrixU() << endl;
-        cout << "Its right singular vectors are the columns of the thin V matrix:" << endl
-            << svd.matrixV() << endl;
     }
 }

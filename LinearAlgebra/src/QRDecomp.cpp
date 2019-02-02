@@ -1,6 +1,6 @@
 #include <fstream>
 #include <iostream>
-#include "QRDecomposition.h"
+#include "QRDecomp.h"
 
 using namespace std;
 
@@ -78,6 +78,22 @@ namespace LMFAO::LinearAlgebra
             for (unsigned int col = 0; col < num_rows; col ++)
             {
                 sigmaExpanded[expIdx(row, col, num_rows)] = mSigma(row, col);
+            }
+        }
+    }
+
+    void QRDecomposition::getR(Eigen::MatrixXd &rEigen)
+    {
+        unsigned int N = mNumFeatsExp;
+
+        rEigen.resize(N - 1, N - 1);
+        rEigen = Eigen::MatrixXd::Zero(rEigen.rows(), rEigen.cols());
+
+        for (unsigned int row = 0; row < N - 1; row++)
+        {
+            for (unsigned int col = row; col < N - 1; col++)
+            {
+                rEigen(row, col) = mR[col * (N - 1) + row];
             }
         }
     }

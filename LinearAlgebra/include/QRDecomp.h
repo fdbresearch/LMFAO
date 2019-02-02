@@ -50,26 +50,25 @@ namespace LMFAO::LinearAlgebra
         //
         unsigned int mNumFeatsCat;
 
-        //virtual void calculateQR(void) = 0;
-        virtual void decompose(void) = 0;
         void expandSigma(std::vector <long double> &sigmaExpanded, bool isNaive);
 
     public:
+        virtual void decompose(void) = 0;
         QRDecomposition(const std::string& path) 
         {
             readMatrix(path);
         }
-
-        Eigen::MatrixXd& getMatrix() { return mSigma; }
+        virtual ~QRDecomposition() {}
+         void getR(Eigen::MatrixXd &rEigen);
     }; 
 
     class QRDecompositionNaive: public QRDecomposition
     {
     public:
-        //virtual void calculateQR(void);
+        ~QRDecompositionNaive() {}
         virtual void decompose(void) override;
         void calculateCR(void);
-        QRDecompositionNaive(const std::string& path): QRDecomposition(path) {}
+        QRDecompositionNaive(const std::string &path) : QRDecomposition(path) {}
     };
 
     class QRDecompositionSingleThreaded: public QRDecomposition
@@ -81,10 +80,10 @@ namespace LMFAO::LinearAlgebra
     std::vector<std::vector<Pair>> _cofactorPerFeature;
 
     public:
-        //virtual void calculateQR(void);
+        ~QRDecompositionSingleThreaded() {}
         virtual void decompose(void) override;
         void processCofactors(void);
         void calculateCR(void);
-        QRDecompositionSingleThreaded(const std::string& path): QRDecomposition(path) {}
+        QRDecompositionSingleThreaded(const std::string &path) : QRDecomposition(path) {}
     };
 }
