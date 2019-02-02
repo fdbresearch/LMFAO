@@ -28,8 +28,8 @@ Makefile
 .*.swp
 
 # data directory
-data
-data/*
+/data
+/data/*
 
 # Doxygen generated files
 html
