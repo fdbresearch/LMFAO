@@ -86,14 +86,14 @@ namespace LMFAO::LinearAlgebra
     {
         unsigned int N = mNumFeatsExp;
 
-        rEigen.resize(N - 1, N - 1);
+        rEigen.resize(N, N);
         rEigen = Eigen::MatrixXd::Zero(rEigen.rows(), rEigen.cols());
 
-        for (unsigned int row = 0; row < N - 1; row++)
+        for (unsigned int row = 0; row < N; row++)
         {
-            for (unsigned int col = row; col < N - 1; col++)
+            for (unsigned int col = row; col < N; col++)
             {
-                rEigen(row, col) = mR[col * (N - 1) + row];
+                rEigen(row, col) = mR[col * N + row];
             }
         }
     }

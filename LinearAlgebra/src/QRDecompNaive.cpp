@@ -12,43 +12,38 @@ namespace LMFAO::LinearAlgebra
         unsigned int N = mNumFeatsExp;
 
         expandSigma(sigmaExpanded, true /*isNaive*/);
-        // R(0,0) = Cofactor[1,1] (skips the intercept row because of linear dependency)
-        mR[0] = sigmaExpanded[N + 1];
+        mR[0] = sigmaExpanded[0];
 
-        // We skip k=0 since it contains the labels (dependent variable)
+        // We skip k=0 since it contains necessary values
         for (unsigned int k = 1; k < N; k++)
         {
-            unsigned int idxR = (N - 1) * (k - 1);
-            for (unsigned int i = 1; i < k; i++)
+            unsigned int idxR = N * k;
+            for (unsigned int i = 0; i <= k - 1; i++)
             {
-                for (unsigned int l = 1; l <= i; l++)
+                for (unsigned int l = 0; l <= i; l++)
                 {
-                    mR[idxR + i - 1] += mC[N * l + i] * sigmaExpanded[N * l + k];
+                    mR[idxR + i] += mC[N * l + i] * sigmaExpanded[N * l + k];
                 }
             }
 
-            for (unsigned int j = 1; j < k; j++)
+            for (unsigned int j = 0; j <= k - 1; j++)
             {
                 unsigned int rowIdx = N * j;
 
-                for (unsigned int i = j; i < k; i++)
+                for (unsigned int i = j; i <= k - 1; i++)
                 {
-                    mC[rowIdx + k] -= mR[idxR + i - 1] * mC[rowIdx + i] / mR[(i - 1) * (N - 1) + i - 1];
+                    mC[rowIdx + k] -= mR[idxR + i] * mC[rowIdx + i] / mR[i * N + i];
                 }
             }
 
-            if (k > 1)
+            for (unsigned int l = 0; l <= k; l++)
             {
-                for (unsigned int l = 1; l <= k; l++)
+                double res = 0;
+                for (unsigned int p = 0; p <= k; p++)
                 {
-
-                    double res = 0;
-                    for (unsigned int p = 1; p <= k; p++)
-                    {
-                        res += mC[p * N + k] * sigmaExpanded[l * N + p];
-                    }
-                    mR[idxR + k - 1] += mC[l * N + k] * res;
+                    res += mC[p * N + k] * sigmaExpanded[l * N + p];
                 }
+                mR[idxR + k] += mC[l * N + k] * res;
             }
         }
     }
@@ -62,17 +57,18 @@ namespace LMFAO::LinearAlgebra
             mC[expIdx(row, row, N)] = 1;
         }
 
-        // Initialises column-major matrix R
-        mR.resize((N - 1) * (N - 1));
+        mR.resize(N * N);
         calculateCR();
 
         // Normalise R
-        for (unsigned int row = 0; row < N - 1; row++)
+        for (unsigned int row = 0; row < N; row++)
         {
-            double norm = sqrt(mR[expIdx(row, row, N - 1)]);
-            for (unsigned int col = row; col < N - 1; col++)
+            std::cout << "NOrm" << mR[expIdx(row, row, N)] << std::endl;
+            double norm = sqrt(mR[expIdx(row, row, N)]);
+            std::cout << "NOrm" << norm << std::endl;
+            for (unsigned int col = row; col < N; col++)
             {
-                mR[col * (N - 1) + row] /= norm;
+                mR[col * N + row] /= norm;
             }
         }
     }

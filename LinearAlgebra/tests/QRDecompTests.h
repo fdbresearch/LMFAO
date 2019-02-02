@@ -33,6 +33,7 @@ TEST(QRSingleThreaded, 2SIzeMatrix)
     EXPECT_NEAR(R(1, 1), 0.6324555320336757, PRECISION_ERROR);
 }
 
+
 TEST(QRNaive, 3SIzeMatrix)
 {
     static const string FILE_INPUT = "tests/data/test3.in";

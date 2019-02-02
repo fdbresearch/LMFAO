@@ -23,7 +23,7 @@ namespace LMFAO::LinearAlgebra
 
             // Because matrix is symetric, we don't need need to insert two
             // times in aggregates for one feature, also we skip intercept row.
-            if ((row >= col) && (minIdx != 0))
+            if (row >= col)
             {
                 mCofactorList.emplace_back(minIdx, maxIdx, aggregate);
                 mCofactorPerFeature[maxIdx - mNumFeatsCont].emplace_back(minIdx, aggregate);
@@ -55,27 +55,27 @@ namespace LMFAO::LinearAlgebra
 
         expandSigma(sigmaExpanded, false /*isNaive*/);
 
-        mR[0] = sigmaExpanded[T + 1];
+        mR[0] = sigmaExpanded[0];
 
         // We skip k=0 since it contains the labels (dependent variable)
         for (unsigned int k = 1; k < N; k++)
         {
-            unsigned int idxR = (N - 1) * (k - 1);
+            unsigned int idxR = N * k;
 
             if (k < T)
             {
-                for (unsigned int i = 1; i < k; i++)
+                for (unsigned int i = 0; i <= k - 1; i++)
                 {
-                    for (unsigned int l = 1; l <= i; l++)
+                    for (unsigned int l = 0; l <= i; l++)
                     {
-                        mR[idxR + i - 1] += mC[expIdx(l, i, N)] * sigmaExpanded[expIdx(l, k, T)];
+                        mR[idxR + i] += mC[expIdx(l, i, N)] * sigmaExpanded[expIdx(l, k, T)];
                         // R(i,k) += mC(l, i) * Cofactor(l, k);
                     }
                 }
             }
             else
             {
-                for (unsigned int i = 1; i < k; i++)
+                for (unsigned int i = 0; i <= k - 1; i++)
                 {
                     for (Pair tl : mCofactorPerFeature[k - T])
                     {
@@ -84,29 +84,29 @@ namespace LMFAO::LinearAlgebra
                         if (unlikely(l > i))
                             break;
 
-                        mR[idxR + i - 1] += mC[expIdx(l, i, N)] * get<1>(tl);
+                        mR[idxR + i] += mC[expIdx(l, i, N)] * get<1>(tl);
                         // R(i,k) += mC(l, i) * Cofactor(l, k);
                     }
                 }
             }
 
-            for (unsigned int j = 1; j < k; j++)
+            for (unsigned int j = 0; j <= k - 1; j++)
             {
                 unsigned int rowIdx = N * j;
 
                 // note that $i in \{ j, ..., k-1 \} -- i.e. mC is upper triangular
-                for (unsigned int i = j; i < k; i++)
+                for (unsigned int i = j; i <= k - 1; i++)
                 {
-                    mC[rowIdx + k] -= mR[idxR + i - 1] * mC[rowIdx + i] / mR[expIdx(i-1, i-1, N-1)];
+                    mC[rowIdx + k] -= mR[idxR + i] * mC[rowIdx + i] / mR[expIdx(i, i, N)];
                     // mC[j,k] -= R(i,k) * mC(j, i) / R(i,i);
                 }
             }
             // Sum of sigma submatrix for continuous values.
             long double D_k = 0; // stores R'(k,k)
-            for (unsigned int l = 1; l <= min(k, T - 1); l++)
+            for (unsigned int l = 0; l <= min(k, T - 1); l++)
             {
                 long double res = 0;
-                for (unsigned p = 1; p <= min(k, T - 1); p++)
+                for (unsigned p = 0; p <= min(k, T - 1); p++)
                 {
                     res += mC[expIdx(p, k, N)] * sigmaExpanded[expIdx(l, p, T)];
                     // res += mC(p, k) * Cofactor(l, p);
@@ -136,9 +136,9 @@ namespace LMFAO::LinearAlgebra
                 }
             }
 
-            if (k > 1)
+            if (k > 0)
             {
-                mR[idxR + k - 1] += D_k;
+                mR[idxR + k] += D_k;
             }
         }
     }
@@ -158,16 +158,16 @@ namespace LMFAO::LinearAlgebra
             mC[expIdx(row, row, N)] = 1;
         }
         // R is stored column-major
-        mR.resize((N - 1) * (N - 1));
+        mR.resize(N * N);
         calculateCR();
 
         // Normalise R' to obtain R
-        for (unsigned int row = 0; row < N - 1; row++)
+        for (unsigned int row = 0; row < N; row++)
         {
-            double norm = sqrt(mR[row * (N - 1) + row]);
-            for (unsigned int col = row; col < N - 1; col++)
+            double norm = sqrt(mR[row * N + row]);
+            for (unsigned int col = row; col < N; col++)
             {
-                mR[col * (N - 1) + row] /= norm;
+                mR[col * N + row] /= norm;
             }
         }
     }

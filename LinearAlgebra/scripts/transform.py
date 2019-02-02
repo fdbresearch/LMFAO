@@ -111,8 +111,8 @@ def get_uppper_cell_value(triangular_array, n: int, row_idx: int, col_idx: int,
         # Check categorical count for the current row
         # (2nd feature maps to 1st row in the new design, thus row_idx stays)
         offset_cat = cat_features_cnt[row_idx] 
-        #("Because IF * Fi is on the right place")
-        if features[row_idx-1]['is_cat']:
+        #("Because IF * IF is on the right place" for the current feature)
+        if features[row_idx]['is_cat']:
             offset_cat -= 1
     else: 
         row_idx = row_idx - 1
@@ -228,7 +228,13 @@ def parse_faqs(output_path: str, features):
 
     domain_size_cnt = [0] + domain_size_cnt
     #print(domain_size_cnt)
+    # Domain_size_cnt represents all possible domain_cnt
+    # Features expanded
     print('{:0}'.format(n + domain_size_cnt[-1]))
+    # Features
+    print('{:0}'.format(n))
+    # Continuous
+    print('{:0}'.format(n - cat_features_cnt[-1]))
     for row in range (1, n + 1):
         for col in range(1, n + 1):
             feature_row = features[row-1]
