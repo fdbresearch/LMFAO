@@ -73,11 +73,11 @@ namespace LMFAO::LinearAlgebra
 
     class QRDecompositionSingleThreaded: public QRDecomposition
     {
-    //! Sigma; Categorical cofactors as an ordered coordinate list
-    std::vector<Triple> _cofactorList;
+    // Sigma; Categorical cofactors as an ordered coordinate list
+    std::vector<Triple> mCofactorList;
 
-    //! Phi; Categorical cofactors as list of lists
-    std::vector<std::vector<Pair>> _cofactorPerFeature;
+    // Phi; Categorical cofactors as list of lists
+    std::vector<std::vector<Pair>> mCofactorPerFeature;
 
     public:
         ~QRDecompositionSingleThreaded() {}

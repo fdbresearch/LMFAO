@@ -10,15 +10,15 @@ namespace LMFAO::LinearAlgebra
     void QRDecomposition::readMatrix(const std::string& path)
     {
         std::ifstream f(path);
-        unsigned int dim, row, col;
+        unsigned int row, col;
         bool isCategorical; float val;
-        f >> dim;
-        mSigma = Eigen::MatrixXd::Zero(dim, dim);
-        MatrixBool mIsCategorical = MatrixBool::Constant(dim, dim, false);
+        f >> mNumFeatsExp;
+        f >> mNumFeats;
+        f >> mNumFeatsCont;
+        mSigma = Eigen::MatrixXd::Zero(mNumFeatsExp, mNumFeatsExp);
+        MatrixBool mIsCategorical = MatrixBool::Constant(mNumFeatsExp, mNumFeatsExp, false);
 
-        mNumFeatsExp = dim;
-        mNumFeats = 36;
-        mNumFeatsCont = 32;
+        mNumFeatsExp = mNumFeatsExp;
         mNumFeatsCat = mNumFeats - mNumFeatsCont;
 
         while (f >> row >> col >> val >> isCategorical) 

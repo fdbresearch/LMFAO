@@ -70,7 +70,6 @@ namespace LMFAO::LinearAlgebra
         for (unsigned int row = 0; row < N - 1; row++)
         {
             double norm = sqrt(mR[expIdx(row, row, N - 1)]);
-            cout << "NormBef " << mR[row * (N - 1) + row] << std::endl;
             for (unsigned int col = row; col < N - 1; col++)
             {
                 mR[col * (N - 1) + row] /= norm;

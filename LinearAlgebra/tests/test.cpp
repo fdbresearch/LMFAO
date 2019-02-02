@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "matrix_engine.h"
+#include "QRDecompTests.h"
 
 int main(int argc, char **argv) {
     testing::InitGoogleTest(&argc, argv);

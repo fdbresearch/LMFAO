@@ -23,14 +23,15 @@ namespace LMFAO::LinearAlgebra
         }
         pQRDecomp->decompose();
         pQRDecomp->getR(mR);
-        Eigen::BDCSVD<Eigen::MatrixXd> svd(mR, Eigen::ComputeFullU | Eigen::ComputeFullV);
+        delete pQRDecomp;
+
+        Eigen::BDCSVD<Eigen::MatrixXd> svdR(mR, Eigen::ComputeFullU | Eigen::ComputeFullV);
 
         cout << "Its singular values are:" << endl
-             << svd.singularValues() << endl;
+             << svdR.singularValues() << endl;
         cout << "Its left singular vectors are the columns of the thin U matrix:" << endl
-             << svd.matrixU() << endl;
+             << svdR.matrixU() << endl;
         cout << "Its right singular vectors are the columns of the thin V matrix:" << endl
-             << svd.matrixV() << endl;
-        delete pQRDecomp;
+             << svdR.matrixV() << endl;
     }
 }

@@ -24,7 +24,7 @@ file(GLOB SRCFILES src/*.cpp)
 add_executable(lmfaola main.cpp ${SRCFILES})
 
 # Test environment. 
-add_executable(lmfaola_test ${LMFAO_LA_TEST}/test.cpp)
+add_executable(lmfaola_test ${LMFAO_LA_TEST}/test.cpp ${SRCFILES})
 target_include_directories(lmfaola_test PRIVATE ${LMFAO_LA_TEST})
 
 set(Boost_USE_STATIC_LIBS OFF)

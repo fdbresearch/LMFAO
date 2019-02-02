@@ -11,7 +11,7 @@ namespace LMFAO::LinearAlgebra
         if (mNumFeatsCat < 1)
             return;
 
-        _cofactorPerFeature.resize(mNumFeatsExp - mNumFeatsCont);
+        mCofactorPerFeature.resize(mNumFeatsExp - mNumFeatsCont);
         for (const Triple &triple : mCatVals)
         {
             unsigned int row = get<0>(triple);
@@ -25,13 +25,13 @@ namespace LMFAO::LinearAlgebra
             // times in aggregates for one feature, also we skip intercept row.
             if ((row >= col) && (minIdx != 0))
             {
-                _cofactorList.emplace_back(minIdx, maxIdx, aggregate);
-                _cofactorPerFeature[maxIdx - mNumFeatsCont].emplace_back(minIdx, aggregate);
+                mCofactorList.emplace_back(minIdx, maxIdx, aggregate);
+                mCofactorPerFeature[maxIdx - mNumFeatsCont].emplace_back(minIdx, aggregate);
             }
         }
 
         // Sort cofactorList (Sigma) colexicographically
-        sort(begin(_cofactorList), end(_cofactorList), [](const Triple &a, const Triple &b) -> bool {
+        sort(begin(mCofactorList), end(mCofactorList), [](const Triple &a, const Triple &b) -> bool {
             int a_max = max(get<0>(a), get<1>(a)), a_min = min(get<0>(a), get<1>(a));
             int b_max = max(get<0>(b), get<1>(b)), b_min = min(get<0>(b), get<1>(b));
 
@@ -39,7 +39,7 @@ namespace LMFAO::LinearAlgebra
         });
 
         // Sort the lists in Phi
-        for (auto &_order : _cofactorPerFeature)
+        for (auto &_order : mCofactorPerFeature)
         {
             sort(begin(_order), end(_order));
         }
@@ -77,7 +77,7 @@ namespace LMFAO::LinearAlgebra
             {
                 for (unsigned int i = 1; i < k; i++)
                 {
-                    for (Pair tl : _cofactorPerFeature[k - T])
+                    for (Pair tl : mCofactorPerFeature[k - T])
                     {
                         unsigned int l = get<0>(tl);
 
@@ -119,7 +119,7 @@ namespace LMFAO::LinearAlgebra
             if (k >= T)
             {
 
-                for (Triple tl : _cofactorList)
+                for (Triple tl : mCofactorList)
                 {
                     unsigned int p = get<0>(tl);
                     unsigned int l = get<1>(tl);
@@ -165,7 +165,6 @@ namespace LMFAO::LinearAlgebra
         for (unsigned int row = 0; row < N - 1; row++)
         {
             double norm = sqrt(mR[row * (N - 1) + row]);
-            cout << "NormBef " << mR[row * (N - 1) + row] << std::endl;
             for (unsigned int col = row; col < N - 1; col++)
             {
                 mR[col * (N - 1) + row] /= norm;
