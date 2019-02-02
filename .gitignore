@@ -16,6 +16,11 @@
 bin
 bin/*
 
+# idea directory
+.idea
+
+# vscode
+.vscode
 
 # Cmake files
 CMakeCache.txt

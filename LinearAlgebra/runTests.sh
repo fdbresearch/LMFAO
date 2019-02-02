@@ -16,7 +16,7 @@ make dump -j8
 ./lmfao
 cd $DFDB_SH_LA
 DFDB_SH_DATA_SET="usretailer"
-python3 transform.py -o $DFDB_SH_RUNTIME_OUTPUT -d "$DFDB_SH_DATA/$DFDB_SH_DATA_SET/" >test.in
+python3 ./scripts/transform.py -o $DFDB_SH_RUNTIME_OUTPUT -d "$DFDB_SH_DATA/$DFDB_SH_DATA_SET/" >test.in
 ./lmfaola
 : '
 '
