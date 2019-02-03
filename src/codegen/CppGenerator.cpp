@@ -20,7 +20,7 @@
 #define OPTIMIZED
 
 /* Turn this flag on to output times for each Group individually. */
-#define BENCH_INDIVIDUAL 
+// #define BENCH_INDIVIDUAL 
 
 //#define USE_MULTIOUTPUT_OPERATOR
 //#define ENABLE_RESORT_RELATIONS
@@ -499,7 +499,7 @@ void CppGenerator::computeViewOrdering()
         // Keep track of the views that origin from this node 
         viewsPerNode[view->_origin].push_back(viewID);
     }
-
+    
     /* Next compute the topological order of the views */
     dyn_bitset processedViews(_qc->numberOfViews());
     dyn_bitset queuedViews(_qc->numberOfViews());
@@ -530,6 +530,8 @@ void CppGenerator::computeViewOrdering()
         processedViews.set(viewID);
 
         const size_t& destination = _qc->getView(viewID)->_destination;
+
+        // For each view that has the same destination 
         for (const size_t& destView : viewsPerNode[destination])
         {
             // check if this has not been processed (case for root nodes)
@@ -538,12 +540,13 @@ void CppGenerator::computeViewOrdering()
                 bool candidate = true;
                 for (const size_t& incView : incomingViews[destView])
                 {    
-                    if (!processedViews[incView])
+                    if (!processedViews[incView] && !queuedViews[incView])
                     {
                         candidate = false;
                         break;
                     }
                 }
+                
                 if (candidate && !queuedViews[destView])
                 {
                     queuedViews.set(destView);
@@ -1032,6 +1035,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
             std::string attrConstruct = "";
             std::string attrAssign = "";
             std::string equalString = "";
+            std::string initList = "";
 
             // Creates a struct which is used for hashing the key of the views 
             hashStruct += offset(1)+"struct "+viewName[viewID]+"_key\n"+
@@ -1049,9 +1053,10 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                     std::string type = typeToStr(att->_type);
 
                     hashStruct += type+" "+att->_name+";\n"+offset(2);
-                    attrConstruct += type+" "+att->_name+",";
+                    attrConstruct += "const "+type+"& "+att->_name+",";
                     attrAssign += offset(3)+"this->"+ att->_name + " = "+
                         att->_name+";\n";
+                    initList += att->_name+"("+att->_name+"),";
                     hashFunct += offset(3)+"h ^= std::hash<"+type+">()(key."+
                         att->_name+")+ 0x9e3779b9 + (h<<6) + (h>>2);\n";
                     // hashFunct += offset(3)+"hash_combine(h, key."+att->_name+");\n"; 
@@ -1061,14 +1066,22 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
             attrConstruct.pop_back();
             equalString.pop_back();
             equalString.pop_back();
+            initList.pop_back();
 
-            hashStruct +=  viewName[viewID]+"_key("+attrConstruct+")\n"+offset(2)+
-                "{\n"+attrAssign+offset(2)+"}\n"+
+            hashStruct += viewName[viewID]+"_key("+attrConstruct+") : "+initList+"\n"+
+                offset(2)+"{  }\n"+
                 offset(2)+"bool operator==(const "+viewName[viewID]+
                 "_key &other) const\n"+offset(2)+"{\n"+offset(3)+
                 "return"+equalString+";\n"+offset(2)+"}\n"+offset(1)+"};\n\n";
 
+            hashStruct += offset(1)+"struct "+viewName[viewID]+"_value\n"+
+                offset(1)+"{\n"+offset(2)+"double aggregates["+
+                std::to_string(view->_aggregates.size())+"];\n"+
+                offset(1)+"};\n\n";
+
             hashFunct += offset(3)+"return h;\n"+offset(2)+"}\n"+offset(1)+"};\n\n";
+
+            
         }
     }
     
@@ -1079,19 +1092,38 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
     {
         headerString += "()\n"+offset(1)+"{\n";
 
+        // THIS IS FROM A PREVIOUS VERION FOR OUTPUTTING TO THE VIEWS
+        // for (const size_t& viewID : viewGroups[group_id])
+        // {
+        //     if (_requireHashing[viewID])
+        //     {
+        //      headerString += offset(2)+"std::unordered_map<"+viewName[viewID]+"_key,"+
+        //          "size_t,"+viewName[viewID]+"_keyhash> "+viewName[viewID]+"_map;\n"+
+        //          offset(2)+"std::unordered_map<"+viewName[viewID]+"_key,"  +
+        //          "size_t,"+viewName[viewID]+"_keyhash>::iterator "+
+        //          viewName[viewID]+"_iterator;\n"+
+        //          offset(2)+"std::pair<std::unordered_map<"+viewName[viewID]+"_key,"+
+        //          "size_t,"+viewName[viewID]+"_keyhash>::iterator,bool> "+
+        //          viewName[viewID]+"_pair;\n"+
+        //          offset(2)+viewName[viewID]+"_map.reserve(1000000);\n";
+        //     }
+        // }
+
         for (const size_t& viewID : viewGroups[group_id])
         {
             if (_requireHashing[viewID])
             {
                 headerString += offset(2)+"std::unordered_map<"+viewName[viewID]+"_key,"+
-                    "size_t,"+viewName[viewID]+"_keyhash> "+viewName[viewID]+"_map;\n"+
-                    offset(2)+"std::unordered_map<"+viewName[viewID]+"_key,"  +
-                    "size_t,"+viewName[viewID]+"_keyhash>::iterator "+
+                    viewName[viewID]+"_value,"+viewName[viewID]+"_keyhash> "+
+                    viewName[viewID]+"_map;\n"+
+                    offset(2)+"std::unordered_map<"+viewName[viewID]+"_key,"+
+                    viewName[viewID]+"_value,"+viewName[viewID]+"_keyhash>::iterator "+
                     viewName[viewID]+"_iterator;\n"+
-                    offset(2)+"std::pair<std::unordered_map<"+viewName[viewID]+"_key,"  +
-                    "size_t,"+viewName[viewID]+"_keyhash>::iterator,bool> "+
+                    offset(2)+"std::pair<std::unordered_map<"+viewName[viewID]+"_key,"+
+                    viewName[viewID]+"_value,"+
+                    viewName[viewID]+"_keyhash>::iterator,bool> "+
                     viewName[viewID]+"_pair;\n"+
-                    offset(2)+viewName[viewID]+"_map.reserve(1000000);\n";
+                    offset(2)+viewName[viewID]+"_map.reserve(500000);\n";
             }
         }
     }
@@ -1100,31 +1132,55 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
         headerString += "Parallelized(";
         for (const size_t& viewID : viewGroups[group_id])
         {
-            headerString += "std::vector<"+viewName[viewID]+"_tuple>& "+
-                viewName[viewID]+",";
-            if (_requireHashing[viewID])
+            if (!_requireHashing[viewID])
             {
+                headerString += "std::vector<"+viewName[viewID]+"_tuple>& "+
+                viewName[viewID]+",";
+            }
+            else
+            {
+                // headerString += "std::unordered_map<"+viewName[viewID]+"_key,"+
+                //    "size_t, "+viewName[viewID]+"_keyhash>& "+viewName[viewID]+"_map,";
                 headerString += "std::unordered_map<"+viewName[viewID]+"_key,"+
-                    "size_t, "+viewName[viewID]+"_keyhash>& "+viewName[viewID]+"_map,";
+                    viewName[viewID]+"_value,"+viewName[viewID]+"_keyhash>& "+
+                    viewName[viewID]+"_map,";
             }
         }
         headerString += "size_t lowerptr, size_t upperptr)\n"+offset(1)+"{\n";
+
+        // THIS IS FROM A PREVIOUS VERION FOR OUTPUTTING TO THE VIEWS
+        // for (const size_t& viewID : viewGroups[group_id])
+        // {
+        //     if (_requireHashing[viewID])
+        //     {
+        //         headerString += 
+        //             offset(2)+"std::unordered_map<"+viewName[viewID]+"_key,"  +
+        //             "size_t,"+viewName[viewID]+"_keyhash>::iterator "+
+        //             viewName[viewID]+"_iterator;\n"+
+        //            offset(2)+"std::pair<std::unordered_map<"+viewName[viewID]+"_key,"+
+        //             "size_t,"+viewName[viewID]+"_keyhash>::iterator,bool> "+
+        //             viewName[viewID]+"_pair;\n"+
+        //             offset(2)+viewName[viewID]+"_map.reserve(500000);\n";
+        //     }
+        // }
 
         for (const size_t& viewID : viewGroups[group_id])
         {
             if (_requireHashing[viewID])
             {
-                headerString += 
-                    offset(2)+"std::unordered_map<"+viewName[viewID]+"_key,"  +
-                    "size_t,"+viewName[viewID]+"_keyhash>::iterator "+
+                headerString += offset(2)+"std::unordered_map<"+viewName[viewID]+"_key,"+
+                    viewName[viewID]+"_value,"+viewName[viewID]+"_keyhash>::iterator "+
                     viewName[viewID]+"_iterator;\n"+
-                    offset(2)+"std::pair<std::unordered_map<"+viewName[viewID]+"_key,"  +
-                    "size_t,"+viewName[viewID]+"_keyhash>::iterator,bool> "+
+                    offset(2)+"std::pair<std::unordered_map<"+viewName[viewID]+"_key,"+
+                    viewName[viewID]+"_value,"+
+                    viewName[viewID]+"_keyhash>::iterator,bool> "+
                     viewName[viewID]+"_pair;\n"+
                     offset(2)+viewName[viewID]+"_map.reserve(500000);\n";
             }
         }
+
     }
+
 
     if (RESORT_RELATIONS)
     {
@@ -1470,6 +1526,29 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
             if (_requireHashing[viewID])
             {
                 View* view = _qc->getView(viewID);
+
+                std::string copyString = "";
+                for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+                {
+                    if (!view->_fVars[var])
+                        continue;
+
+                    Attribute* att = _td->getAttribute(var);
+                    copyString += "kv_pair.first."+att->_name+",";
+                }
+                copyString.pop_back();
+
+                returnString += offset(2)+viewName[viewID]+".reserve("+
+                    viewName[viewID]+"_map.size());\n";
+                
+                returnString +=
+                    offset(2)+"for (const auto& kv_pair : "+viewName[viewID]+"_map)\n"+
+                    offset(2)+"{\n"+
+                    offset(3)+viewName[viewID]+".emplace_back("+copyString+");\n"+
+                    offset(3)+"memcpy(&"+viewName[viewID]+".back().aggregates[0],"+
+                    "&kv_pair.second.aggregates[0],"+
+                    std::to_string(sizeof(double)*view->_aggregates.size())+");\n"+
+                    offset(2)+"}\n";
             
 #if defined(__GNUC__) && defined(NDEBUG) && !defined(__clang__)
                 std::string sortAlgo = "__gnu_parallel::sort(";
@@ -1544,21 +1623,34 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
 
         for (const size_t& viewID : viewGroups[group_id])
         {
-            for (size_t t = 0; t < _threadsPerGroup[group_id]; ++t)
-            {
-                returnString += offset(2)+"std::vector<"+viewName[viewID]+
-                    "_tuple> "+viewName[viewID]+"_"+std::to_string(t)+";\n";
-            }
+            // for (size_t t = 0; t < _threadsPerGroup[group_id]; ++t)
+            // {
+            //     returnString += offset(2)+"std::vector<"+viewName[viewID]+
+            //         "_tuple> "+viewName[viewID]+"_"+std::to_string(t)+";\n";
+            // }
             
             if (_requireHashing[viewID])
             {    
                 for (size_t t = 0; t < _threadsPerGroup[group_id]; ++t)
                 {
+                    // returnString += offset(2)+"std::unordered_map<"+
+                    //     viewName[viewID]+"_key,"+"size_t,"+viewName[viewID]+
+                    //     "_keyhash> "+viewName[viewID]+"_"+std::to_string(t)+"_map;\n";
                     returnString += offset(2)+"std::unordered_map<"+
-                        viewName[viewID]+"_key,"+"size_t,"+viewName[viewID]+
-                        "_keyhash> "+viewName[viewID]+"_"+std::to_string(t)+"_map;\n";
+                        viewName[viewID]+"_key,"+ viewName[viewID]+"_value,"+
+                        viewName[viewID]+"_keyhash> "+
+                        viewName[viewID]+"_"+std::to_string(t)+"_map;\n";
                 }
             }
+            else
+            {
+                for (size_t t = 0; t < _threadsPerGroup[group_id]; ++t)
+                {
+                    returnString += offset(2)+"std::vector<"+viewName[viewID]+
+                        "_tuple> "+viewName[viewID]+"_"+std::to_string(t)+";\n";
+                }
+            }
+            
             
         }
 
@@ -1577,9 +1669,10 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
             
             for (const size_t& viewID : viewGroups[group_id])
             {
-                 returnString += "std::ref("+viewName[viewID]+"_"+
-                     std::to_string(t)+"),";
-                if (_requireHashing[viewID])
+                if (!_requireHashing[viewID])
+                    returnString += "std::ref("+viewName[viewID]+"_"+
+                        std::to_string(t)+"),";
+                else
                     returnString += "std::ref("+viewName[viewID]+"_"+
                         std::to_string(t)+"_map),";
             }
@@ -1593,48 +1686,58 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
         {
             if (_requireHashing[viewID])
             {
-                returnString += offset(2)+viewName[viewID]+".reserve(";
-                for (size_t t = 0; t < _threadsPerGroup[group_id]; ++t)
-                    returnString += viewName[viewID]+"_"+std::to_string(t)+
-                        ".size()+";
-                returnString.pop_back();
-                returnString += ");\n";
+                // returnString += offset(2)+viewName[viewID]+".reserve(";
+                // for (size_t t = 0; t < _threadsPerGroup[group_id]; ++t)
+                //     returnString += viewName[viewID]+"_"+std::to_string(t)+
+                //         ".size()+";
+                // returnString.pop_back();
+                // returnString += ");\n";
                 
-                returnString += offset(2)+viewName[viewID]+".insert("+viewName[viewID]+
-                    ".end(), "+viewName[viewID]+"_0.begin(), "+
-                    viewName[viewID]+"_0.end());\n";
+                // returnString += offset(2)+viewName[viewID]+".insert("+viewName[viewID]+
+                //     ".end(), "+viewName[viewID]+"_0.begin(), "+
+                //     viewName[viewID]+"_0.end());\n";
 
                 for (size_t t = 1; t < _threadsPerGroup[group_id]; ++t)
                 {
+                    // THE BELOW WAS CHANGED WHEN WE CHANGED THE WAY WE USE HASH INDEXES
+                    // returnString += offset(2)+"for (const std::pair<"+
+                    //     viewName[viewID]+"_key,size_t>& key : "+viewName[viewID]+
+                    //     "_"+std::to_string(t)+"_map)\n"+offset(2)+"{\n"+
+                    //     offset(3)+"auto it = "+viewName[viewID]+"_0"
+                    //     "_map.find(key.first);\n"+
+                    //     offset(3)+"if (it != "+viewName[viewID]+"_0_map.end())\n"+
+                    //     offset(3)+"{\n";
+
+                    // returnString += offset(4)+"for (size_t agg = 0; agg < "+
+                    //     std::to_string(_qc->getView(viewID)->_aggregates.size())+
+                    //     "; ++agg)\n"+
+                    //     offset(5)+viewName[viewID]+"[it->second].aggregates[agg] += "+
+                    //     viewName[viewID]+"_"+std::to_string(t)+
+                    //     "[key.second].aggregates[agg];\n";
+                        
+                    //returnString += offset(3)+"}\n"+offset(3)+"else\n"+offset(3)+"{\n"+
+                    //     offset(4)+viewName[viewID]+
+                    //     "_0_map[key.first] = "+viewName[viewID]+
+                    //     ".size();\n"+offset(4)+viewName[viewID]+".push_back("+
+                    //     viewName[viewID]+"_"+std::to_string(t)+"[key.second]);\n"+
+                    //     offset(3)+"}\n"+ offset(2)+"}\n";
+                    
                     returnString += offset(2)+"for (const std::pair<"+
-                        viewName[viewID]+"_key,size_t>& key : "+viewName[viewID]+
-                        "_"+std::to_string(t)+"_map)\n"+offset(2)+"{\n"+
+                        viewName[viewID]+"_key,"+viewName[viewID]+"_value>& key : "+
+                        viewName[viewID]+"_"+std::to_string(t)+"_map)\n"+
+                        offset(2)+"{\n"+
                         offset(3)+"auto it = "+viewName[viewID]+"_0"
                         "_map.find(key.first);\n"+
                         offset(3)+"if (it != "+viewName[viewID]+"_0_map.end())\n"+
-                        offset(3)+"{\n";
-
-                    returnString += offset(4)+"for (size_t agg = 0; agg < "+
-                        std::to_string(_qc->getView(viewID)->_aggregates.size())+
-                        "; ++agg)\n"+
-                        offset(5)+viewName[viewID]+"[it->second].aggregates[agg] += "+
-                        viewName[viewID]+"_"+std::to_string(t)+
-                        "[key.second].aggregates[agg];\n";
+                        offset(3)+"{\n"+
+                        // Loop over aggregates
+                        offset(4)+"for (size_t agg = 0; agg < "+std::to_string(
+                            _qc->getView(viewID)->_aggregates.size())+"; ++agg)\n"
+                        +offset(5)+"it->second.aggregates[agg] += "+
+                        "key.second.aggregates[agg];\n";
                         
-                        // returnString+=offset(4)+viewName[viewID]+"[it->second].agg_"+
-                        //    std::to_string(viewID)+"_"+std::to_string(agg)+" += "+
-                        //    viewName[viewID]+"_"+std::to_string(t)+"[key.second].agg_"+
-                        // //     std::to_string(viewID)+"_"+std::to_string(agg)+";\n";
-                        // returnString += offset(4)+viewName[viewID]+"[it->second].
-                        //     aggregates["+std::to_string(agg)+"] += "+
-                        //     viewName[viewID]+"_"+std::to_string(t)+"[key.second].
-                        //     aggregates["+std::to_string(agg)+"];\n";
-                    
                     returnString += offset(3)+"}\n"+offset(3)+"else\n"+offset(3)+"{\n"+
-                        offset(4)+viewName[viewID]+
-                        "_0_map[key.first] = "+viewName[viewID]+
-                        ".size();\n"+offset(4)+viewName[viewID]+".push_back("+
-                        viewName[viewID]+"_"+std::to_string(t)+"[key.second]);\n"+
+                        offset(4)+viewName[viewID]+"_0_map[key.first] = key.second;\n"+
                         offset(3)+"}\n"+ offset(2)+"}\n";
                 }
             }
@@ -1728,7 +1831,30 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
             if (_requireHashing[viewID])
             {
                 View* view = _qc->getView(viewID);
-            
+
+                std::string copyString = "";
+                for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+                {
+                    if (!view->_fVars[var])
+                        continue;
+
+                    Attribute* att = _td->getAttribute(var);
+                    copyString += "kv_pair.first."+att->_name+",";
+                }
+                copyString.pop_back();               
+
+                returnString += offset(2)+viewName[viewID]+".reserve("+
+                    viewName[viewID]+"_0_map.size());\n";
+
+                returnString +=
+                    offset(2)+"for (const auto& kv_pair : "+viewName[viewID]+"_0_map)\n"+
+                    offset(2)+"{\n"+
+                    offset(3)+viewName[viewID]+".emplace_back("+copyString+");\n"+
+                    offset(3)+"memcpy(&"+viewName[viewID]+".back().aggregates[0],"+
+                    "&kv_pair.second.aggregates[0],"+
+                    std::to_string(sizeof(double)*view->_aggregates.size())+");\n"+
+                    offset(2)+"}\n";
+
 #if defined(__GNUC__) && defined(NDEBUG) && !defined(__clang__)
                 std::string sortAlgo = "__gnu_parallel::sort(";
 #else
@@ -3547,24 +3673,33 @@ std::string CppGenerator::genDependentAggLoopString(
         
         if (_requireHashing[outViewID])
         {
+
             returnString +=
-                offset(offDepth)+viewName[outViewID]+"_pair = "+
-                // viewName[outViewID]+"_map.insert(std::make_pair("+
-                // viewName[outViewID]+"_key("+viewVars+"),"+
-                // viewName[outViewID]+".size()));\n"+
-                viewName[outViewID]+"_map.insert({{"+viewVars+"},"+
-                viewName[outViewID]+".size()});\n"+
-                // viewName[outViewID]+"_map.emplace(std::piecewise_construct,"
-                // "std::forward_as_tuple("+viewVars+"),"+
-                // "std::forward_as_tuple("+viewName[outViewID]+".size()));\n"+
-                offset(offDepth)+"if ("+viewName[outViewID]+"_pair.second)\n"+
-                offset(offDepth)+"{\n"+
-                offset(offDepth+1)+viewName[outViewID]+
-                ".emplace_back("+viewVars+");\n"+
-                offset(offDepth)+"}\n"+
-                offset(offDepth)+"aggregates_"+viewName[outViewID]+
-                " = "+viewName[outViewID]+"["+viewName[outViewID]+
-                "_pair.first->second].aggregates;\n";
+                offset(offDepth)+viewName[outViewID]+"_iterator = "+
+                viewName[outViewID]+"_map.find({"+viewVars+"});\n"+
+                offset(offDepth)+"if ("+viewName[outViewID]+"_iterator != "+
+                viewName[outViewID]+"_map.end())\n"+
+                offset(offDepth+1)+"aggregates_"+viewName[outViewID]+" = &"+
+                viewName[outViewID]+"_iterator->second.aggregates[0];\n"+
+                offset(offDepth)+"else\n"+
+                offset(offDepth+1)+"aggregates_"+viewName[outViewID]+" = &"+
+                viewName[outViewID]+"_map.insert({{"+viewVars+
+                "},{}}).first->second.aggregates[0];\n";
+
+            // This code is an alternative way to update the views that require hashing
+            // returnString +=
+            //     offset(offDepth)+viewName[outViewID]+"_pair = "+
+            //     viewName[outViewID]+"_map.insert({{"+viewVars+"},"+
+            //     viewName[outViewID]+".size()});\n"+
+            //     offset(offDepth)+"if ("+viewName[outViewID]+"_pair.second)\n"+
+            //     offset(offDepth)+"{\n"+
+            //     offset(offDepth+1)+viewName[outViewID]+
+            //     ".emplace_back("+viewVars+");\n"+
+            //     offset(offDepth)+"}\n"+
+            //     offset(offDepth)+"aggregates_"+viewName[outViewID]+
+            //     " = "+viewName[outViewID]+"["+viewName[outViewID]+
+            //     "_pair.first->second].aggregates;\n";
+
                 // "//-----------------------------\n"+
                 // offset(offDepth)+viewName[outViewID]+"_iterator"+
                 // " = "+viewName[outViewID]+"_map.find({"+viewVars+"});\n"+
@@ -5265,13 +5400,19 @@ std::string CppGenerator::genGroupGenericJoinCode(
                                                  _parallelizeGroup[group_id], false);
 
             // Set upper = lower and update ranges
-            relationCase += offset(3+depth)+
+            relationCase += offset(4+depth)+
                 "upperptr_"+relName+"["+depthString+"] = "+
                 "lowerptr_"+relName+"["+depthString+"];\n";
 
             // update range for base relation 
-            relationCase += updateRanges(depth, relName, attrName,
-                                         _parallelizeGroup[group_id]);
+            // relationCase += updateRanges(depth, relName, attrName,
+            // _parallelizeGroup[group_id]);
+            relationCase += offset(4+depth)+//while statement
+                "while(upperptr_"+relName+"["+depthString+"]<"+
+                getUpperPointer(relName, depth, _parallelizeGroup[group_id])+" && "+
+                relName+"[upperptr_"+relName+"["+depthString+"]+1]."+
+                attrName+" == max_"+attrName+")\n"+
+                offset(5+depth)+"++upperptr_"+relName+"["+depthString+"];\n";
             off = 2;
         }
         
@@ -5295,11 +5436,19 @@ std::string CppGenerator::genGroupGenericJoinCode(
 
             firstFactor = false;
             
-            returnString += offset(3+depth)+
+            returnString += offset(4+depth)+
                 "upperptr_"+viewName[viewID]+"["+depthString+"] = "+
                 "lowerptr_"+viewName[viewID]+"["+depthString+"];\n";
             
-            returnString += updateRanges(depth,viewName[viewID],attrName,false);        
+            // returnString += updateRanges(depth,viewName[viewID],attrName,false);
+            returnString += offset(4+depth)+
+                //while statement
+                "while(upperptr_"+viewName[viewID]+"["+depthString+"]<"+
+                getUpperPointer(viewName[viewID], depth, false)+" && "+
+                viewName[viewID]+"[upperptr_"+viewName[viewID]+"["+depthString+"]+1]."+
+                attrName+" == max_"+attrName+")\n"+                //body
+                offset(5+depth)+"++upperptr_"+viewName[viewID]+"["+depthString+"];\n";
+            
         }
         returnString += relationCase;//+offset(4+depth)+"}\n";
         
@@ -5326,14 +5475,22 @@ std::string CppGenerator::genGroupGenericJoinCode(
         if (viewsPerVar[idx+1] == _qc->numberOfViews())
         {
             // Set upper = lower and update ranges
-            returnString += offset(3+depth)+"max_"+attrName+" = "+
+            returnString += offset(2+depth)+"max_"+attrName+" = "+
                 relName+"[lowerptr_"+relName+"["+depthString+"]]."+attrName +";\n"+
-                offset(3+depth)+"upperptr_"+relName+"["+depthString+"] = "+
+                offset(4+depth)+"upperptr_"+relName+"["+depthString+"] = "+
                 "lowerptr_"+relName+"["+depthString+"];\n";
             
             // update range for base relation 
-            returnString += updateRanges(depth, relName, attrName,
-                                         _parallelizeGroup[group_id]);
+            // returnString += updateRanges(depth, relName, attrName,
+            //                              _parallelizeGroup[group_id]);
+            
+            returnString += offset(4+depth)+//while statement
+                "while(upperptr_"+relName+"["+depthString+"]<"+
+                getUpperPointer(relName, depth, _parallelizeGroup[group_id])+" && "+
+                relName+"[upperptr_"+relName+"["+depthString+"]+1]."+
+                attrName+" == max_"+attrName+")\n"+
+                offset(5+depth)+"++upperptr_"+relName+"["+depthString+"];\n";
+                        
             off = 2;
         }
 
@@ -5343,11 +5500,20 @@ std::string CppGenerator::genGroupGenericJoinCode(
 
             returnString += offset(3+depth)+"max_"+attrName+" = "+
                 viewName[viewID]+"[lowerptr_"+viewName[viewID]+
-                "["+depthString+"]]."+attrName +";\n"+offset(3+depth)+
+                "["+depthString+"]]."+attrName +";\n"+
+                offset(4+depth)+
                 "upperptr_"+viewName[viewID]+"["+depthString+"] = "+
                 "lowerptr_"+viewName[viewID]+"["+depthString+"];\n";
         
-            returnString += updateRanges(depth,viewName[viewID],attrName,false);
+            //returnString += updateRanges(depth,viewName[viewID],attrName,false);
+            returnString += offset(4+depth)+
+                //while statementnd
+                "while(upperptr_"+viewName[viewID]+"["+depthString+"]<"+
+                getUpperPointer(viewName[viewID], depth, false)+" && "+
+                viewName[viewID]+"[upperptr_"+viewName[viewID]+"["+depthString+"]+1]."+
+                attrName+" == max_"+attrName+")\n"+
+                //body
+                offset(5+depth)+"++upperptr_"+viewName[viewID]+"["+depthString+"];\n";
         }
 
         if (MICRO_BENCH)
@@ -6334,18 +6500,18 @@ std::string CppGenerator::seekValueGenericJoin(
     std::string resetMaxVal = "";
     if (firstFactor)
     {
-        resetMaxVal = offset(5+depth)+"max_"+attr_name+" = "+
+        resetMaxVal = offset(4+depth)+"max_"+attr_name+" = "+
             rel_name+"[lowerptr_"+rel_name+"["+depthString+"]]."+attr_name+";\n";
     }
     else
     {
-        resetMaxVal = offset(5+depth)+"if (max_"+attr_name+" < "+
+        resetMaxVal = offset(4+depth)+"if (max_"+attr_name+" < "+
             rel_name+"[lowerptr_"+rel_name+"["+depthString+"]]."+attr_name+")\n"+
-            offset(5+depth)+"{\n"+offset(6+depth)+"max_"+attr_name+" = "+
+            offset(4+depth)+"{\n"+offset(5+depth)+"max_"+attr_name+" = "+
             rel_name+"[lowerptr_"+rel_name+"["+depthString+"]]."+attr_name+";\n"+
-            offset(6+depth)+"found["+depthString+"] = false;\n"+
-            offset(6+depth)+"continue;\n"+
-            offset(5+depth)+"}\n";
+            offset(5+depth)+"found["+depthString+"] = false;\n"+
+            offset(5+depth)+"continue;\n"+
+            offset(4+depth)+"}\n";
     }
     
     

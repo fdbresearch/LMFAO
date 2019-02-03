@@ -178,10 +178,6 @@ void CovarianceMatrix::modelToQueries()
                 // else if (_categoricalFeatures[var2])
                 // {
                 //     quad_v2->_fVars.set(var2);
-                //     // If both varaibles are categoricalVars - we choose the
-                //     // var2 as the root
-                //     // TODO: We should use the root that is highest to the
-                //     // original root
                 //     quad_v2->_rootID = _queryRootIndex[var2];
                 // }
                 // else
