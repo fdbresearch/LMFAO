@@ -101,22 +101,23 @@ def get_triangualar_array(views_path, views):
 
 def get_uppper_cell_value(triangular_array, n: int, row_idx: int, col_idx: int, 
                          cat_features_cnt: list, features):
-    if (row_idx == 1) and (col_idx == 1):
+    if (row_idx == 0) and (col_idx == 0):
         return triangular_array[0]
     #print("Before row_idx: {} col_idx:{}".format(row_idx, col_idx))
 
-    if (row_idx == 1):
+    if (row_idx == 0):
         row_idx = col_idx - 1
         col_idx = row_idx
         # Check categorical count for the current row
         # (2nd feature maps to 1st row in the new design, thus row_idx stays)
-        offset_cat = cat_features_cnt[row_idx] 
-        #("Because IF * IF is on the right place" for the current feature)
-        if features[row_idx]['is_cat']:
+        # row_idx + 1 because first feature is "skipped" (continuous) in changed matrix.
+        offset_cat = cat_features_cnt[row_idx + 1]
+        #("Because IF * IF is on the right place" for the )
+        if features[row_idx + 1]['is_cat']:
             offset_cat -= 1
     else: 
         row_idx = row_idx - 1
-        offset_cat = cat_features_cnt[row_idx] 
+        offset_cat = cat_features_cnt[row_idx+1]
     
     # The part above is used to make mapping possible because 
     # value of triangular matrix are not outputted in the right order
@@ -126,8 +127,8 @@ def get_uppper_cell_value(triangular_array, n: int, row_idx: int, col_idx: int,
     # When we omit IF^2 and sort data, we get triangular matrix of size n (n+1 is passed to the 
     # function), whose correct row is one above. 
 
-    idx_cur  = n - row_idx + 1
-    idx = int(n * (n + 1) / 2 - idx_cur  * (idx_cur + 1) / 2)
+    idx_cur = n - row_idx
+    idx = int(n * (n + 1) / 2 - idx_cur * (idx_cur + 1) / 2)
     offset = col_idx - row_idx - offset_cat
     '''
     print("row_idx: {} col_idx:{} idx:{} offset:{} offset_cat{}".
@@ -146,9 +147,6 @@ def get_cell_value(triangular_array, n: int, row: int, col: int, cat_features_cn
 SKIP_CAT_F = True
 
 def print_cell(row, col, val, cell_type, domain_size_cnt):
-    row = row - 1
-    col = col - 1
-
     SKIP_DISP = 1 if SKIP_CAT_F else 0
 
     if cell_type == 'c':
@@ -235,10 +233,10 @@ def parse_faqs(output_path: str, features):
     print('{:0}'.format(n))
     # Continuous
     print('{:0}'.format(n - cat_features_cnt[-1]))
-    for row in range (1, n + 1):
-        for col in range(1, n + 1):
-            feature_row = features[row-1]
-            feature_col  = features[col-1]
+    for row in range(0, n):
+        for col in range(0, n):
+            feature_row = features[row]
+            feature_col  = features[col]
             #print(feature_row)
             #print(feature_col)
             val = get_cell_value(triangular_array, n, row, col, cat_features_cnt, features)
