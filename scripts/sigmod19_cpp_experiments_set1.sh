@@ -25,7 +25,7 @@ do
 
 		for r in {1..5}
 		do
-		    ./lmfao >> log_multifaq_sigmod19_experiments_set1_$dataset_$model.log
+		    ./lmfao >> ../../log_multifaq_sigmod19_experiments_set1_$dataset_$model.log
 		done
 
 		cat times.txt >> ../"$LOG_FILE"

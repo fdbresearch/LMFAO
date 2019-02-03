@@ -6749,13 +6749,13 @@ std::string CppGenerator::genRunFunction(bool parallelize)
         offset(2)+"ofs << \"\\t\" << processTime;\n";
     
     
-#ifdef BENCH_INDIVIDUAL
+// #ifdef BENCH_INDIVIDUAL
     for (size_t view = 0; view < _qc->numberOfViews(); ++view)
     {
         returnString += offset(2)+"std::cout << \""+viewName[view]+": \" << "+
             viewName[view]+".size() << std::endl;\n";
     }
-#endif
+// #endif
     if (_hasApplicationHandler)
     {
         returnString += offset(2)+"ofs.close();\n\n"+
