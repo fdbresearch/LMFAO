@@ -6,9 +6,9 @@ for dataset in retailer favorita yelp;
 do 
 	for model in covar count rtree mi cube;
 	do 
-		LOG_FILE=sigmod19_experiments_set1_$dataset_$model.log
+		LOG_FILE=sigmod19_experiments_set1_"$dataset"_"$model".log
 
-		./multifaq --path ../benchmarking/datasets/"$dataset" --model "$model" --parallel "$PARALLEL" --feat config_sigmod19/features_"$model".conf >> log_multifaq_sigmod19_experiments_set1_$dataset_$model.log
+		./multifaq --path ../benchmarking/datasets/"$dataset" --model "$model" --parallel "$PARALLEL" --feat config_sigmod19/features_"$model".conf >> log_multifaq_sigmod19_experiments_set1_"$dataset"_"$model".log
 
 		echo "$dataset - cpp - $model" >> runtime/"$LOG_FILE"
 		cat compiler-data.out >> runtime/"$LOG_FILE"
@@ -25,7 +25,7 @@ do
 
 		for r in {1..5}
 		do
-		    ./lmfao >> ../../log_multifaq_sigmod19_experiments_set1_$dataset_$model.log
+		    ./lmfao >> ../../log_multifaq_sigmod19_experiments_set1_"$dataset"_"$model".log
 		done
 
 		cat times.txt >> ../"$LOG_FILE"
