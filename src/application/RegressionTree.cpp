@@ -195,6 +195,30 @@ void RegressionTree::computeCandidates()
 
 void RegressionTree::regressionTreeQueries()
 {
+
+    Aggregate* countC = new Aggregate();
+    Aggregate* countL = new Aggregate();
+    Aggregate* countQ = new Aggregate();
+                
+    /* Q_C */
+    countC->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                            
+    /* Q_L */
+    countL->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
+    countL->_agg[0].set(0);
+        
+    /* Q_Q */
+    countQ->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
+    countQ->_agg[0].set(1);
+
+    // We add an additional query without free vars to compute the
+    // complement of each threshold 
+    Query* countQuery = new Query();
+    countQuery->_rootID = _td->_root->_id;  
+    countQuery->_aggregates = {countC,countL,countQ};
+
+    _compiler->addQuery(countQuery);
+
     for (size_t var=0; var < NUM_OF_VARIABLES; ++var)
     {
         if (_features[var])
@@ -224,34 +248,12 @@ void RegressionTree::regressionTreeQueries()
                 
                 _compiler->addQuery(query);
 
-                Aggregate* compaggC = new Aggregate();
-                Aggregate* compaggL = new Aggregate();
-                Aggregate* compaggQ = new Aggregate();
-                
-                /* Q_C */
-                compaggC->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
-                            
-                /* Q_L */
-                compaggL->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
-                compaggL->_agg[0].set(0);
-        
-                /* Q_Q */
-                compaggQ->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
-                compaggQ->_agg[0].set(1);
-
-                // We add an additional query without free vars to compute the
-                // complement of each threshold 
-                Query* complementQuery = new Query();
-                complementQuery->_rootID = _queryRootIndex[var];  
-                complementQuery->_aggregates = {compaggC,compaggL,compaggQ};
-
-                _compiler->addQuery(complementQuery);
 
                 QueryThresholdPair qtPair;
                 qtPair.query = query;
                 qtPair.varID = var;
                 qtPair.function = nullptr;
-                qtPair.complementQuery = complementQuery;
+                qtPair.complementQuery = countQuery;
                 
                 _varToQueryMap[var] = query;
 

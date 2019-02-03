@@ -50,7 +50,17 @@ void MutualInformation::generateCode(const std::string& outputString)
 
 
 void MutualInformation::modelToQueries()
-{    
+{
+    Aggregate* countAgg = new Aggregate();
+    countAgg->_agg.push_back(prod_bitset());
+
+    Query* countQuery = new Query();
+    countQuery->_aggregates.push_back(countAgg);
+    countQuery->_rootID = _td->_root->_id;
+
+    _compiler->addQuery(countQuery);
+
+                 
     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var) 
     {
         if (_isCategoricalFeature[var])

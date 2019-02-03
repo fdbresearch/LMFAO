@@ -74,21 +74,21 @@ void DataCube::modelToQueries()
         }
     }
     
-    Query* query = new Query();
-    query->_rootID = _td->_root->_id;
+    // Query* query = new Query();
+    // query->_rootID = _td->_root->_id;
 
-    Aggregate* agg = new Aggregate();
-    agg->_agg.push_back(prod_bitset());
-    query->_aggregates.push_back(agg);
+    // Aggregate* agg = new Aggregate();
+    // agg->_agg.push_back(prod_bitset());
+    // query->_aggregates.push_back(agg);
  
-    for (prod_bitset p : measureAggregates)
-    {
-        Aggregate* agg = new Aggregate();
-        agg->_agg.push_back(p);
-        query->_aggregates.push_back(agg);
-    }
+    // for (prod_bitset p : measureAggregates)
+    // {
+    //     Aggregate* agg = new Aggregate();
+    //     agg->_agg.push_back(p);
+    //     query->_aggregates.push_back(agg);
+    // }
 
-    _compiler->addQuery(query);
+    // _compiler->addQuery(query);
     
     std::vector<var_bitset> pathNodes(_td->numberOfRelations());
 
@@ -146,44 +146,8 @@ void DataCube::modelToQueries()
             }
         }
         printf("\n");
-
-        // size_t maxFvarsInBag = 0;
-        // std::vector<size_t> rootNode;
-        // for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
-        // {
-        //     if (variables[rel] > maxFvarsInBag)
-        //     {
-        //         rootNode.clear();
-        //         rootNode.push_back(rel);
-        //         maxFvarsInBag = variables[rel];
-        //     }
-        //     if (variables[rel] > 0 &&  variables[rel] == maxFvarsInBag)
-        //     {
-        //         rootNode.push_back(rel);
-        //     }
-        // }
-        
-        // if (rootNode.size() > 1)
-        // {
-        //     var_bitset common_path = pathNodes[rootNode[0]];
-        //     for (size_t rel : rootNode)
-        //     {
-        //         common_path |= pathNodes[rootNode[rel]];
-        //     }
-            
-        //     for (size_t rel = 0; rel < _qc->numberOfRelations(); ++rel)
-        //     {
-        //         if (common_path[rel])
-        //         {
-        //             rootNode[0] = rel;
-        //             break;
-        //         }
-        //     }
-        // }
-        // query->_rootID = rootNode[0];
         
         _compiler->addQuery(query);
-        // variables.clear();
     }
 }
 
@@ -292,7 +256,6 @@ void DataCube::loadFeatures()
         }
         else if (categorical == 2 || featureNo == 0)
         {
-            std::cout << "HERE \n";
             _measures.set(attributeID);
         }
         else

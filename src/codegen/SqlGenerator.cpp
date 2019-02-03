@@ -402,16 +402,15 @@ void SqlGenerator::generateAggregateQueries()
             if (query->_fVars[var])
                 fVarString += _td->getAttribute(var)->_name + ",";
         }
-        if (!fVarString.empty())
-            fVarString.pop_back();
-        
+
+        string aggregateString = "";
         for (size_t agg = 0; agg < query->_aggregates.size(); ++agg)
         {
             Aggregate* aggregate = query->_aggregates[agg];
             
             size_t aggIdx = 0;
 
-            string sumString = "", aggregateString = "";
+            string sumString = "";
             for (size_t i = 0; i < aggregate->_agg.size(); i++)
             {
                 const prod_bitset prod = aggregate->_agg[aggIdx];
@@ -419,7 +418,8 @@ void SqlGenerator::generateAggregateQueries()
                 string prodString = "";
                 for (size_t f = 0; f < NUM_OF_FUNCTIONS; f++)
                 {
-                    if (prod.test(f))
+                    if (prod.test(f) &&
+                        _qc->getFunction(f)->_operation != Operation::dynamic)
                     {
                         prodString += getFunctionString(f)+"*";
                     }
@@ -435,17 +435,20 @@ void SqlGenerator::generateAggregateQueries()
             }
             sumString.pop_back();
 
-            
-            std::string groupByString = "";
-            if (!fVarString.empty())
-            {
-                groupByString += "\nGROUP BY "+fVarString;
-                aggregateString += fVarString+",";
-            }
-            aggregateString += "SUM("+sumString+") AS agg_"+to_string(aggID_unmerged);
-            ofs << "CREATE TABLE agg_"+to_string(aggID_unmerged++)+" AS (\nSELECT "+
-                aggregateString+"\nFROM "+joinString+groupByString+");\n\n";
+            aggregateString +="SUM("+sumString+") AS agg_"+to_string(agg)+",";
         }
+        aggregateString.pop_back();
+        
+        std::string groupByString = "";
+        if (!fVarString.empty())
+        {
+            aggregateString = fVarString+aggregateString;
+            fVarString.pop_back();
+            groupByString += "\nGROUP BY "+fVarString;
+        }
+        
+        ofs << "CREATE TABLE agg_"+to_string(aggID_unmerged++)+" AS (\nSELECT "+
+            aggregateString+"\nFROM "+joinString+groupByString+");\n\n";
     }
 
     ofs.close();
