@@ -227,7 +227,10 @@ void CppGenerator::genMainFunction(bool parallelize)
 
     if (_hasApplicationHandler)
         ofs << "#include \"ApplicationHandler.h\"\n";
-    
+    ofs << "#include <map>\n" 
+        << "typedef std::map< std::tuple<unsigned int, long double, long double>, long double> DomainAggregate;\n" 
+        << "typedef std::vector<DomainAggregate> VectorOffset;\n"
+        << "typedef std::map<unsigned int, VectorOffset> MapView;\n";
     ofs << "\nnamespace lmfao\n{\n";    
     // offset(1)+"//const std::std::ring PATH_TO_DATA = \"/Users/Maximilian/Documents/"+
     // "Oxford/LMFAO/"+_pathToData+"\";\n"+
@@ -6635,6 +6638,8 @@ std::string CppGenerator::genDumpFunction()
     std::string returnString = "#ifdef DUMP_OUTPUT\n"+
         offset(1)+"void dumpOutputViews()\n"+offset(1)+"{\n"+
         offset(2)+"std::ofstream ofs;\n";
+    returnString += offset(2) + "vectorCofactorViews[1];\n";
+    returnString += offset(2) + "MapView mViews;;\n";
     
     for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
     {
@@ -6642,21 +6647,52 @@ std::string CppGenerator::genDumpFunction()
 
         if (view->_origin != view->_destination)
             continue;
-
+        std::string dimCountSize = std::to_string(view->_fVars.count());
+        std::string viewCountSize = std::to_string(view->_aggregates.size());
+        std::string tupleType =  "const " + viewName[viewID]+"_tuple& tuple";
         returnString += offset(2)+"ofs.open(\"output/"+
             viewName[viewID]+".tbl\");\n"+
-            offset(2)+"ofs << \""+std::to_string(view->_fVars.count())+" "+
-            std::to_string(view->_aggregates.size())+"\\n\";\n";
-            
+            offset(2)+"ofs << \""+dimCountSize+" "+
+            viewCountSize+"\\n\";\n";
+
+   
         std::string fields = "";
+        
+        std::string fieldsForMap = dimCountSize + ",";
         for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
         {
             if (view->_fVars[var])
             {
                 Attribute* attr = _td->getAttribute(var);
                 fields += " << tuple."+attr->_name+" <<\"|\"";
+                fieldsForMap += "tuple." + attr->_name + ","; 
             }
         }
+        for (int i = view->_fVars.count(); i < 2; i ++)
+        {
+            fieldsForMap += "0,";
+        }
+        // Pops back the last ,
+        fieldsForMap.pop_back();
+        
+        std::string calcViews = 
+            offset(3) + "VectorOffset vOffsets;\n" +
+            offset(3) + "for (size_t offset=0; offset <" + 
+            viewCountSize + "; ++offset)\n"
+            + offset(3) + "{\n"
+            + offset(4) + "DomainAggregate mDomAgg;\n"
+            + offset(4) + "for (size_t i=0; i <" + viewName[viewID] + ".size(); ++i)\n"
+            + offset(4) + "{\n"
+            + offset(5) + tupleType + "=" + viewName[viewID]+"[i];\n"
+            + offset(5) + "mDomAgg[std::make_tuple("+ 
+                        fieldsForMap + ")]" + "= tuple.aggregates[i];\n"
+            + offset(4) + "}\n"
+            + offset(4) + "vOffsets.push_back(mDomAgg);\n"
+            + offset(3) + "}\n"
+            + offset(3) + "mViews[" + viewName[viewID].substr(1) + "] = vOffsets;\n";
+
+        returnString += offset(2) + "{\n" + calcViews + 
+                        offset(2) + "}\n";
 
         for (size_t agg = 0; agg < view->_aggregates.size(); ++agg)
             fields += " << tuple.aggregates["+std::to_string(agg)+"] << \"|\"";
@@ -6667,7 +6703,7 @@ std::string CppGenerator::genDumpFunction()
         
         returnString += offset(2)+"for (size_t i=0; i < "+viewName[viewID]+
             ".size(); ++i)\n"+offset(2)+"{\n"+offset(3)+
-            viewName[viewID]+"_tuple& tuple = "+viewName[viewID]+"[i];\n"+
+            tupleType +" = "+viewName[viewID]+"[i];\n"+
             offset(3)+"ofs "+fields+"\"\\n\";\n"+offset(2)+"}\n";
         returnString += offset(2)+"ofs.close();\n";
     }
