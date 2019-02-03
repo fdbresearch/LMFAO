@@ -359,6 +359,8 @@ void CovarianceMatrix::loadFeatures()
 void CovarianceMatrix::generateCode()
 {
     std::string dumpListOfQueries = "";
+    std::string vectorCofactorViewsDef = "std::vector< std::pair<unsigned int, unsigned int> > vectorCofactorViews;";
+    std::string vectorCofactorViews = "";
 
     for (Query* query : listOfQueries)
     {
@@ -366,11 +368,16 @@ void CovarianceMatrix::generateCode()
         
         dumpListOfQueries += std::to_string(viewAggPair.first)+","+
             std::to_string(viewAggPair.second)+"\\n";
+        vectorCofactorViews += 
+        offset(2) + "vectorCofactorViews.push_back(std::make_pair(" 
+        + std::to_string(viewAggPair.first) + "," + 
+        std::to_string(viewAggPair.second) + "));\n";
     }
     
     std::string runFunction = offset(1)+"void runApplication()\n"+offset(1)+"{\n"+
         "#ifdef DUMP_OUTPUT\n"+
         offset(2)+"std::ofstream ofs(\"output/covarianceMatrix.out\");\n"+
+         vectorCofactorViews + "\n"+
         offset(2)+"ofs << \""+dumpListOfQueries+"\";\n"+
         offset(2)+"ofs.close();\n\n"+
         "#endif /* DUMP_OUTPUT */ \n"+
@@ -380,15 +387,17 @@ void CovarianceMatrix::generateCode()
     ofs << "#ifndef INCLUDE_APPLICATIONHANDLER_HPP_\n"<<
         "#define INCLUDE_APPLICATIONHANDLER_HPP_\n\n"<<
         "#include \"DataHandler.h\"\n\n"<<
-        "namespace lmfao\n{\n"<<
+        "namespace lmfao\n{\n"<< 
         offset(1)+"void runApplication();\n"<<
+        offset(1) << "extern " + vectorCofactorViewsDef <<
         "}\n\n#endif /* INCLUDE_APPLICATIONHANDLER_HPP_*/\n";    
     ofs.close();
 
     ofs.open("runtime/cpp/ApplicationHandler.cpp", std::ofstream::out);
     ofs << "#include \"ApplicationHandler.h\"\n"
         << "namespace lmfao\n{\n";
-    ofs << runFunction << std::endl;
+    ofs << vectorCofactorViewsDef << std::endl;
+     ofs << runFunction << std::endl;
     ofs << "}\n";
     ofs.close();
 }
