@@ -227,19 +227,22 @@ void CppGenerator::genMainFunction(bool parallelize)
 
     if (_hasApplicationHandler)
         ofs << "#include \"ApplicationHandler.h\"\n";
-    ofs << "#include <map>\n" 
-        << "typedef std::map< std::tuple<unsigned int, long double, long double>, long double> DomainAggregate;\n" 
-        << "typedef std::vector<DomainAggregate> VectorOffset;\n"
-        << "typedef std::map<unsigned int, VectorOffset> MapView;\n";
-    ofs << "\nnamespace lmfao\n{\n";    
-    // offset(1)+"//const std::std::ring PATH_TO_DATA = \"/Users/Maximilian/Documents/"+
-    // "Oxford/LMFAO/"+_pathToData+"\";\n"+
-    // offset(1)+"const std::string PATH_TO_DATA = \"../../"+_pathToData+"\";\n\n";
+        ofs << "#include \"../../LinearAlgebra/include/SVDecomp.h\"\n";
+        ofs
+         << "#include <map>\n"
+         << "typedef std::map< std::tuple<unsigned int, long double, long double>, long double> DomainAggregate;\n"
+         << "typedef std::vector<DomainAggregate> VectorOffset;\n"
+         << "typedef std::map<unsigned int, VectorOffset> MapView;\n"
+         << "using namespace LMFAO::LinearAlgebra;\n"; 
+        ofs << "\nnamespace lmfao\n{\n";
+        // offset(1)+"//const std::std::ring PATH_TO_DATA = \"/Users/Maximilian/Documents/"+
+        // "Oxford/LMFAO/"+_pathToData+"\";\n"+
+        // offset(1)+"const std::string PATH_TO_DATA = \"../../"+_pathToData+"\";\n\n";
 
-    for (size_t relID = 0; relID < _td->numberOfRelations(); ++relID)
-    {
-        const std::string& relName = _td->getRelation(relID)->_name;
-        ofs << offset(1)+"std::vector<"+relName+"_tuple> "+relName+";" << std::endl;
+        for (size_t relID = 0; relID < _td->numberOfRelations(); ++relID)
+        {
+            const std::string &relName = _td->getRelation(relID)->_name;
+            ofs << offset(1) + "std::vector<" + relName + "_tuple> " + relName + ";" << std::endl;
     }
     
     for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
@@ -295,7 +298,8 @@ void CppGenerator::genMakeFile()
     ofs << "\n# -pthread -O2 -mtune=native -fassociative-math -freciprocal-math "
         << "-fno-signed-zeros -v -ftime-report -fno-stack-protector\n\n";
 
-    ofs << "lmfao : "+objectList+"\n\t$(CXX) $(CXXFLAG) "+objectList+"-o lmfao\n\n";
+    ofs << "lmfao : " + objectList + "\n\t$(CXX) $(CXXFLAG) " + 
+          objectList + " liblmfaolalib.a -o lmfao\n\n";
 
     ofs << "main.o : main.cpp\n"
         << "\t$(CXX) $(FLAG) $(CXXFLAG) -c main.cpp -o main.o\n\n"
@@ -6635,9 +6639,11 @@ std::string CppGenerator::genTestFunction()
 
 std::string CppGenerator::genDumpFunction()
 {
-    std::string returnString = "#ifdef DUMP_OUTPUT\n"+
-        offset(1)+"void dumpOutputViews()\n"+offset(1)+"{\n"+
-        offset(2)+"std::ofstream ofs;\n";
+    std::string functionsString = "" + offset(1) + "LMFAO::LinearAlgebra::MapMatrixAggregate mSigma;\n" + offset(1) + "constexpr unsigned int LA_NUM_FEATURES = 32;\n" + offset(1) + "unsigned int getTriangularIdx(unsigned int row, unsigned int col)\n" + offset(1) + "{\n" + offset(2) + "unsigned int idxCur, idx, offset;\n" + offset(2) + "if ((row == 0) && (col == 0))\n" + offset(2) + "{\n" + offset(3) + "return 0;\n" + offset(2) + "}\n" + offset(2) + "if (row == 0)\n" + offset(2) + "{\n" + offset(3) + "row = col - 1;\n" + offset(3) + "col = row;\n" + offset(2) + "}\n" + offset(2) + "else\n" + offset(2) + "{\n" + offset(3) + "row = row - 1;\n" + offset(2) + "}\n" + offset(2) + "unsigned int n = LA_NUM_FEATURES;\n" + offset(2) + "idxCur = n - row;\n" + offset(2) + "idx = n * (n + 1) / 2 - idxCur * (idxCur + 1) / 2;\n" + offset(2) + "//std :: cout << \"idx \" << idx << \" row \" << row << \" col \" << col << std::endl;\n" + offset(2) + "offset = col - row;\n" + offset(2) + "return idx + offset + 1;\n" + offset(1) + "}\n" + offset(0) + "\n" + offset(1) + "const DomainAggregate &getCellValueUpper(unsigned int row, unsigned int col,\n" + offset(14) + "MapView &mViews)\n" + offset(1) + "{\n" + offset(2) + "unsigned int idx = getTriangularIdx(row, col);\n" + offset(2) + "//std::cout << \"idx\" << idx << std::endl;\n" + offset(2) + "const auto &viewOffset = vectorCofactorViews[idx];\n" + offset(2) + "//std::cout << \"v \" << viewOffset.first << \" o \" << viewOffset.second << std::endl;\n" + offset(2) + "return (mViews[viewOffset.first][viewOffset.second]);\n" + offset(1) + "}\n" + offset(1) + "const DomainAggregate &getCellValue(unsigned int row, unsigned int col,\n" + offset(13) + "MapView &mViews)\n" + offset(1) + "{\n" + offset(2) + "if (row > col)\n" + offset(2) + "{\n" + offset(3) + "std::swap(col, row);\n" + offset(2) + "}\n" + offset(2) + "return getCellValueUpper(row, col, mViews);\n" + offset(1) + "}\n" + offset(0) + "\n" + offset(1) + "void printCell(unsigned int row, unsigned int col,\n" + offset(6) + "const DomainAggregate& aggregate, char cellType)\n" + offset(1) + "{\n" + offset(2) + "switch (cellType)\n" + offset(2) + "{\n" + offset(3) + "case 'c':\n" + offset(4) + "std::cout << row << \" \" <<  col << \" \" <<\n" + offset(4) + "aggregate.begin()->second << std::endl;\n" + offset(4) + "mSigma[std::make_pair(row, col)] =\n" + offset(5) + "std::make_pair(aggregate.begin()->second, 0);\n" + offset(5) + "break;\n" + offset(2) + "}\n" + offset(1) + "}\n";
+
+    std::string returnString = "#ifdef DUMP_OUTPUT\n" + functionsString +
+            offset(1) + "void dumpOutputViews()\n" + offset(1) + "{\n" +
+            offset(2) + "std::ofstream ofs;\n";
     returnString += offset(2) + "vectorCofactorViews[1];\n";
     returnString += offset(2) + "MapView mViews;;\n";
     
@@ -6667,7 +6673,7 @@ std::string CppGenerator::genDumpFunction()
                 fields += " << tuple."+attr->_name+" <<\"|\"";
                 fieldsForMap += "tuple." + attr->_name + ","; 
             }
-        }
+    }
         for (int i = view->_fVars.count(); i < 2; i ++)
         {
             fieldsForMap += "0,";
@@ -6685,7 +6691,7 @@ std::string CppGenerator::genDumpFunction()
             + offset(4) + "{\n"
             + offset(5) + tupleType + "=" + viewName[viewID]+"[i];\n"
             + offset(5) + "mDomAgg[std::make_tuple("+ 
-                        fieldsForMap + ")]" + "= tuple.aggregates[i];\n"
+                        fieldsForMap + ")]" + "= tuple.aggregates[offset];\n"
             + offset(4) + "}\n"
             + offset(4) + "vOffsets.push_back(mDomAgg);\n"
             + offset(3) + "}\n"
@@ -6707,8 +6713,9 @@ std::string CppGenerator::genDumpFunction()
             offset(3)+"ofs "+fields+"\"\\n\";\n"+offset(2)+"}\n";
         returnString += offset(2)+"ofs.close();\n";
     }
+    std::string dumpCovarianceString = "" + offset(2) + "for (unsigned int row = 0; row < LA_NUM_FEATURES; row++)\n" + offset(2) + "{\n" + offset(3) + "for (unsigned int col = 0; col < LA_NUM_FEATURES; col++)\n" + offset(3) + "{\n" + offset(4) + "const auto &m = lmfao::getCellValue(row, col, mViews);\n" + offset(4) + "printCell(row, col, m, 'c');\n" + offset(3) + "}\n" + offset(2) + "}\n" + offset(2) + "SVDecomp svdDecomp(SVDecomp::DecompType::NAIVE, mSigma, LA_NUM_FEATURES);\n" + offset(2) + "svdDecomp.decompose();\n" + offset(0) + "\n";
 
-    returnString += offset(1)+"}\n"+"#endif\n";
+    returnString += dumpCovarianceString + offset(1) + "}\n" + "#endif\n";
 
     return returnString;
 }

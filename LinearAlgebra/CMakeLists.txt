@@ -21,11 +21,17 @@ set(LMFAO_LA_INCLUDE ${LMFAO_LA_ROOT}/include)
 include_directories(${LMFAO_LA_INCLUDE})
  
 file(GLOB SRCFILES src/*.cpp)
+set(LMFAO_LIB true)
+if (LMFAO_LIB)
+  add_library(lmfaolalib STATIC ${SRCFILES})
+endif()
 add_executable(lmfaola main.cpp ${SRCFILES})
 
-# Test environment. 
-add_executable(lmfaola_test ${LMFAO_LA_TEST}/test.cpp ${SRCFILES})
-target_include_directories(lmfaola_test PRIVATE ${LMFAO_LA_TEST})
+if (LMFAO_TESTING)
+  # Test environment. 
+  add_executable(lmfaola_test ${LMFAO_LA_TEST}/test.cpp ${SRCFILES})
+  target_include_directories(lmfaola_test PRIVATE ${LMFAO_LA_TEST})
+endif()
 
 set(Boost_USE_STATIC_LIBS OFF)
 set(Boost_USE_MULTITHREADED ON)
@@ -33,10 +39,14 @@ set(Boost_USE_STATIC_RUNTIME OFF)
 find_package(Boost REQUIRED COMPONENTS system iostreams program_options)
 include_directories(${Boost_INCLUDE_DIRS})
 
-# Take care of Gtest library.
-find_package(GTest REQUIRED)
-include_directories(${GTEST_INCLUDE_DIRS})
+if (LMFAO_TESTING)
+  # Take care of Gtest library.
+  find_package(GTest REQUIRED)
+  include_directories(${GTEST_INCLUDE_DIRS})
+endif()
 
 # Add libraries.
 target_link_libraries(lmfaola ${Boost_LIBRARIES})
-target_link_libraries(lmfaola_test ${Boost_LIBRARIES} ${GTEST_LIBRARIES})
+if (LMFAO_TESTING)
+  target_link_libraries(lmfaola_test ${Boost_LIBRARIES} ${GTEST_LIBRARIES})
+endif()

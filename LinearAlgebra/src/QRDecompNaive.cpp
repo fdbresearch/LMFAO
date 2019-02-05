@@ -63,9 +63,7 @@ namespace LMFAO::LinearAlgebra
         // Normalise R
         for (unsigned int row = 0; row < N; row++)
         {
-            std::cout << "NOrm" << mR[expIdx(row, row, N)] << std::endl;
             double norm = sqrt(mR[expIdx(row, row, N)]);
-            std::cout << "NOrm" << norm << std::endl;
             for (unsigned int col = row; col < N; col++)
             {
                 mR[col * N + row] /= norm;

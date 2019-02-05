@@ -1,5 +1,9 @@
+#ifndef _LMFAO_QR_DECOMP_H_
+#define _LMFAO_QR_DECOMP_H_
+
 #include <Eigen/Dense>
 #include <vector>
+#include <map>
 
 namespace LMFAO::LinearAlgebra
 {
@@ -25,13 +29,14 @@ namespace LMFAO::LinearAlgebra
     typedef std::tuple<unsigned int, long double> Pair;
 
     typedef Eigen::Matrix<bool, Eigen::Dynamic, Eigen::Dynamic> MatrixBool;
-
+    typedef std::map<std::pair<unsigned int, unsigned int>, 
+                     std::pair<long double, bool>> MapMatrixAggregate;
     class QRDecomposition 
     {
-        void readMatrix(const std::string& path);
-
-    protected:
-        Eigen::MatrixXd mSigma;
+        void formMatrix(const MapMatrixAggregate &, unsigned int numFeatures);
+        void readMatrix(const std::string &path);
+        void rearrangeMatrix(const MatrixBool &matIsCategorical);
+    protected : Eigen::MatrixXd mSigma;
         std::vector <long double> mC;
         std::vector <long double> mR;
         std::vector <Triple> mCatVals;
@@ -58,6 +63,10 @@ namespace LMFAO::LinearAlgebra
         {
             readMatrix(path);
         }
+        QRDecomposition(const MapMatrixAggregate& mMatrix, unsigned int numFeatures)
+        {
+            formMatrix(mMatrix, numFeatures);
+        }
         virtual ~QRDecomposition() {}
          void getR(Eigen::MatrixXd &rEigen);
     }; 
@@ -65,10 +74,12 @@ namespace LMFAO::LinearAlgebra
     class QRDecompositionNaive: public QRDecomposition
     {
     public:
+        QRDecompositionNaive(const std::string &path) : QRDecomposition(path) {}
+        QRDecompositionNaive(const MapMatrixAggregate &mMatrix, unsigned int numFeatures) : 
+        QRDecomposition(mMatrix, numFeatures) {}
         ~QRDecompositionNaive() {}
         virtual void decompose(void) override;
         void calculateCR(void);
-        QRDecompositionNaive(const std::string &path) : QRDecomposition(path) {}
     };
 
     class QRDecompositionSingleThreaded: public QRDecomposition
@@ -80,10 +91,31 @@ namespace LMFAO::LinearAlgebra
     std::vector<std::vector<Pair>> mCofactorPerFeature;
 
     public:
+        QRDecompositionSingleThreaded(const std::string &path) : QRDecomposition(path) {}
+        QRDecompositionSingleThreaded(const MapMatrixAggregate &mMatrix, unsigned int numFeatures) :
+         QRDecomposition(mMatrix, numFeatures) {}
+
         ~QRDecompositionSingleThreaded() {}
         virtual void decompose(void) override;
         void processCofactors(void);
         void calculateCR(void);
-        QRDecompositionSingleThreaded(const std::string &path) : QRDecomposition(path) {}
     };
+
+    class QRDecompositionParallel : public QRDecomposition
+    {
+        // Sigma; Categorical cofactors as an ordered coordinate list
+        std::vector<Triple> mCofactorList;
+
+        // Phi; Categorical cofactors as list of lists
+        std::vector<std::vector<Pair>> mCofactorPerFeature;
+
+      public:
+        ~QRDecompositionParallel() {}
+        virtual void decompose(void) override;
+        void processCofactors(void);
+        void calculateCR(void);
+        QRDecompositionParallel(const std::string &path) : QRDecomposition(path) {}
+    };
+    
 }
+#endif

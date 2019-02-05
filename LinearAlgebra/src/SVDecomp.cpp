@@ -12,10 +12,25 @@ namespace LMFAO::LinearAlgebra
         switch (mDecompType)
         {
             case DecompType::NAIVE:
-                pQRDecomp = new QRDecompositionNaive(mPath);
-                break;
+                if (nullptr == mpmapMatAgg)
+                {
+                    pQRDecomp = new QRDecompositionNaive(mPath);
+                }
+                else 
+                {
+                    pQRDecomp = new QRDecompositionNaive(*mpmapMatAgg, mNumFeatures);
+                }
+                    
+            break;
             case DecompType::SINGLE_THREAD:
-                pQRDecomp = new QRDecompositionSingleThreaded(mPath);
+                if (nullptr == mpmapMatAgg)
+                {
+                    pQRDecomp = new QRDecompositionSingleThreaded(mPath);
+                }
+                else 
+                {
+                    pQRDecomp = new QRDecompositionSingleThreaded(*mpmapMatAgg, mNumFeatures);
+                }
                 break;
 
             default:
