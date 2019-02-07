@@ -39,6 +39,7 @@ static bool RESORT_RELATIONS;
 static bool MICRO_BENCH;
 static bool COMPRESS_AGGREGATES;
 static bool COLUMNAR_LAYOUT;
+static bool LINEAR_SEARCH;
 
 const static bool USE_LEAPFROG_JOIN = false;
 
@@ -55,7 +56,7 @@ typedef boost::dynamic_bitset<> dyn_bitset;
 CppGenerator::CppGenerator(const std::string path, const std::string outDirectory,
                            const bool multioutput_flag, const bool resort_flag,
                            const bool microbench_flag, const bool compression_flag,
-                           const bool column_flag,
+                           const bool column_flag, const bool linear_flag,
                            std::shared_ptr<Launcher> launcher) :
     _pathToData(path), _outputDirectory(outDirectory)
 {
@@ -66,6 +67,7 @@ CppGenerator::CppGenerator(const std::string path, const std::string outDirector
     MICRO_BENCH = microbench_flag;
     COMPRESS_AGGREGATES = compression_flag;    
     COLUMNAR_LAYOUT = column_flag;
+    LINEAR_SEARCH = linear_flag;
     
     if (resort_flag)
     {
@@ -6408,68 +6410,81 @@ std::string CppGenerator::seekValueGenericJoin(
 {
     const std::string depthString = std::to_string(depth);
     const std::string upperPointer = getUpperPointer(rel_name,depth,parallel);
-    
-    std::string findUpperBound = 
-        offset(5+depth)+"leap = 1;\n"+
-        offset(5+depth)+"high = lowerptr_"+rel_name+"["+depthString+"];\n"+
-        offset(5+depth)+"while (high <= "+
-        upperPointer+" && "+relationFieldAccess(rel_name,attr_name,"high")+" < max_"+attr_name+")\n"+
-        offset(5+depth)+"{\n"+
-        offset(6+depth)+"high += leap;\n"+
-        offset(6+depth)+"leap *= 2;\n"+
-        offset(5+depth)+"}\n";
+    std::string findUpperBound = "";
+    if(!LINEAR_SEARCH) {  
+        findUpperBound = 
+            offset(5+depth)+"leap = 1;\n"+
+            offset(5+depth)+"high = lowerptr_"+rel_name+"["+depthString+"];\n"+
+            offset(5+depth)+"while (high <= "+
+            upperPointer+" && "+relationFieldAccess(rel_name,attr_name,"high")+" < max_"+attr_name+")\n"+
+            offset(5+depth)+"{\n"+
+            offset(6+depth)+"high += leap;\n"+
+            offset(6+depth)+"leap *= 2;\n"+
+            offset(5+depth)+"}\n";
 
-    /*
-     * When we found an upper bound; to find the least upper bound;
-     * use binary search to backtrack.
-     */ 
-    findUpperBound += offset(5+depth)+"/* Backtrack with binary search */\n"+
-        // offset(6+depth)+"if (leap > 2 && max_"+attr_name+" <= "+rel_name+
-        // "[lowerptr_"+rel_name+"["+depthString+"]]."+attr_name+")\n"
-        // +offset(6+depth)+"{\n"+
-        offset(5+depth)+"leap /= 2;\n"+
-        offset(5+depth)+"high = std::min(high,"+upperPointer+");\n"+
-        offset(5+depth)+"low = high - leap; mid = 0;\n"+
-        offset(5+depth)+"while (low <= high)\n"+
-        offset(5+depth)+"{\n"+
-        offset(6+depth)+"mid = (high + low) / 2;\n"+
-        // offset(8+depth)+"if(max_"+attr_name+" == "+rel_name+"[mid]."+attr_name+")\n"+
-        // offset(8+depth)+"{\n"+
-        // offset(9+depth)+"lowerptr_"+rel_name+"["+depthString+"] = mid;\n"+
-        // offset(9+depth)+"high = mid - 1;\n"+
-        // offset(8+depth)+"}\n"+
-        offset(6+depth)+"if (max_"+attr_name+" < "+relationFieldAccess(rel_name, attr_name, "mid")+")\n"+
-        offset(7+depth)+"high = mid - 1;\n"+
-        offset(6+depth)+"else if(max_"+attr_name+" > "+relationFieldAccess(rel_name, attr_name, "mid")+")\n"+
-        offset(7+depth)+"low = mid + 1;\n"+
-        offset(6+depth)+"else if  (low != mid)\n"+offset(7+depth)+"high = mid;\n"+
-        offset(6+depth)+"else\n"+offset(7+depth)+"break;\n"+
-        offset(5+depth)+"}\n"+
-        // offset(7+depth)+"mid = (high + low) / 2;\n"+
-        // offset(5+depth)+"if("+rel_name+"[mid-1]."+attr_name+">=max_"+attr_name+")\n"+
-        // offset(6+depth)+"std::cout << \"ERROR : "+rel_name+"[mid-1]."+
-        // attr_name+" >= max_"+attr_name+"\\n\";\n"+
-        // offset(5+depth)+"if("+rel_name+"[mid]."+attr_name+"<max_"+attr_name+")\n"+
-        // offset(6+depth)+"std::cout << \"ERROR : "+rel_name+"[mid]."+
-        // attr_name+" < max_"+attr_name+"\\n\";\n"+
-        offset(5+depth)+"lowerptr_"+rel_name+"["+depthString+"] = mid;\n";
-        // offset(6+depth)+"}\n";
+        /*
+         * When we found an upper bound; to find the least upper bound;
+         * use binary search to backtrack.
+         */ 
+        findUpperBound += offset(5+depth)+"/* Backtrack with binary search */\n"+
+            // offset(6+depth)+"if (leap > 2 && max_"+attr_name+" <= "+rel_name+
+            // "[lowerptr_"+rel_name+"["+depthString+"]]."+attr_name+")\n"
+            // +offset(6+depth)+"{\n"+
+            offset(5+depth)+"leap /= 2;\n"+
+            offset(5+depth)+"high = std::min(high,"+upperPointer+");\n"+
+            offset(5+depth)+"low = high - leap; mid = 0;\n"+
+            offset(5+depth)+"while (low <= high)\n"+
+            offset(5+depth)+"{\n"+
+            offset(6+depth)+"mid = (high + low) / 2;\n"+
+            // offset(8+depth)+"if(max_"+attr_name+" == "+rel_name+"[mid]."+attr_name+")\n"+
+            // offset(8+depth)+"{\n"+
+            // offset(9+depth)+"lowerptr_"+rel_name+"["+depthString+"] = mid;\n"+
+            // offset(9+depth)+"high = mid - 1;\n"+
+            // offset(8+depth)+"}\n"+
+            offset(6+depth)+"if (max_"+attr_name+" < "+relationFieldAccess(rel_name, attr_name, "mid")+")\n"+
+            offset(7+depth)+"high = mid - 1;\n"+
+            offset(6+depth)+"else if(max_"+attr_name+" > "+relationFieldAccess(rel_name, attr_name, "mid")+")\n"+
+            offset(7+depth)+"low = mid + 1;\n"+
+            offset(6+depth)+"else if  (low != mid)\n"+offset(7+depth)+"high = mid;\n"+
+            offset(6+depth)+"else\n"+offset(7+depth)+"break;\n"+
+            offset(5+depth)+"}\n"+
+            // offset(7+depth)+"mid = (high + low) / 2;\n"+
+            // offset(5+depth)+"if("+rel_name+"[mid-1]."+attr_name+">=max_"+attr_name+")\n"+
+            // offset(6+depth)+"std::cout << \"ERROR : "+rel_name+"[mid-1]."+
+            // attr_name+" >= max_"+attr_name+"\\n\";\n"+
+            // offset(5+depth)+"if("+rel_name+"[mid]."+attr_name+"<max_"+attr_name+")\n"+
+            // offset(6+depth)+"std::cout << \"ERROR : "+rel_name+"[mid]."+
+            // attr_name+" < max_"+attr_name+"\\n\";\n"+
+            offset(5+depth)+"lowerptr_"+rel_name+"["+depthString+"] = mid;\n";
+            // offset(6+depth)+"}\n";
 
+    } else {
+        findUpperBound = offset(5+depth)+
+            //while statementnd
+            "while(lowerptr_"+rel_name+"["+depthString+"]<"+
+            getUpperPointer(rel_name, depth, parallel)+" && "+
+            relationFieldAccess(rel_name, attr_name, "lowerptr_"+rel_name+"["+depthString+"]")+
+            " < max_"+attr_name+")\n"+
+            //body
+            offset(5+depth)+"{\n"+
+            offset(6+depth)+"++lowerptr_"+rel_name+"["+depthString+"];\n"+
+            offset(5+depth)+"}\n";
+    }
     std::string resetMaxVal = "";
     if (firstFactor)
     {
-        resetMaxVal = offset(5+depth)+"max_"+attr_name+" = "+
+        resetMaxVal = offset(4+depth)+"max_"+attr_name+" = "+
         relationFieldAccess(rel_name, attr_name, "lowerptr_"+rel_name+"["+depthString+"]")+";\n";
     }
     else
     {
-        resetMaxVal = offset(5+depth)+"if (max_"+attr_name+" < "+
+        resetMaxVal = offset(4+depth)+"if (max_"+attr_name+" < "+
             relationFieldAccess(rel_name, attr_name, "lowerptr_"+rel_name+"["+depthString+"]")+")\n"+
-            offset(5+depth)+"{\n"+offset(6+depth)+"max_"+attr_name+" = "+
+            offset(4+depth)+"{\n"+offset(5+depth)+"max_"+attr_name+" = "+
             relationFieldAccess(rel_name, attr_name, "lowerptr_"+rel_name+"["+depthString+"]")+";\n"+            
-            offset(6+depth)+"found["+depthString+"] = false;\n"+
-            offset(6+depth)+"continue;\n"+
-            offset(5+depth)+"}\n";
+            offset(5+depth)+"found["+depthString+"] = false;\n"+
+            offset(5+depth)+"continue;\n"+
+            offset(4+depth)+"}\n";
     }
     
     
@@ -6849,6 +6864,7 @@ std::string CppGenerator::genRunFunction(bool parallelize)
 // }
 
 
+// TODO: used in leap frog case, thus not modifying it for the moment.
 std::string CppGenerator::genFindUpperBound(const std::string& rel_name,
                                             const std::string& attrName,
                                             size_t depth, bool parallel)

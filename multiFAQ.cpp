@@ -65,6 +65,8 @@ int main(int argc, char *argv[])
         "turn compression of aggregates on (default)/off")
        /* Option to turn on the columnar layout. */
        ("column", "changes the data layout into a columnar one rather than the default row layout")
+       /* Option to turn off the binary search. */
+       ("linear", "use linear search rather than binary search in the generic join")
        /* Option to turn off mutlti output operator. */
        ("resort", "enables resorting of views / relations, requires multiout off.")
        /* Option to turn off mutlti output operator. */
@@ -186,6 +188,7 @@ int main(int argc, char *argv[])
                                  vm.count("microbench"),
                                  vm["compress"].as<bool>(),
                                  vm.count("column"),
+                                 vm.count("linear"),
                                  vm["k"].as<int>()
        );
    

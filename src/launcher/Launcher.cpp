@@ -70,7 +70,7 @@ int Launcher::launch(const string& model, const string& codeGenerator,
                      const string& tdFile, const string& outDirectory,
                      const bool multioutput_flag, const bool resort_flag,
                      const bool microbench_flag, const bool compression_flag,
-                     const bool column_flag, const int k
+                     const bool column_flag, const bool linear_flag, const int k
     )
 {
     /* Define the Feature Conf File */
@@ -168,7 +168,7 @@ int Launcher::launch(const string& model, const string& codeGenerator,
         _codeGenerator.reset(
             new CppGenerator(
                 _pathToFiles, outDirectory, multioutput_flag,resort_flag,
-                microbench_flag, compression_flag, column_flag, shared_from_this())
+                microbench_flag, compression_flag, column_flag, linear_flag, shared_from_this())
             );
     else if (codeGenerator.compare("sql") == 0)
         _codeGenerator.reset(
