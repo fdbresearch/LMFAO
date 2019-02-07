@@ -539,6 +539,9 @@ private:
         const std::string rel_name, size_t depth, bool parallel);
     
     std::string getLowerPointer(const std::string rel_name, size_t depth);
+
+    size_t varDepthInView(const std::string& rel_name,
+                                       const std::string& attr_name, size_t depth);
     
     std::string updateRanges(size_t depth, const std::string& rel_name,
                              const std::string& attr_name, bool parallel);

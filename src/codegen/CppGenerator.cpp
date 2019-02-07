@@ -314,8 +314,7 @@ void CppGenerator::genMainFunction(bool parallelize)
           }
         }
         if(TRIE_STORAGE) {
-          ofs << offset(1)+"std::vector<size_t> all_upperptr_"+relName+"[10];" << std::endl <<
-          offset(1)+"std::vector<size_t> all_lowerptr_"+relName+"[10];" << std::endl;
+          ofs << offset(1)+"std::vector<size_t> all_upperptr_"+relName+"[10];" << std::endl;
         }
     }
     
@@ -323,6 +322,9 @@ void CppGenerator::genMainFunction(bool parallelize)
     {
         ofs << offset(1)+"std::vector<"+viewName[viewID]+"_tuple> "+
             viewName[viewID]+";" << std::endl;
+        if(TRIE_STORAGE) {
+          ofs << offset(1)+"std::vector<size_t> all_upperptr_"+viewName[viewID]+"[10];\n";
+        }
     }
     
     ofs << genLoadRelationFunction() << std::endl;
@@ -497,7 +499,6 @@ std::string CppGenerator::genSortFunction(const size_t& rel_id)
       }
       returnString += offset(2) + "for(size_t i = 0; i < "+gbVarsStr+"; i++) {\n"+
          offset(3) + "all_upperptr_"+relName+"[i].reserve("+relName+".size());\n"+
-         offset(3) + "all_lowerptr_"+relName+"[i].reserve("+relName+".size());\n"+
          offset(2) + "}\n";
       returnString += offset(2)+"bool atEnd["+gbVarsStr+"] = {};\n"+
         offset(2)+"size_t lowerptr["+gbVarsStr+"] = {}, upperptr["+gbVarsStr+"] = {};\n";
@@ -528,8 +529,7 @@ std::string CppGenerator::genSortFunction(const size_t& rel_id)
             offset(3+depth)+"{\n"+
             offset(4+depth)+"upperptr["+depthString+"]++;\n"+
             offset(3+depth)+"}\n"+
-            offset(3+depth)+"all_upperptr_"+relName+"["+depthString+"][lowerptr["+depthString+"]] = upperptr["+depthString+"];\n"+
-            offset(3+depth)+"all_lowerptr_"+relName+"["+depthString+"][lowerptr["+depthString+"]] = lowerptr["+depthString+"];\n";
+            offset(3+depth)+"all_upperptr_"+relName+"["+depthString+"][lowerptr["+depthString+"]] = upperptr["+depthString+"];\n";
         loopTail = offset(3+depth)+"lowerptr["+depthString+"] = upperptr["+depthString+"] + 1;\n"+
             offset(3+depth)+"if(lowerptr["+depthString+"] > "+upperPtr+")\n"+
             offset(4+depth)+"atEnd["+depthString+"] = true;\n"+
@@ -961,8 +961,7 @@ std::string CppGenerator::genTupleStructs()
           tupleStruct += offset(1)+"extern std::vector<"+rel->_name+"_tuple> "+rel->_name+";\n\n";
         }
         if(TRIE_STORAGE) {
-          tupleStruct += offset(1)+"extern std::vector<size_t> all_upperptr_"+rel->_name+"[10];\n"+
-            offset(1)+"extern std::vector<size_t> all_lowerptr_"+rel->_name+"[10];\n";
+          tupleStruct += offset(1)+"extern std::vector<size_t> all_upperptr_"+rel->_name+"[10];\n";
         }
     }
 
@@ -995,6 +994,9 @@ std::string CppGenerator::genTupleStructs()
                 attrConstruct+");\n"+offset(1)+"};\n\n"+
                 offset(1)+"extern std::vector<"+viewName[viewID]+"_tuple> "+
                 viewName[viewID]+";\n\n";
+            if(TRIE_STORAGE) {
+              tupleStruct += offset(1)+"extern std::vector<size_t> all_upperptr_"+viewName[viewID]+"[10];\n";
+            }
         }
         else
             tupleStruct += offset(2)+viewName[viewID]+"_tuple();\n"+offset(1)+
@@ -1118,6 +1120,15 @@ std::string CppGenerator::genLoadRelationFunction()
     returnString += "\n";
     for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
         returnString += offset(2)+viewName[viewID]+".reserve(1000000);\n";
+
+    if(TRIE_STORAGE) {
+        for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID) {
+            for(int i = 0; i<_qc->getView(viewID)->_fVars.count(); i++) {
+                returnString += offset(2)+
+                    "all_upperptr_"+viewName[viewID]+"["+std::to_string(i)+"].reserve(2000000);\n";
+            }
+        }
+    }
 
     return returnString+offset(1)+"}\n";
 }
@@ -1446,6 +1457,18 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
         headerString += " *aggregates_"+viewName[viewID]+" = nullptr,";
     headerString.pop_back();
     headerString += ";\n";
+
+    if(TRIE_STORAGE) {
+        headerString += offset(2)+"size_t";
+        for (const size_t& viewID : viewGroups[group_id]) {
+            View* view = _qc->getView(viewID);
+            std::string depthString = std::to_string(view->_fVars.count());
+            headerString += " upperptr_"+viewName[viewID]+"["+depthString+"] = {},";
+            headerString += " lowerptr_"+viewName[viewID]+"["+depthString+"] = {},";
+        }
+        headerString.pop_back();
+        headerString += ";\n";
+    }
     
     for (const size_t& viewID : incViews)
     {
@@ -5418,6 +5441,15 @@ std::string CppGenerator::genGroupGenericJoinCode(
                 offset(2+depth)+"lowerptr_"+viewName[viewID]+"["+depthString+"] = "+
                 "lowerptr_"+viewName[viewID]+"["+std::to_string(depth-1)+"];\n";
         }
+        if(TRIE_STORAGE) {
+            for (const size_t& viewID : viewGroups[group_id]) {
+                View* view = _qc->getView(viewID);
+                if(depth >= view->_fVars.count()) continue;
+                returnString +=
+                    offset(2+depth)+"lowerptr_"+viewName[viewID]+"["+depthString+"] = "+
+                    "lowerptr_"+viewName[viewID]+"["+std::to_string(depth-1)+"];\n";
+            }
+        }
     }
     
     returnString += offset(2+depth)+ "atEnd["+depthString+"] = false;\n";
@@ -5561,6 +5593,16 @@ std::string CppGenerator::genGroupGenericJoinCode(
 
         numAggsRegistered += newAggregateRegister[loop].size();
     }
+
+    if(TRIE_STORAGE) {
+        for (const size_t& viewID : viewGroups[group_id]) {
+            if(depth >= _qc->getView(viewID)->_fVars.count()) continue;
+            returnString += offset(3+depth)+
+                "upperptr_"+viewName[viewID]+"["+depthString+"] = "+
+                "lowerptr_"+viewName[viewID]+"["+depthString+"];\n";
+        }
+    }
+    
     
     // setting the addTuple bool to false;
     returnString += offset(3+depth)+"addTuple["+depthString+"] = false;\n";
@@ -5766,6 +5808,23 @@ std::string CppGenerator::genGroupGenericJoinCode(
         if (MICRO_BENCH)
             returnString += offset(3+depth)+"END_MICRO_BENCH(Group"+
                 std::to_string(group_id)+"_timer_post_aggregate);\n";
+    }
+
+    if(TRIE_STORAGE) {
+        for (const size_t& viewID : viewGroups[group_id]) {
+            if(depth >= _qc->getView(viewID)->_fVars.count()) continue;
+            returnString += offset(3+depth)+
+                "all_upperptr_"+viewName[viewID]+"["+depthString+"][lowerptr_"+
+                viewName[viewID]+"["+depthString+"]] = upperptr_"+viewName[viewID]+"["+
+                depthString+"];\n"+
+                offset(3+depth)+"lowerptr_"+viewName[viewID]+"["+depthString+"] = upperptr_"+
+                viewName[viewID]+"["+depthString+"] + 1;\n";
+            if(depth > 0) {
+                returnString += offset(3+depth)+
+                    "upperptr_"+viewName[viewID]+"["+std::to_string(depth-1)+"] = upperptr_"+
+                    viewName[viewID]+"["+depthString+"] + 1;\n";
+            }
+        }
     }
     
     
@@ -6544,9 +6603,10 @@ std::string CppGenerator::seekValueGenericJoin(
             " < max_"+attr_name+")\n"+
             //body
             offset(5+depth)+"{\n"+
-            (TRIE_STORAGE && isRelation(rel_name) ?
+            (TRIE_STORAGE ?
                 (offset(6+depth)+"lowerptr_"+rel_name+"["+depthString+"] = all_upperptr_"+rel_name+
-                    "["+depthString+"][lowerptr_"+rel_name+"["+depthString+"]]+1;\n")
+                    "["+std::to_string(varDepthInView(rel_name, attr_name, depth))+
+                    "][lowerptr_"+rel_name+"["+depthString+"]]+1;\n")
                 :
                 (offset(6+depth)+"++lowerptr_"+rel_name+"["+depthString+"];\n")
             )+
@@ -6630,14 +6690,45 @@ std::string CppGenerator::getLowerPointer(const std::string rel_name, size_t dep
         return "0";
     return "lowerptr_"+rel_name+"["+std::to_string(depth-1)+"]";
 }
+
+size_t CppGenerator::varDepthInView(const std::string& rel_name,
+                                       const std::string& attr_name, size_t depth)
+{
+    if(isRelation(rel_name)) return depth;
+    size_t var_id = -1;
+    for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+    {
+        if(_td->getAttribute(var)->_name == attr_name) {
+            var_id = var;
+            break;
+        }
+    }
+    size_t view_id = -1;
+    for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
+    {
+        if(viewName[viewID] == rel_name) {
+            view_id = viewID;
+        }
+    }
+    size_t var_idx = 0;
+    for (size_t var = 0; var < var_id; ++var)
+    {
+        if (_qc->getView(view_id)->_fVars[var])
+        {
+            var_idx++;
+        }
+    }
+    return var_idx;
+}
     
 std::string CppGenerator::updateRanges(size_t depth, const std::string& rel_name,
                                        const std::string& attr_name, bool parallel)
 {
     std::string depthString = std::to_string(depth);
-    if(isRelation(rel_name) && TRIE_STORAGE) {
+    if(TRIE_STORAGE && isRelation(rel_name)) {
+        std::string allDepthString = std::to_string(varDepthInView(rel_name, attr_name, depth));
         return offset(3+depth)+"upperptr_"+rel_name+"["+depthString+"] = all_upperptr_"+
-            rel_name+"["+depthString+"][lowerptr_"+rel_name+"["+depthString+"]];\n";
+            rel_name+"["+allDepthString+"][lowerptr_"+rel_name+"["+depthString+"]];\n";
     } else {
         return offset(3+depth)+
             //while statementnd
