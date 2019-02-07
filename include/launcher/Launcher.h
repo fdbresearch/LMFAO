@@ -48,7 +48,8 @@ public:
                const std::string& parallel, const std::string& featureFile,
                const std::string& tdFile, const std::string& outDirectory,
                const bool mo, const bool resort, const bool microbench,
-               const bool compress, const bool column, const bool linear, const int k);
+               const bool compress, const bool column, const bool linear, const bool trie, 
+               const int k);
 
     /**
      * Returns a pointer to the tree decomposition.
