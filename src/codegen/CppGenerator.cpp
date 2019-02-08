@@ -1125,7 +1125,7 @@ std::string CppGenerator::genLoadRelationFunction()
         for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID) {
             for(int i = 0; i<_qc->getView(viewID)->_fVars.count(); i++) {
                 returnString += offset(2)+
-                    "all_upperptr_"+viewName[viewID]+"["+std::to_string(i)+"].reserve(2000000);\n";
+                    "all_upperptr_"+viewName[viewID]+"["+std::to_string(i)+"].resize(1000000);\n";
             }
         }
     }
@@ -5481,7 +5481,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
         {
             // do base relation first
             relationCase += seekValueGenericJoin(depth, relName, attrName,
-                                                 _parallelizeGroup[group_id], false);
+                                                 _parallelizeGroup[group_id], false, -1);
 
             // Set upper = lower and update ranges
             relationCase += offset(3+depth)+
@@ -5490,7 +5490,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
 
             // update range for base relation 
             relationCase += updateRanges(depth, relName, attrName,
-                                         _parallelizeGroup[group_id]);
+                                         _parallelizeGroup[group_id],-1);
             off = 2;
         }
         
@@ -5510,7 +5510,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
             const size_t& viewID = viewsPerVar[idx+off];
             // case for this view
             returnString +=
-                seekValueGenericJoin(depth,viewName[viewID],attrName,false, firstFactor);
+                seekValueGenericJoin(depth,viewName[viewID],attrName,false, firstFactor, viewID);
 
             firstFactor = false;
             
@@ -5518,7 +5518,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
                 "upperptr_"+viewName[viewID]+"["+depthString+"] = "+
                 "lowerptr_"+viewName[viewID]+"["+depthString+"];\n";
             
-            returnString += updateRanges(depth,viewName[viewID],attrName,false);        
+            returnString += updateRanges(depth,viewName[viewID],attrName,false,viewID);        
         }
         returnString += relationCase;//+offset(4+depth)+"}\n";
         
@@ -5552,7 +5552,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
             
             // update range for base relation 
             returnString += updateRanges(depth, relName, attrName,
-                                         _parallelizeGroup[group_id]);
+                                         _parallelizeGroup[group_id],-1);
             off = 2;
         }
 
@@ -5566,7 +5566,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
                 "upperptr_"+viewName[viewID]+"["+depthString+"] = "+
                 "lowerptr_"+viewName[viewID]+"["+depthString+"];\n";
         
-            returnString += updateRanges(depth,viewName[viewID],attrName,false);
+            returnString += updateRanges(depth,viewName[viewID],attrName,false,viewID);
         }
 
         if (MICRO_BENCH)
@@ -5813,16 +5813,36 @@ std::string CppGenerator::genGroupGenericJoinCode(
     if(TRIE_STORAGE) {
         for (const size_t& viewID : viewGroups[group_id]) {
             if(depth >= _qc->getView(viewID)->_fVars.count()) continue;
+            // ensuring the capacity is updated.
+            // if(depth == _qc->getView(viewID)->_fVars.count()-1) {
+                returnString += offset(3+depth)+
+                    "if(all_upperptr_"+viewName[viewID]+"["+depthString+"].size() < lowerptr_"+
+                        viewName[viewID]+"["+depthString+"]+1){\n";
+                // for(int i = 0; i<=depth; i++) {
+                int i = depth;
+                    returnString += offset(4+depth)+
+                        "all_upperptr_"+viewName[viewID]+"["+std::to_string(i)+"].resize(lowerptr_"+
+                        viewName[viewID]+"["+depthString+"]*2+1);\n";
+                // }
+                returnString += offset(3+depth)+"}\n";
+            // }
             returnString += offset(3+depth)+
                 "all_upperptr_"+viewName[viewID]+"["+depthString+"][lowerptr_"+
                 viewName[viewID]+"["+depthString+"]] = upperptr_"+viewName[viewID]+"["+
                 depthString+"];\n"+
                 offset(3+depth)+"lowerptr_"+viewName[viewID]+"["+depthString+"] = upperptr_"+
                 viewName[viewID]+"["+depthString+"] + 1;\n";
+            // returnString += offset(3+depth)+
+            //     "all_upperptr_"+viewName[viewID]+"["+depthString+"].insert(all_upperptr_"+
+            //     viewName[viewID]+"["+depthString+"].begin()+lowerptr_"+
+            //     viewName[viewID]+"["+depthString+"], upperptr_"+viewName[viewID]+"["+
+            //     depthString+"]);\n"+
+            //     offset(3+depth)+"lowerptr_"+viewName[viewID]+"["+depthString+"] = upperptr_"+
+            //     viewName[viewID]+"["+depthString+"] + 1;\n";
             if(depth > 0) {
                 returnString += offset(3+depth)+
                     "upperptr_"+viewName[viewID]+"["+std::to_string(depth-1)+"] = upperptr_"+
-                    viewName[viewID]+"["+depthString+"] + 1;\n";
+                    viewName[viewID]+"["+depthString+"];\n";
             }
         }
     }
@@ -6005,7 +6025,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
 
         // update range for base relation 
         returnString += updateRanges(depth, relName, attrName,
-                                     _parallelizeGroup[group_id]);
+                                     _parallelizeGroup[group_id],-1);
         off = 2;
     }
 
@@ -6017,7 +6037,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
             "upperptr_"+viewName[viewID]+"["+depthString+"] = "+
             "lowerptr_"+viewName[viewID]+"["+depthString+"];\n";
         
-        returnString += updateRanges(depth,viewName[viewID],attrName,false);
+        returnString += updateRanges(depth,viewName[viewID],attrName,false,viewID);
     }
 
     if (MICRO_BENCH)
@@ -6542,7 +6562,7 @@ std::string CppGenerator::seekValueCase(size_t depth, const std::string& rel_nam
 // One Generic Case for Seek Value 
 std::string CppGenerator::seekValueGenericJoin(
     size_t depth, const std::string& rel_name, const std::string& attr_name,
-    bool parallel, bool firstFactor)
+    bool parallel, bool firstFactor, const size_t& view_id)
 {
     const std::string depthString = std::to_string(depth);
     const std::string upperPointer = getUpperPointer(rel_name,depth,parallel);
@@ -6603,7 +6623,7 @@ std::string CppGenerator::seekValueGenericJoin(
             " < max_"+attr_name+")\n"+
             //body
             offset(5+depth)+"{\n"+
-            (TRIE_STORAGE ?
+            (TRIE_STORAGE && (view_id == -1 ? true : !_requireHashing[view_id]) ?
                 (offset(6+depth)+"lowerptr_"+rel_name+"["+depthString+"] = all_upperptr_"+rel_name+
                     "["+std::to_string(varDepthInView(rel_name, attr_name, depth))+
                     "][lowerptr_"+rel_name+"["+depthString+"]]+1;\n")
@@ -6722,10 +6742,11 @@ size_t CppGenerator::varDepthInView(const std::string& rel_name,
 }
     
 std::string CppGenerator::updateRanges(size_t depth, const std::string& rel_name,
-                                       const std::string& attr_name, bool parallel)
+                                       const std::string& attr_name, bool parallel,
+                                       const size_t& view_id)
 {
     std::string depthString = std::to_string(depth);
-    if(TRIE_STORAGE && isRelation(rel_name)) {
+    if(TRIE_STORAGE && (view_id == -1 ? true : !_requireHashing[view_id])) {
         std::string allDepthString = std::to_string(varDepthInView(rel_name, attr_name, depth));
         return offset(3+depth)+"upperptr_"+rel_name+"["+depthString+"] = all_upperptr_"+
             rel_name+"["+allDepthString+"][lowerptr_"+rel_name+"["+depthString+"]];\n";
@@ -7967,7 +7988,7 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
             "lowerptr_"+relName+"["+depthString+"];\n";
 
         // update range for base relation 
-        returnString += updateRanges(depth,relName,attrName,false);
+        returnString += updateRanges(depth,relName,attrName,false,-1);
         off = 2;
     }
 
@@ -7981,7 +8002,7 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
             "lowerptr_"+viewName[viewID]+
             "["+depthString+"];\n";
         
-        returnString += updateRanges(depth,viewName[viewID],attrName,false);
+        returnString += updateRanges(depth,viewName[viewID],attrName,false,viewID);
     }
         
     if (depth + 1 == view->_fVars.count())

@@ -530,7 +530,8 @@ private:
 
     // One Generic Case for Seek Value 
     std::string seekValueGenericJoin(size_t depth, const std::string& rel_name,
-                                     const std::string& attr_name, bool parallel, bool first);
+                                     const std::string& attr_name, bool parallel, bool first,
+                                     const size_t& view_id);
     
     std::string updateMaxCase(size_t depth, const std::string& rel_name,
                               const std::string& attr_name, bool parallelize);
@@ -544,7 +545,8 @@ private:
                                        const std::string& attr_name, size_t depth);
     
     std::string updateRanges(size_t depth, const std::string& rel_name,
-                             const std::string& attr_name, bool parallel);
+                             const std::string& attr_name, bool parallel,
+                             const size_t& view_id);
     
     std::string genProductString(
         const TDNode& node, const boost::dynamic_bitset<>& contributingViews,
