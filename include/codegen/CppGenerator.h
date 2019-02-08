@@ -20,7 +20,7 @@
 
 // #define PREVIOUS
 
-const size_t LOOPIFY_THRESHOLD = 5;
+const size_t LOOPIFY_THRESHOLD = 2;
 
 namespace std
 {

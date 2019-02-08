@@ -104,7 +104,8 @@ void RegressionTree::computeCandidates()
     
     /* CANDIDATES ARE FUNCTIONS --- so we define the functions for all
      * candidates and set them accordingly  */
-
+    size_t counter = 0;
+    
     // Push them on the functionList in the order they are accessed 
     for (size_t var=0; var < NUM_OF_VARIABLES; ++var)
     {
@@ -112,8 +113,8 @@ void RegressionTree::computeCandidates()
         {
             for (size_t t = 0; t < _thresholds[var].size(); ++t)
             {
-                double* parameter = &_thresholds[var][t]; 
-            
+                double* parameter = &_thresholds[var][t];
+                
                 /* Create function and add to functionList */
                 //- IF VAR = CONT : indicator_lt (threshold)
                 //- IF VAR = CAT : indicator_eq (threshold)
@@ -138,8 +139,7 @@ void RegressionTree::computeCandidates()
             _totalNumOfCandidates +=  _numOfCandidates[var];
         }
     }
-
-
+    
     /* Now we also add the complement functions! */
     for (size_t var=0; var < NUM_OF_VARIABLES; ++var)
     {
@@ -304,7 +304,7 @@ void RegressionTree::regressionTreeQueries()
                     aggQ_complement->_agg[0].set(_complementFunction[f]);
 
                     Query* query = new Query();
-                    query->_rootID = _queryRootIndex[var];
+                    query->_rootID = _td->_root->_id;// _queryRootIndex[var];
                     query->_aggregates = {aggC,aggL,aggQ,
                          aggC_complement,aggL_complement,aggQ_complement};
                     
@@ -907,9 +907,9 @@ std::string RegressionTree::genVarianceComputation()
                     exit(1);
                 }
 
-                std::cout << "complement: " << comp_viewID << "  " << viewID << "\n";
-                std::cout << complement->_fVars << std::endl;
-                std::cout << _compiler->getView(viewID)->_fVars << std::endl;
+                // std::cout << "complement: " << comp_viewID << "  " << viewID << "\n";
+                // std::cout << complement->_fVars << std::endl;
+                // std::cout << _compiler->getView(viewID)->_fVars << std::endl;
                 
                 categVariance += offset(2)+"compaggs = &V"+std::to_string(comp_viewID)+
                     "[0].aggregates["+std::to_string(comp_count)+"];\n"+
@@ -1465,5 +1465,103 @@ void RegressionTree::initializeThresholds()
             {},// percentiles attribute_value
             {},// percentiles category_id
         };
-   }
+    }
+
+
+    if (DATASET_NAME.compare("tpc-ds") == 0)
+    {
+        _thresholds = {
+            {},// percentiles ss_sold_date_sk
+            {},// percentiles ss_sold_time_sk
+            {},// percentiles ss_item_sk
+            {},// percentiles ss_customer_sk
+            {},// percentiles ss_hdemo_sk
+            {},// percentiles ss_store_sk
+            {6,11,16,21,27,32,37,42,47,50,54,59,64,69,74,80,85,90,95},// percentiles ss_quantity
+            {1.53,6.84,12.14,17.45,22.76,28.08,33.39,38.69,44.01,48.92,52.5141,57.54,62.85,68.16,73.46,78.77,84.08,89.4,94.7},// percentiles ss_wholesale_cost
+            {8.81,16.21,23.61,31,38.39,45.7786,51.071,57.28,64.66,71.81,77.12,83.53,90.9,98.3,106.2,115.22,125.74,138.6,155.96},// percentiles ss_list_price
+            {1.51,3.41,5.63,8.16,10.99,14.15,17.64,21.49,25.74,30.44,35.381,39.36,44.97,51.99,60.09,69.57,77.29,89.43,109.73},// percentiles ss_sales_price
+            {0,0.01,38.0374,134.98,322.38,1097.21},// percentiles ss_ext_discount_amt
+            {19.25,67.1,126.42,187.16,258.39,359.04,482.03,626.82,796.68,996.3,1230.78,1508.52,1807.28,2074.05,2505.03,3072.3,3817.92,4872,6617.34},// percentiles ss_ext_sales_price
+            {119.04,246.56,394.32,563.92,753.02,962.68,1194.44,1450.28,1721.52,1952.01,2228.94,2522.54,2816.07,3246.15,3739.86,4311.12,4988.85,5833.24,6995.59},// percentiles ss_ext_wholesale_cost
+            {176.8,363.6,581.36,828.72,1104.51,1410.75,1749.34,2121.68,2478.58,2786.16,3257.64,3719.36,4133.66,4756.68,5491.32,6347.6,7378.54,8702.19,10689.5},// percentiles ss_ext_list_price
+            {0,1.13,2.93,5.38,8.58,12.67,17.8,24.21,32.2,42.23,54.93,70.06,84.26,108.32,144.9,200.71,300.84,625.86},// percentiles ss_ext_tax
+            {0,63.65,145.499,331.82,1097.46},// percentiles ss_coupon_amt
+            {11.57,47.04,93.97,149.82,206.65,281.3,382.7,505.8,652.55,827.25,1035.82,1285.38,1571.48,1820.28,2205.36,2741.76,3454.88,4481.03,6208.4},// percentiles ss_net_paid
+            {23.56,63.94,116.63,183.65,266.36,366.26,485.92,628.05,796.7,997.4,1235.85,1512.86,1731.58,1945.07,2354.29,2916.56,3664.12,4735.55,6540.75},// percentiles ss_net_paid_inc_tax
+            {-4208.67,-3011.12,-2273.46,-1749.48,-1352.42,-1043.8,-837.986,-668.71,-492.94,-345.6,-226.72,-132.72,-61.06,-9.75,49.41,187.87,452.76,971.1,1810.38},// percentiles ss_net_profit
+            {1181,1184,1186,1188,1193,1196,1198,1200,1205,1208,1210,1212,1217,1220,1222,1224,1229,1232,1234},// percentiles d_month_seq
+            {5137,5151,5160,5166,5189,5203,5212,5218,5241,5255,5264,5271,5293,5307,5316,5323,5345,5360,5368},// percentiles d_week_seq
+            {395,396,397,399,400,401,403,404,405,407,408,409,411,412},// percentiles d_quarter_seq
+            {1998,1999,2000,2001,2002},// percentiles d_year
+            {0,1,2,3,4,5,6},// percentiles d_dow
+            {1,2,4,5,6,7,8,9,10,11,12},// percentiles d_moy
+            {2,4,5,7,8,10,11,13,14,16,17,19,20,22,23,25,26,28,30},// percentiles d_dom
+            {1,2,3,4},// percentiles d_qoy
+            {1998,1999,2000,2001,2002},// percentiles d_fy_year
+            {395,396,397,399,400,401,403,404,405,407,408,409,411,412},// percentiles d_fy_quarter_seq
+            {5137,5151,5160,5166,5189,5203,5212,5218,5241,5255,5264,5271,5293,5307,5316,5323,5345,5360,5368},// percentiles d_fy_week_seq
+            {0},// percentiles d_holiday
+            {0,1},// percentiles d_weekend
+            {1},// percentiles d_following_holiday
+            {32856,35095,36897,38400,40107,42690,45006,47199,49203,51009,52511,54025,58532,61809,63304,64806,67059,69301,71555},// percentiles t_time
+            {9,10,11,12,13,14,15,16,17,18,19},// percentiles t_hour
+            {2,6,9,12,15,17,21,23,26,29,33,36,39,42,45,48,51,54,57},// percentiles t_minute
+            {2,5,8,11,14,17,21,24,27,30,33,36,39,42,45,48,51,54,56},// percentiles t_second
+            {0,1},// percentiles t_am_pm
+            {},// percentiles t_shift
+            {0.5,0.91,1.32,1.73,2.13,2.55,2.96,3.37,3.79,4.19,4.6,5.04,5.88,6.71,7.55,8.37,9.21,12.78,56.46},// percentiles i_current_price
+            {0.27,0.49,0.71,0.94,1.16,1.38,1.6,1.84,2.11,2.38,2.68,3,3.36,3.79,4.35,5.13,6.21,8.38,31.21},// percentiles i_wholesale_cost
+            {},// percentiles i_class_id
+            {},// percentiles i_category_id
+            {},// percentiles i_manufact_id
+            {0,1,2,3,4,5},// percentiles i_size
+            {3641,7478,11285,15103,18956,22804,26632,30429,34287,38104,41923,45731,49556,53421,57246,61067,64913,68746,72550},// percentiles i_formulation
+            {},// percentiles i_color
+            {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,20},// percentiles i_units
+            {0},// percentiles i_container
+            {},// percentiles c_current_cdemo_sk
+            {},// percentiles c_current_addr_sk
+            {},// percentiles c_salutation
+            {},// percentiles c_preferred_cust_flag
+            {1,2,3,4,5,6,7,8,9,10,11,12},// percentiles c_birth_month
+            {1927,1930,1934,1938,1941,1945,1948,1952,1955,1959,1963,1966,1970,1973,1977,1980,1984,1988,1991},// percentiles c_birth_year
+            {},// percentiles c_birth_country
+            {0,1},// percentiles cd_gender
+            {},// percentiles cd_marital_status
+            {},// percentiles cd_education_status
+            {500,1000,1500,2000,2500,3000,3500,4000,4500,5000,5500,6000,6500,7000,7500,8000,8500,9000,9500},// percentiles cd_purchase_estimate
+            {0,1,2,3},// percentiles cd_credit_rating
+            {0,1,2,3,4,5,6},// percentiles cd_dep_count
+            {0,1,2,3,4,5,6},// percentiles cd_dep_employed_count
+            {0,1,2,3,4,5,6},// percentiles cd_dep_college_count
+            {},// percentiles ca_street_type
+            {},// percentiles ca_city
+            {},// percentiles ca_county
+            {},// percentiles ca_state
+            {},// percentiles ca_zip
+            {},// percentiles ca_country
+            {-8,-7,-6,-5},// percentiles ca_gmt_offset
+            {},// percentiles ca_location_type
+            {},// percentiles hd_income_band_sk
+            {0,1,2,3,4,5},// percentiles hd_buy_potential
+            {0,1,2,3,4,5,6,7,8,9},// percentiles hd_dep_count
+            {-1,0,1,2,3,4},// percentiles hd_vehicle_count
+            {10001,20001,30001,40001,50001,60001,70001,80001,90001,100001,110001,120001,130001,140001,150001,160001,170001,180001,190001},// percentiles ib_lower_bound
+            {20000,30000,40000,50000,60000,70000,80000,90000,100000,110000,120000,130000,140000,150000,160000,170000,180000,190000,200000},// percentiles ib_upper_bound
+            {204,208,218,220,226,236,237,240,244,251,260,266,271,272,278,281,290,291,297},// percentiles s_number_employees
+            {5250760,5527158,5644158,5813235,6035829,6465941,6589353,6995995,7261787,7610137,7825489,8047423,8393436,8555120,8618762,8886865,9206875,9341467,9599785},// percentiles s_floor_space
+            {0,1,2},// percentiles s_hours
+            {1,4,7,13,16,22,24,30,33,37,41,44,49,52,56,59,62,67,72},// percentiles s_manager
+            {},// percentiles s_geography_class
+            {},// percentiles s_division_id
+            {},// percentiles s_company_id
+            {},// percentiles s_city
+            {},// percentiles s_county
+            {},// percentiles s_state
+            {},// percentiles s_country
+            {-6,-5},// percentiles s_gmt_offset
+            {0,0.01,0.02,0.03,0.05,0.06,0.07,0.08,0.09,0.1,0.11},// percentiles s_tax_percentage
+        };
+    }
 }

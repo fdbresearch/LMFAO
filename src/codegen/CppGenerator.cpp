@@ -3972,7 +3972,7 @@ std::string CppGenerator::outputAggRegTupleString(
 {  
     std::string outString = "";
     
-    if (numOfAggs > LOOPIFY_THRESHOLD)
+    if (numOfAggs+1 > LOOPIFY_THRESHOLD)
     {
         outString += offset(stringOffset)+
             "for (size_t i = 0; i < "+std::to_string(numOfAggs+1)+";++i)\n";
@@ -4118,7 +4118,7 @@ std::string CppGenerator::outputPostRegTupleString(
 {
     std::string outString = "";
     
-    if (numOfAggs > LOOPIFY_THRESHOLD)
+    if (numOfAggs+1 > LOOPIFY_THRESHOLD)
     {
         outString += offset(stringOffset)+
             "for (size_t i = 0; i < "+std::to_string(numOfAggs+1)+";++i)\n";
