@@ -739,7 +739,7 @@ void CppGenerator::createGroupVariableOrder()
                 ++orderIdx;
             }
         }
-        _requireHashing[viewID] = hash;
+        _requireHashing[viewID] = hash || (view->_fVars & ~intersection).any();
     }
 }
 

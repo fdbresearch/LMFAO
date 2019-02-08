@@ -365,6 +365,9 @@ void CovarianceMatrix::generateCode(const std::string& outputDirectory)
         offset(2)+"std::ofstream ofs(\"output/covarianceMatrix.out\");\n"+
         offset(2)+"ofs << \""+dumpListOfQueries+"\";\n"+
         offset(2)+"ofs.close();\n\n"+
+        offset(2)+"ofs.open(\"times.txt\");\n"+
+        offset(2)+"ofs << \"\\n\"\n"+
+        offset(2)+"ofs.close();\n\n"+
         "#endif /* DUMP_OUTPUT */ \n"+
         offset(1)+"}\n";
     
