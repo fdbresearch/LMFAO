@@ -79,10 +79,10 @@ void MutualInformation::modelToQueries()
                     query->_aggregates.push_back(agg);
                     _compiler->addQuery(query);
 
-                    if (_queryRootIndex[var] <= _queryRootIndex[var2])
-                        query->_rootID = _queryRootIndex[var];
-                    else
-                        query->_rootID = _queryRootIndex[var2];                        
+                    // if (_queryRootIndex[var] <= _queryRootIndex[var2])
+                    //     query->_rootID = _queryRootIndex[var];
+                    // else
+                    query->_rootID = _queryRootIndex[var2];                        
                 }
             }
 
