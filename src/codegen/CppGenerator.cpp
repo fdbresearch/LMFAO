@@ -5829,18 +5829,18 @@ std::string CppGenerator::genGroupGenericJoinCode(
             if(_requireHashing[viewID]) continue;
             if(depth >= _qc->getView(viewID)->_fVars.count()) continue;
             // ensuring the capacity is updated.
-            // if(depth == _qc->getView(viewID)->_fVars.count()-1) {
+            if(depth == _qc->getView(viewID)->_fVars.count()-1) {
                 returnString += offset(3+depth)+
-                    "if(all_upperptr_"+viewName[viewID]+"["+depthString+"].size() < lowerptr_"+
+                    "if(all_upperptr_"+viewName[viewID]+"[0].size() < lowerptr_"+
                         viewName[viewID]+"["+depthString+"]+1){\n";
-                // for(int i = 0; i<=depth; i++) {
-                int i = depth;
+                for(int i = 0; i<=depth; i++) {
+                // int i = depth;
                     returnString += offset(4+depth)+
                         "all_upperptr_"+viewName[viewID]+"["+std::to_string(i)+"].resize((lowerptr_"+
                         viewName[viewID]+"["+depthString+"]*3)/2+1);\n";
-                // }
+                }
                 returnString += offset(3+depth)+"}\n";
-            // }
+            }
             returnString += offset(3+depth)+
                 "all_upperptr_"+viewName[viewID]+"["+depthString+"][lowerptr_"+
                 viewName[viewID]+"["+depthString+"]] = upperptr_"+viewName[viewID]+"["+
@@ -6630,6 +6630,19 @@ std::string CppGenerator::seekValueGenericJoin(
             // offset(6+depth)+"}\n";
 
     } else {
+        bool trieShouldBeUsed = false;
+        if(TRIE_STORAGE) {
+            if(view_id == -1) {
+                trieShouldBeUsed = true;
+            } else {
+                if(!_requireHashing[view_id]) {
+                    size_t allDepth = varDepthInView(rel_name, attr_name, depth);
+                    if(allDepth < _qc->getView(view_id)->_fVars.count() - 1) {
+                        trieShouldBeUsed = true;
+                    }
+                }
+            }
+        }
         findUpperBound = offset(5+depth)+
             //while statementnd
             "while(lowerptr_"+rel_name+"["+depthString+"]<"+
@@ -6638,7 +6651,7 @@ std::string CppGenerator::seekValueGenericJoin(
             " < max_"+attr_name+")\n"+
             //body
             offset(5+depth)+"{\n"+
-            (TRIE_STORAGE && (view_id == -1 ? true : !_requireHashing[view_id]) ?
+            (trieShouldBeUsed ?
                 (offset(6+depth)+"lowerptr_"+rel_name+"["+depthString+"] = all_upperptr_"+rel_name+
                     "["+std::to_string(varDepthInView(rel_name, attr_name, depth))+
                     "][lowerptr_"+rel_name+"["+depthString+"]]+1;\n")
@@ -6762,9 +6775,15 @@ std::string CppGenerator::updateRanges(size_t depth, const std::string& rel_name
 {
     std::string depthString = std::to_string(depth);
     if(TRIE_STORAGE && (view_id == -1 ? true : !_requireHashing[view_id])) {
-        std::string allDepthString = std::to_string(varDepthInView(rel_name, attr_name, depth));
-        return offset(3+depth)+"upperptr_"+rel_name+"["+depthString+"] = all_upperptr_"+
-            rel_name+"["+allDepthString+"][lowerptr_"+rel_name+"["+depthString+"]];\n";
+        size_t allDepth = varDepthInView(rel_name, attr_name, depth);
+        if(view_id != -1 && allDepth == _qc->getView(view_id)->_fVars.count() - 1) {
+            // the keys in a view are unique, thus in the last depth level range updated is not needed.
+            return "";
+        } else {
+            std::string allDepthString = std::to_string(allDepth);
+            return offset(3+depth)+"upperptr_"+rel_name+"["+depthString+"] = all_upperptr_"+
+                rel_name+"["+allDepthString+"][lowerptr_"+rel_name+"["+depthString+"]];\n";    
+        }
     } else {
         return offset(3+depth)+
             //while statementnd
