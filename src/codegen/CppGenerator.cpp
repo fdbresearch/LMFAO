@@ -322,10 +322,12 @@ void CppGenerator::genMainFunction(bool parallelize)
     {
         ofs << offset(1)+"std::vector<"+viewName[viewID]+"_tuple> "+
             viewName[viewID]+";" << std::endl;
-        if(TRIE_STORAGE && !_requireHashing[viewID]) {
-          ofs << offset(1)+"std::vector<size_t> all_upperptr_"+viewName[viewID]+"[10];\n";
+        size_t depth = _qc->getView(viewID)->_fVars.count();
+        if(TRIE_STORAGE && !_requireHashing[viewID] && depth > 1) {
+          ofs << offset(1)+"std::vector<size_t> all_upperptr_"+viewName[viewID]+"["+std::to_string(depth-1)+"];\n";
         }
     }
+
     
     ofs << genLoadRelationFunction() << std::endl;
 
@@ -994,8 +996,9 @@ std::string CppGenerator::genTupleStructs()
                 attrConstruct+");\n"+offset(1)+"};\n\n"+
                 offset(1)+"extern std::vector<"+viewName[viewID]+"_tuple> "+
                 viewName[viewID]+";\n\n";
-            if(TRIE_STORAGE && !_requireHashing[viewID]) {
-              tupleStruct += offset(1)+"extern std::vector<size_t> all_upperptr_"+viewName[viewID]+"[10];\n";
+            size_t depth = _qc->getView(viewID)->_fVars.count();
+            if(TRIE_STORAGE && !_requireHashing[viewID] && depth > 1) {
+              tupleStruct +=  offset(1)+"extern std::vector<size_t> all_upperptr_"+viewName[viewID]+"["+std::to_string(depth-1)+"];\n";
             }
         }
         else
@@ -1123,8 +1126,9 @@ std::string CppGenerator::genLoadRelationFunction()
 
     if(TRIE_STORAGE) {
         for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID) {
-            if(!_requireHashing[viewID]) {
-                for(int i = 0; i<_qc->getView(viewID)->_fVars.count(); i++) {
+            size_t viewDepth = _qc->getView(viewID)->_fVars.count();
+            if(!_requireHashing[viewID] && viewDepth > 1) {
+                for(size_t i = 0; i < viewDepth-1; i++) {
                     returnString += offset(2)+
                         "all_upperptr_"+viewName[viewID]+"["+std::to_string(i)+"].resize(1000000);\n";
                 }
@@ -1464,13 +1468,13 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
         bool found = false;
         
         for (const size_t& viewID : viewGroups[group_id]) {
-            if(!_requireHashing[viewID]) {
+            size_t viewDepth = _qc->getView(viewID)->_fVars.count();
+            if(!_requireHashing[viewID] && viewDepth > 1) {
                 if(!found) {
                     headerString += offset(2)+"size_t";
                     found = true;           
                 }
-                View* view = _qc->getView(viewID);
-                std::string depthString = std::to_string(view->_fVars.count());
+                std::string depthString = std::to_string(viewDepth);
                 headerString += " upperptr_"+viewName[viewID]+"["+depthString+"] = {},";
                 headerString += " lowerptr_"+viewName[viewID]+"["+depthString+"] = {},";
             }
@@ -5454,9 +5458,10 @@ std::string CppGenerator::genGroupGenericJoinCode(
         }
         if(TRIE_STORAGE) {
             for (const size_t& viewID : viewGroups[group_id]) {
-                if(!_requireHashing[viewID]) {
-                    View* view = _qc->getView(viewID);
-                    if(depth >= view->_fVars.count()) continue;
+                View* view = _qc->getView(viewID);
+                size_t viewDepth = view->_fVars.count();
+                if(!_requireHashing[viewID] && viewDepth > 1) {
+                    if(depth >= viewDepth) continue;
                     returnString +=
                         offset(2+depth)+"lowerptr_"+viewName[viewID]+"["+depthString+"] = "+
                         "lowerptr_"+viewName[viewID]+"["+std::to_string(depth-1)+"];\n";
@@ -5609,7 +5614,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
 
     if(TRIE_STORAGE) {
         for (const size_t& viewID : viewGroups[group_id]) {
-            if(_requireHashing[viewID]) continue;
+            if(_requireHashing[viewID] || _qc->getView(viewID)->_fVars.count() <= 1) continue;
             if(depth >= _qc->getView(viewID)->_fVars.count()) continue;
             returnString += offset(3+depth)+
                 "upperptr_"+viewName[viewID]+"["+depthString+"] = "+
@@ -5826,25 +5831,28 @@ std::string CppGenerator::genGroupGenericJoinCode(
 
     if(TRIE_STORAGE) {
         for (const size_t& viewID : viewGroups[group_id]) {
-            if(_requireHashing[viewID]) continue;
-            if(depth >= _qc->getView(viewID)->_fVars.count()) continue;
+            size_t viewDepth = _qc->getView(viewID)->_fVars.count();
+            if(_requireHashing[viewID] || viewDepth <= 1) continue;
+            if(depth >= viewDepth) continue;
             // ensuring the capacity is updated.
-            if(depth == _qc->getView(viewID)->_fVars.count()-1) {
+            if(depth == viewDepth-1) {
                 returnString += offset(3+depth)+
                     "if(all_upperptr_"+viewName[viewID]+"[0].size() < lowerptr_"+
                         viewName[viewID]+"["+depthString+"]+1){\n";
-                for(int i = 0; i<=depth; i++) {
+                for(int i = 0; i<depth; i++) {
                 // int i = depth;
                     returnString += offset(4+depth)+
                         "all_upperptr_"+viewName[viewID]+"["+std::to_string(i)+"].resize((lowerptr_"+
                         viewName[viewID]+"["+depthString+"]*3)/2+1);\n";
                 }
                 returnString += offset(3+depth)+"}\n";
+            } else {
+                returnString += offset(3+depth)+
+                    "all_upperptr_"+viewName[viewID]+"["+depthString+"][lowerptr_"+
+                    viewName[viewID]+"["+depthString+"]] = upperptr_"+viewName[viewID]+"["+
+                    depthString+"];\n";    
             }
-            returnString += offset(3+depth)+
-                "all_upperptr_"+viewName[viewID]+"["+depthString+"][lowerptr_"+
-                viewName[viewID]+"["+depthString+"]] = upperptr_"+viewName[viewID]+"["+
-                depthString+"];\n"+
+            returnString += 
                 offset(3+depth)+"lowerptr_"+viewName[viewID]+"["+depthString+"] = upperptr_"+
                 viewName[viewID]+"["+depthString+"] + 1;\n";
             // returnString += offset(3+depth)+
