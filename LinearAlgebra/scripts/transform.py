@@ -149,7 +149,7 @@ def get_idx(domain_size_cnt, domains_shifts, feature_idx: int, category: int):
     return domain_size_cnt[feature_idx] + domains_shifts[feature_idx][category]
 
 
-def is_first_cat(domain_shifts, feature_idx: int , category: int ):
+def is_first_cat(domain_shifts, feature_idx: int, category: int):
     return domain_shifts[feature_idx][category] == -1
 
 
@@ -163,7 +163,7 @@ def print_cell(row, col, val, cell_type, domain_size_cnt, domains_shifts):
             if is_first_cat(domains_shifts, col, f1_cat_dom):
                 continue
             idx = get_idx(domain_size_cnt, domains_shifts, col, f1_cat_dom)
-            print("{} {} {} 1".format(row + domain_size_cnt[row] ,
+            print("{} {} {} 1".format(row + domain_size_cnt[row],
                                     col + idx, val[dom_val]))
     elif cell_type == 'cv':
         for dom_val in val:
@@ -172,7 +172,7 @@ def print_cell(row, col, val, cell_type, domain_size_cnt, domains_shifts):
                 continue
             idx = get_idx(domain_size_cnt, domains_shifts, row, f1_cat_dom)
             print("{} {} {} 1".format(row + idx,
-                                    col + domain_size_cnt[col] , val[dom_val]))
+                                    col + domain_size_cnt[col], val[dom_val]))
     elif cell_type == 'd':
         #print(row, col)
         #print('matd{}'.format(val))
@@ -192,6 +192,7 @@ def print_cell(row, col, val, cell_type, domain_size_cnt, domains_shifts):
             f2_cat_dom = int(dom_val[1])
             if row > col:
                 f1_cat_dom, f2_cat_dom = f2_cat_dom, f1_cat_dom
+
             if is_first_cat(domains_shifts, row, f1_cat_dom) or \
                     is_first_cat(domains_shifts, col, f2_cat_dom):
                 continue
@@ -232,7 +233,8 @@ def get_domains_cnt(features, domains):
         domain_size_cnt[idx] = domain_size_cnt[idx - 1] + len(domains[idx])
         if features[idx]['is_cat']:
             # We skip the first category because of linear dependence
-            domain_size_cnt[idx] -= 1
+            # The other category is included because of its property as a continuous variable.
+            domain_size_cnt[idx] -= 2
 
     return domain_size_cnt
 
@@ -242,8 +244,9 @@ def get_category_shifts(features, domains):
     for idx in range(1, len(features)):
         sort_dom = sorted(list(domains[idx]))
         # List of shifts for all categories in a domain.
+        # We skip the first category
         shift = {it: idx - 1 for (idx, it) in enumerate(sort_dom)}
-        domain_idx[idx] =  shift
+        domain_idx[idx] = shift
 
     return domain_idx
 
@@ -275,12 +278,10 @@ def parse_faqs(output_path: str, features):
     domains = get_domains(triangular_array, cat_features_cnt, features, n)
     domain_size_cnt = get_domains_cnt(features, domains)
     cat_shifts = get_category_shifts(features, domains)
+
     #In order not to check domain size of previous in the print cell, we add this hack
     domain_size_cnt = [0] + domain_size_cnt
     #print(domain_size_cnt)
-
-
-
 
     # Domain_size_cnt represents all possible domain_cnt
     # Features expanded
@@ -289,8 +290,6 @@ def parse_faqs(output_path: str, features):
     print('{:0}'.format(n))
     # Continuous
     print('{:0}'.format(n - cat_features_cnt[-1]))
-
-
 
     for row in range(0, n):
         for col in range(0, n):
