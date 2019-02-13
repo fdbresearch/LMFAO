@@ -137,6 +137,7 @@ def get_uppper_cell_value(triangular_array, n: int, row_idx: int, col_idx: int,
     # We add + 1 because of "skipping" IF^2
     return triangular_array[idx + offset + 1]
 
+
 def get_cell_value(triangular_array, n: int, row: int, col: int, cat_features_cnt: list,
                    features):
     if row > col:
@@ -144,50 +145,107 @@ def get_cell_value(triangular_array, n: int, row: int, col: int, cat_features_cn
     return get_uppper_cell_value(triangular_array, n, row, col, cat_features_cnt, features)
 
 
-SKIP_CAT_F = True
+def get_idx(domain_size_cnt, domains_shifts, feature_idx: int, category: int):
+    return domain_size_cnt[feature_idx] + domains_shifts[feature_idx][category]
 
-def print_cell(row, col, val, cell_type, domain_size_cnt):
-    SKIP_DISP = 1 if SKIP_CAT_F else 0
 
+def is_first_cat(domain_shifts, feature_idx: int , category: int ):
+    return domain_shifts[feature_idx][category] == -1
+
+
+def print_cell(row, col, val, cell_type, domain_size_cnt, domains_shifts):
     if cell_type == 'c':
         print("{} {} {} 0".format(row + domain_size_cnt[row], col + domain_size_cnt[col], 
                                 val[()]))
     elif cell_type == 'rv':
         for dom_val in val:
-            first_cat_dom  = int(dom_val[0])
-            if SKIP_CAT_F and (first_cat_dom == 0):
+            f1_cat_dom = int(dom_val[0])
+            if is_first_cat(domains_shifts, col, f1_cat_dom):
                 continue
-            print("{} {} {} 1".format(row + domain_size_cnt[row] + int(dom_val[0]) - SKIP_DISP, 
-                                    col + domain_size_cnt[col], val[dom_val]))
+            idx = get_idx(domain_size_cnt, domains_shifts, col, f1_cat_dom)
+            print("{} {} {} 1".format(row + domain_size_cnt[row] ,
+                                    col + idx, val[dom_val]))
     elif cell_type == 'cv':
         for dom_val in val:
-            first_cat_dom  = int(dom_val[0])
-            if SKIP_CAT_F and (first_cat_dom == 0):
+            f1_cat_dom = int(dom_val[0])
+            if is_first_cat(domains_shifts, row, f1_cat_dom):
                 continue
-            print("{} {} {} 1".format(row + domain_size_cnt[row], 
-                                    col + domain_size_cnt[col] + int(dom_val[0]) - SKIP_DISP , val[dom_val]))
+            idx = get_idx(domain_size_cnt, domains_shifts, row, f1_cat_dom)
+            print("{} {} {} 1".format(row + idx,
+                                    col + domain_size_cnt[col] , val[dom_val]))
     elif cell_type == 'd':
         #print(row, col)
         #print('matd{}'.format(val))
         for dom_val in val:
-            first_cat_dom  = int(dom_val[0])
-            if SKIP_CAT_F and (first_cat_dom == 0):
+            f1_cat_dom = int(dom_val[0])
+            if is_first_cat(domains_shifts, row, f1_cat_dom):
                 continue
-            print("{} {} {} 1".format(row + domain_size_cnt[row] + int(dom_val[0]) - SKIP_DISP , 
-                                    col + domain_size_cnt[col] + int(dom_val[0]) - SKIP_DISP, 
-                                    val[dom_val])) 
+            idx = get_idx(domain_size_cnt, domains_shifts, row, f1_cat_dom)
+            print("{} {} {} 1".format(row + idx, col + idx, val[dom_val]))
+
     elif cell_type == 'm':
+        # Output of categorical variables is problematic
         #print(row, col)
         #print('matp{}'.format(val))
         for dom_val in val:
-            first_cat_dom1  = int(dom_val[0])
-            first_cat_dom2  = int(dom_val[1])
-            # Temporary hack, I won't bother with this anymore when I start implementing API for Max's code
-            if SKIP_CAT_F and ((first_cat_dom1 == 0) or (first_cat_dom2 == 0)):
+            f1_cat_dom = int(dom_val[0])
+            f2_cat_dom = int(dom_val[1])
+            if row > col:
+                f1_cat_dom, f2_cat_dom = f2_cat_dom, f1_cat_dom
+            if is_first_cat(domains_shifts, row, f1_cat_dom) or \
+                    is_first_cat(domains_shifts, col, f2_cat_dom):
                 continue
-            print("{} {} {} 1".format(row + domain_size_cnt[row] + int(dom_val[0]) - SKIP_DISP, 
-                                    col + domain_size_cnt[col] + int(dom_val[1]) - SKIP_DISP, 
-                                    val[dom_val])) 
+
+            idx1 = get_idx(domain_size_cnt, domains_shifts, row, f1_cat_dom)
+            idx2 = get_idx(domain_size_cnt, domains_shifts, col, f2_cat_dom)
+            print("{} {} {} 1".format(row + idx1, col + idx2, val[dom_val]))
+
+
+def get_domains(triangular_array,  cat_features_cnt, features, n):
+    domains = [None] * len(features)
+    for idx in range(0, len(features)):
+        domains[idx] = set()
+    for row in range(0, n):
+        for col in range(0, n):
+            feature_row = features[row]
+            feature_col = features[col]
+            if (feature_col['is_cat']) and feature_row['is_cat'] and (row == col):
+                val = get_cell_value(triangular_array, n, row, col, cat_features_cnt, features)
+                for dom_val in val:
+                    domains[row].add(dom_val[0])
+    return domains
+
+
+def get_cat_feat_cnt(features):
+    cat_features_cnt = [0] * (len(features))
+    for idx in range(1, len(features)):
+        cat_features_cnt[idx] = cat_features_cnt[idx - 1]
+        if features[idx]['is_cat']:
+            cat_features_cnt[idx] += 1
+
+    return cat_features_cnt
+
+
+def get_domains_cnt(features, domains):
+    domain_size_cnt = [0] * (len(features))
+    for idx in range(1, len(features)):
+        domain_size_cnt[idx] = domain_size_cnt[idx - 1] + len(domains[idx])
+        if features[idx]['is_cat']:
+            # We skip the first category because of linear dependence
+            domain_size_cnt[idx] -= 1
+
+    return domain_size_cnt
+
+
+def get_category_shifts(features, domains):
+    domain_idx = [None] * (len(features))
+    for idx in range(1, len(features)):
+        sort_dom = sorted(list(domains[idx]))
+        # List of shifts for all categories in a domain.
+        shift = {it: idx - 1 for (idx, it) in enumerate(sort_dom)}
+        domain_idx[idx] =  shift
+
+    return domain_idx
 
 def parse_faqs(output_path: str, features):
     views = {}
@@ -213,19 +271,17 @@ def parse_faqs(output_path: str, features):
 
     #print(features)
 
-    cat_features_cnt = [0] * (len(features))
-    domain_size_cnt = [0] * (len(features))
-    for idx in range(1, len(features)):
-        cat_features_cnt[idx] = cat_features_cnt[idx - 1]
-
-        domain_size_cnt[idx] = domain_size_cnt[idx - 1] + features[idx]['domain_size']
-        if features[idx]['is_cat']:
-            cat_features_cnt[idx] += 1
-            if SKIP_CAT_F:
-                domain_size_cnt[idx] -= 1
-
+    cat_features_cnt = get_cat_feat_cnt(features)
+    domains = get_domains(triangular_array, cat_features_cnt, features, n)
+    domain_size_cnt = get_domains_cnt(features, domains)
+    cat_shifts = get_category_shifts(features, domains)
+    #In order not to check domain size of previous in the print cell, we add this hack
     domain_size_cnt = [0] + domain_size_cnt
     #print(domain_size_cnt)
+
+
+
+
     # Domain_size_cnt represents all possible domain_cnt
     # Features expanded
     print('{:0}'.format(n + domain_size_cnt[-1]))
@@ -233,6 +289,9 @@ def parse_faqs(output_path: str, features):
     print('{:0}'.format(n))
     # Continuous
     print('{:0}'.format(n - cat_features_cnt[-1]))
+
+
+
     for row in range(0, n):
         for col in range(0, n):
             feature_row = features[row]
@@ -241,19 +300,27 @@ def parse_faqs(output_path: str, features):
             #print(feature_col)
             val = get_cell_value(triangular_array, n, row, col, cat_features_cnt, features)
             cell_type = ''
+            '''
+            2 3    2 0 1 
+            0 1  x 3 1 0
+            1 0
+            = 13  3  2 
+              3   1  0
+              2   0  1
+            '''
             # Continuous * categorical is row vector.
             if (not feature_row['is_cat']) and (not (feature_col['is_cat'])):
                 cell_type = 'c'
-            elif (feature_col['is_cat']) and not (feature_row['is_cat']):
+            elif (feature_row['is_cat']) and not (feature_col['is_cat']):
                 cell_type = 'cv'
-            elif not (feature_col['is_cat']) and feature_row['is_cat']:
+            elif (not feature_row['is_cat']) and feature_col['is_cat']:
                 cell_type = 'rv'
             elif (feature_col['is_cat']) and feature_row['is_cat'] and (row == col):
                 cell_type = 'd'
             else:
                 cell_type = 'm'
             #print(row, col)
-            print_cell(row, col, val, cell_type, domain_size_cnt)
+            print_cell(row, col, val, cell_type, domain_size_cnt, cat_shifts)
         #print()
 
 ''' 
