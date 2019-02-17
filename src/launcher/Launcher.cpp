@@ -9,6 +9,7 @@
 
 #include <Count.h>
 #include <CovarianceMatrix.h>
+#include <QRDecompositionApplication.h>
 #include <CppGenerator.h>
 #include <DataCube.h>
 #include <Launcher.h>
@@ -98,6 +99,13 @@ int Launcher::launch(const string& model, const string& codeGenerator,
         _model = CovarianceMatrixModel;
         _application.reset(
             new CovarianceMatrix(_pathToFiles, shared_from_this()));
+        hasApplicationHandler = true;
+    }
+    else if (model.compare("qrdecomp") == 0)
+    {
+        _model = CovarianceMatrixModel;
+        _application.reset(
+            new QRDecompApp(_pathToFiles, shared_from_this()));
         hasApplicationHandler = true;
     }
     else if (model.compare("count") == 0)

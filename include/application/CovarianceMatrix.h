@@ -31,13 +31,13 @@ public:
     CovarianceMatrix(const std::string& pathToFiles,
                      std::shared_ptr<Launcher> launcher);
 
-    ~CovarianceMatrix();
+    virtual ~CovarianceMatrix();
 
     void run();
     
 //     var_bitset getCategoricalFeatures();
     
-private:
+protected:
     
     //! Physical path to the schema and table files.
     std::string _pathToFiles;
@@ -59,7 +59,12 @@ private:
     void loadFeatures();
 
     std::vector<Query*> listOfQueries;
+    virtual std::string getCodeOfIncludes();
+    virtual std::string getCodeOfFunDefinitions();
+    virtual std::string getCodeOfRunAppFun();
+    
     void generateCode();
+
     // std::string offset(size_t off);
     // std::string typeToStr(Type t);
     // std::string generateTestDataEvaluation();   

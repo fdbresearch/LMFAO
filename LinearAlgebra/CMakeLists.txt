@@ -12,7 +12,7 @@ else()
 endif()
 set(CMAKE_CXX_FLAGS_BENCHMARK "${CMAKE_CXX_FLAGS_RELEASE} -DBENCH")
 
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Benchmark)
 
 set(LMFAO_LA_ROOT .)
 set(LMFAO_LA_TEST ${LMFAO_LA_ROOT}/tests)
@@ -21,7 +21,7 @@ set(LMFAO_LA_INCLUDE ${LMFAO_LA_ROOT}/include)
 include_directories(${LMFAO_LA_INCLUDE})
  
 file(GLOB SRCFILES src/*.cpp)
-set(LMFAO_LIB true)
+#set(LMFAO_LIB true)
 if (LMFAO_LIB)
   add_library(lmfaolalib STATIC ${SRCFILES})
 endif()
