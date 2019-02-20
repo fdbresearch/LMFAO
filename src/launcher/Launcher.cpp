@@ -97,6 +97,7 @@ int Launcher::launch(const string& model, const string& codeGenerator,
     {
         _application.reset(
             new LinearRegression(_pathToFiles, shared_from_this()));
+        hasApplicationHandler = true;
     }
     else if (model.compare("rtree") == 0)
     {

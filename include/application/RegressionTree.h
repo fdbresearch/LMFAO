@@ -98,7 +98,7 @@ private:
 
     void classificationTreeQueries();
     
-    void genDynamicFunctions();
+    void genDynamicFunctions(const std::string& outDirectory);
 
     std::string genVarianceComputation();
 

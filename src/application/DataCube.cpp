@@ -121,11 +121,12 @@ void DataCube::modelToQueries()
         Query* query = new Query();
         query->_rootID = _td->_root->_id;
 
+        // We add the count aggregate to the query
         Aggregate* agg = new Aggregate();
         agg->_agg.push_back(prod_bitset());
         query->_aggregates.push_back(agg);
  
-
+        // We add each measure aggregate to the query
         for (prod_bitset p : measureAggregates)
         {
             Aggregate* agg = new Aggregate();

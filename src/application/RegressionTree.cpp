@@ -65,7 +65,7 @@ void RegressionTree::run()
 
     cout << "Computed Candidates \n";
 
-    genDynamicFunctions();
+    // genDynamicFunctions();
 
     if (_classification)
         classificationTreeQueries();
@@ -603,7 +603,7 @@ void RegressionTree::loadFeatures()
 }
 
 
-void RegressionTree::genDynamicFunctions()
+void RegressionTree::genDynamicFunctions(const std::string& outDirectory)
 {
     std::string functionHeaders = "";
     std::string functionSource = "";
@@ -629,19 +629,19 @@ void RegressionTree::genDynamicFunctions()
                 offset(1)+"{\n"+offset(2)+"return 1.0;\n"+offset(1)+"}\n";
         }
     }
-    std::ofstream ofs("runtime/cpp/DynamicFunctions.h", std::ofstream::out);
+    std::ofstream ofs(outDirectory+"DynamicFunctions.h", std::ofstream::out);
     ofs << "#ifndef INCLUDE_DYNAMICFUNCTIONS_H_\n"<<
         "#define INCLUDE_DYNAMICFUNCTIONS_H_\n\n"<<
         "namespace lmfao\n{\n"<< functionHeaders <<
         "}\n\n#endif /* INCLUDE_DYNAMICFUNCTIONS_H_*/\n";    
     ofs.close();
     
-    ofs.open("runtime/cpp/DynamicFunctions.cpp", std::ofstream::out);
+    ofs.open(outDirectory+"DynamicFunctions.cpp", std::ofstream::out);
     ofs << "#include \"DynamicFunctions.h\"\nnamespace lmfao\n{\n"+functionSource+"}\n";
     ofs.close();
 
 
-    ofs.open("runtime/cpp/DynamicFunctionsGenerator.hpp", std::ofstream::out);
+    ofs.open(outDirectory+"DynamicFunctionsGenerator.hpp", std::ofstream::out);
     ofs << dynamicFunctionsGenerator();
     ofs.close();
 }
@@ -1282,6 +1282,10 @@ void RegressionTree::generateCode(const std::string& outDirectory)
     ofs << runFunction << std::endl;
     ofs << "}\n";
     ofs.close();
+
+
+
+    genDynamicFunctions(outDirectory);
 }
 
 
@@ -1519,7 +1523,7 @@ void RegressionTree::initializeThresholds()
             {3641,7478,11285,15103,18956,22804,26632,30429,34287,38104,41923,45731,49556,53421,57246,61067,64913,68746,72550},// percentiles i_formulation
             {},// percentiles i_color
             {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,20},// percentiles i_units
-            {0},// percentiles i_container
+            {0, 50, 100, 150},// percentiles i_container
             {},// percentiles c_current_cdemo_sk
             {},// percentiles c_current_addr_sk
             {},// percentiles c_salutation
