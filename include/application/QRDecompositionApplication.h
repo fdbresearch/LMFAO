@@ -27,6 +27,8 @@ protected:
     virtual std::string getCodeOfIncludes() override;
     virtual std::string getCodeOfFunDefinitions() override;
     virtual std::string getCodeOfRunAppFun() override;    
+private:
+	std::string getVectorOfFeatures();
 };
 
 #endif /* INCLUDE_APP_QRDECOMP_H_ */

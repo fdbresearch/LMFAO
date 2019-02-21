@@ -250,6 +250,7 @@ def get_category_shifts(features, domains):
 
     return domain_idx
 
+
 def parse_faqs(output_path: str, features):
     views = {}
 
@@ -273,7 +274,7 @@ def parse_faqs(output_path: str, features):
                 'is_valid': True}] + features
 
     #print(features)
-
+    # cat_features_cnt[i] = count of categorical values in features[0:i]
     cat_features_cnt = get_cat_feat_cnt(features)
     domains = get_domains(triangular_array, cat_features_cnt, features, n)
     domain_size_cnt = get_domains_cnt(features, domains)

@@ -299,7 +299,7 @@ void CppGenerator::genMakeFile()
         << "-fno-signed-zeros -v -ftime-report -fno-stack-protector\n\n";
 
     ofs << "lmfao : " + objectList + "\n\t$(CXX) $(CXXFLAG) " + 
-          objectList + " liblmfaolalib.a -o lmfao\n\n";
+          objectList + " ../../LinearAlgebra/liblmfaolalib.a -o lmfao\n\n";
 
     ofs << "main.o : main.cpp\n"
         << "\t$(CXX) $(FLAG) $(CXXFLAG) -c main.cpp -o main.o\n\n"
