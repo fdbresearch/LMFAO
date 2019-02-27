@@ -33,14 +33,15 @@ namespace LMFAO::LinearAlgebra
     }
 
     void QRDecomposition::formMatrix(const MapMatrixAggregate &matrixAggregate,
-                                     unsigned int numFeatures)
+                                     unsigned int numFeatsExp, unsigned int numFeats, 
+                                     unsigned int numFeatsCont)
     {
         unsigned int row, col;
         bool isCategorical;
         long double val;
-        mNumFeatsExp = numFeatures;
-        mNumFeats = numFeatures;
-        mNumFeatsCont = numFeatures;
+        mNumFeatsExp = numFeatsExp;
+        mNumFeats = numFeats;
+        mNumFeatsCont = numFeatsCont;
         mNumFeatsCat = mNumFeats - mNumFeatsCont;
         mSigma = Eigen::MatrixXd::Zero(mNumFeatsExp, mNumFeatsExp);
         MatrixBool matIsCategorical = MatrixBool::Constant(mNumFeatsExp, mNumFeatsExp, false);

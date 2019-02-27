@@ -18,16 +18,21 @@ namespace LMFAO::LinearAlgebra
         Eigen::MatrixXd mR;
         const std::string mPath;
         const LMFAO::LinearAlgebra::MapMatrixAggregate* mpmapMatAgg = nullptr;
-        unsigned int mNumFeatures;
+        unsigned int mNumFeatsExp;
+        unsigned int mNumFeatsCont;
+        unsigned int mNumFeats;
         public : SVDecomp(const std::string &path, DecompType decompType) : mDecompType(decompType), mPath(path)
         {
             
         }
         // !!! ASSUMPTION, mapMatAgg lives in the same block.
         SVDecomp(DecompType decompType, const MapMatrixAggregate &mapMatAgg,
-                 unsigned int numFeatures) : mDecompType(decompType), 
-                 mNumFeatures(numFeatures)  {
-            mpmapMatAgg = &mapMatAgg;
+                 unsigned int numFeatsExp, unsigned int numFeats, 
+                 unsigned int numFeatsCont) : mDecompType(decompType), 
+                 mNumFeatsExp(numFeatsExp), mNumFeats(numFeats), 
+                 mNumFeatsCont(numFeatsCont)  
+                 {
+                    mpmapMatAgg = &mapMatAgg;
                  }
         void decompose();
     };

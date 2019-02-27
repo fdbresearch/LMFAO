@@ -33,7 +33,8 @@ namespace LMFAO::LinearAlgebra
                      std::pair<long double, bool>> MapMatrixAggregate;
     class QRDecomposition 
     {
-        void formMatrix(const MapMatrixAggregate &, unsigned int numFeatures);
+        void formMatrix(const MapMatrixAggregate &, unsigned int numFeatsExp, 
+                        unsigned int mNumFeats, unsigned int mNumFeatsCont);
         void readMatrix(const std::string &path);
         void rearrangeMatrix(const MatrixBool &matIsCategorical);
     protected : Eigen::MatrixXd mSigma;
@@ -63,20 +64,22 @@ namespace LMFAO::LinearAlgebra
         {
             readMatrix(path);
         }
-        QRDecomposition(const MapMatrixAggregate& mMatrix, unsigned int numFeatures)
+        QRDecomposition(const MapMatrixAggregate& mMatrix, unsigned int numFeatsExp, 
+                        unsigned int numFeats, unsigned int numFeatsCont)
         {
-            formMatrix(mMatrix, numFeatures);
+            formMatrix(mMatrix, numFeatsExp, numFeats, numFeatsCont);
         }
         virtual ~QRDecomposition() {}
-         void getR(Eigen::MatrixXd &rEigen);
+        void getR(Eigen::MatrixXd &rEigen);
     }; 
 
     class QRDecompositionNaive: public QRDecomposition
     {
     public:
         QRDecompositionNaive(const std::string &path) : QRDecomposition(path) {}
-        QRDecompositionNaive(const MapMatrixAggregate &mMatrix, unsigned int numFeatures) : 
-        QRDecomposition(mMatrix, numFeatures) {}
+        QRDecompositionNaive(const MapMatrixAggregate &mMatrix, unsigned int numFeatsExp, 
+                            unsigned int numFeats, unsigned int numFeatsCont) : 
+            QRDecomposition(mMatrix, numFeatsExp, numFeats, numFeatsCont) {}
         ~QRDecompositionNaive() {}
         virtual void decompose(void) override;
         void calculateCR(void);
@@ -92,8 +95,9 @@ namespace LMFAO::LinearAlgebra
 
     public:
         QRDecompositionSingleThreaded(const std::string &path) : QRDecomposition(path) {}
-        QRDecompositionSingleThreaded(const MapMatrixAggregate &mMatrix, unsigned int numFeatures) :
-         QRDecomposition(mMatrix, numFeatures) {}
+        QRDecompositionSingleThreaded(const MapMatrixAggregate &mMatrix, unsigned int numFeatsExp, 
+                            unsigned int numFeats, unsigned int numFeatsCont) :
+         QRDecomposition(mMatrix, numFeatsExp, numFeats, numFeatsCont) {}
 
         ~QRDecompositionSingleThreaded() {}
         virtual void decompose(void) override;

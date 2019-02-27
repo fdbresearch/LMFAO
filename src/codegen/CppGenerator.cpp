@@ -219,7 +219,7 @@ void CppGenerator::genMainFunction(bool parallelize)
 {
     std::ofstream ofs("runtime/cpp/main.cpp",std::ofstream::out);
 
-    ofs << "#ifdef TESTING \n"+offset(1)+"#include <iomanip>\n"+"#endif\n";
+    ofs << "#if defined(TESTING) || defined(DUMP_OUTPUT) \n"+offset(1)+"#include <iomanip>\n"+"#endif\n";
     
     ofs << "#include \"DataHandler.h\"\n";
     for (size_t group = 0; group < viewGroups.size(); ++group)
@@ -227,13 +227,6 @@ void CppGenerator::genMainFunction(bool parallelize)
 
     if (_hasApplicationHandler)
         ofs << "#include \"ApplicationHandler.h\"\n";
-        ofs << "#include \"../../LinearAlgebra/include/SVDecomp.h\"\n";
-        ofs
-         << "#include <map>\n"
-         << "typedef std::map< std::tuple<unsigned int, long double, long double>, long double> DomainAggregate;\n"
-         << "typedef std::vector<DomainAggregate> VectorOffset;\n"
-         << "typedef std::map<unsigned int, VectorOffset> MapView;\n"
-         << "using namespace LMFAO::LinearAlgebra;\n"; 
         ofs << "\nnamespace lmfao\n{\n";
         // offset(1)+"//const std::std::ring PATH_TO_DATA = \"/Users/Maximilian/Documents/"+
         // "Oxford/LMFAO/"+_pathToData+"\";\n"+
@@ -6654,7 +6647,7 @@ std::string CppGenerator::genDumpFunction()
         returnString += offset(2)+"ofs.open(\"output/"+
             viewName[viewID]+".tbl\");\n"+
             offset(2)+"ofs << \""+dimCountSize+" "+
-            viewCountSize+"\\n\";\n";
+            viewCountSize+"\\n\" << std::fixed << std::setprecision(2);\n";
 
    
         std::string fields = "";
@@ -7726,7 +7719,7 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
                         offset(3+depth+loopCounter)+"}\n"+closeLoopString;
                 }
             }
-            returnString += loopCondition.second + closeLoopString;
+        returnString += loopCondition.second + closeLoopString;
         }
 
         returnString += offset(3+depth)+

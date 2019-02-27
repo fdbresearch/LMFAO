@@ -18,7 +18,8 @@ namespace LMFAO::LinearAlgebra
                 }
                 else 
                 {
-                    pQRDecomp = new QRDecompositionNaive(*mpmapMatAgg, mNumFeatures);
+                    std::cout << "Some" <<  mNumFeatsExp << " " << mNumFeats << " " <<  mNumFeatsCont << std::endl;
+                    pQRDecomp = new QRDecompositionNaive(*mpmapMatAgg, mNumFeatsExp, mNumFeats, mNumFeatsCont);
                 }
                     
             break;
@@ -29,7 +30,7 @@ namespace LMFAO::LinearAlgebra
                 }
                 else 
                 {
-                    pQRDecomp = new QRDecompositionSingleThreaded(*mpmapMatAgg, mNumFeatures);
+                    pQRDecomp = new QRDecompositionSingleThreaded(*mpmapMatAgg, mNumFeatsExp, mNumFeats, mNumFeatsCont);
                 }
                 break;
 
