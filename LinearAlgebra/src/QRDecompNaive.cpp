@@ -10,10 +10,8 @@ namespace LMFAO::LinearAlgebra
     {
         vector<long double> sigmaExpanded(mNumFeatsExp * mNumFeatsExp);
         unsigned int N = mNumFeatsExp;
-
         expandSigma(sigmaExpanded, true /*isNaive*/);
         mR[0] = sigmaExpanded[0];
-
         // We skip k=0 since it contains necessary values
         for (unsigned int k = 1; k < N; k++)
         {
@@ -63,6 +61,7 @@ namespace LMFAO::LinearAlgebra
         // Normalise R
         for (unsigned int row = 0; row < N; row++)
         {
+            std::cout << "Norm" << mR[expIdx(row, row, N)] <<  std::endl;
             double norm = sqrt(mR[expIdx(row, row, N)]);
             for (unsigned int col = row; col < N; col++)
             {

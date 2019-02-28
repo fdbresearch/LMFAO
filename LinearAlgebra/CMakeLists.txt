@@ -13,6 +13,8 @@ endif()
 set(CMAKE_CXX_FLAGS_BENCHMARK "${CMAKE_CXX_FLAGS_RELEASE} -DBENCH")
 
 set(CMAKE_BUILD_TYPE Benchmark)
+#set(LMFAO_RUN false)
+#set(LMFAO_TEST false)
 
 set(LMFAO_LA_ROOT .)
 set(LMFAO_LA_TEST ${LMFAO_LA_ROOT}/tests)
@@ -21,13 +23,15 @@ set(LMFAO_LA_INCLUDE ${LMFAO_LA_ROOT}/include)
 include_directories(${LMFAO_LA_INCLUDE})
  
 file(GLOB SRCFILES src/*.cpp)
-#set(LMFAO_LIB true)
+
 if (LMFAO_LIB)
   add_library(lmfaolalib STATIC ${SRCFILES})
 endif()
-add_executable(lmfaola main.cpp ${SRCFILES})
+if (LMFAO_RUN)
+  add_executable(lmfaola main.cpp ${SRCFILES})
+endif()
 
-if (LMFAO_TESTING)
+if (LMFAO_TEST)
   # Test environment. 
   add_executable(lmfaola_test ${LMFAO_LA_TEST}/test.cpp ${SRCFILES})
   target_include_directories(lmfaola_test PRIVATE ${LMFAO_LA_TEST})
@@ -39,14 +43,16 @@ set(Boost_USE_STATIC_RUNTIME OFF)
 find_package(Boost REQUIRED COMPONENTS system iostreams program_options)
 include_directories(${Boost_INCLUDE_DIRS})
 
-if (LMFAO_TESTING)
+if (LMFAO_TEST)
   # Take care of Gtest library.
   find_package(GTest REQUIRED)
   include_directories(${GTEST_INCLUDE_DIRS})
 endif()
 
 # Add libraries.
-target_link_libraries(lmfaola ${Boost_LIBRARIES})
-if (LMFAO_TESTING)
+if (LMFAO_RUN)
+  target_link_libraries(lmfaola ${Boost_LIBRARIES})
+endif()
+if (LMFAO_TEST)
   target_link_libraries(lmfaola_test ${Boost_LIBRARIES} ${GTEST_LIBRARIES})
 endif()

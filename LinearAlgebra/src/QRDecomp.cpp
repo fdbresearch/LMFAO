@@ -16,6 +16,7 @@ namespace LMFAO::LinearAlgebra
         f >> mNumFeatsExp;
         f >> mNumFeats;
         f >> mNumFeatsCont;
+        std::cout << mNumFeatsExp << mNumFeats << mNumFeatsCont << std::endl;
         mSigma = Eigen::MatrixXd::Zero(mNumFeatsExp, mNumFeatsExp);
         MatrixBool matIsCategorical = MatrixBool::Constant(mNumFeatsExp, mNumFeatsExp, false);
 
@@ -102,12 +103,12 @@ namespace LMFAO::LinearAlgebra
 
     void QRDecomposition::expandSigma(vector<long double> &sigmaExpanded, bool isNaive)
     {
-        unsigned int num_rows = isNaive ?  mNumFeatsExp : mNumFeatsCont; 
-        for (unsigned int row = 0; row < num_rows; row ++)
+        unsigned int numRows = isNaive ?  mNumFeatsExp : mNumFeatsCont; 
+        for (unsigned int row = 0; row < numRows; row ++)
         {
-            for (unsigned int col = 0; col < num_rows; col ++)
+            for (unsigned int col = 0; col < numRows; col ++)
             {
-                sigmaExpanded[expIdx(row, col, num_rows)] = mSigma(row, col);
+                sigmaExpanded[expIdx(row, col, numRows)] = mSigma(row, col);
             }
         }
     }

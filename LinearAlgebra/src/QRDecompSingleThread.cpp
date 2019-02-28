@@ -164,6 +164,7 @@ namespace LMFAO::LinearAlgebra
         // Normalise R' to obtain R
         for (unsigned int row = 0; row < N; row++)
         {
+            std::cout << "Norm" << mR[row * N + row] << std::endl;
             double norm = sqrt(mR[row * N + row]);
             for (unsigned int col = row; col < N; col++)
             {
