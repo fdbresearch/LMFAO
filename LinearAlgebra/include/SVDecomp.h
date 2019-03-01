@@ -11,7 +11,7 @@ namespace LMFAO::LinearAlgebra
     public:
         enum class DecompType
         {
-            NAIVE, SINGLE_THREAD, MULTI_THREAD, TRIANGLE 
+            NAIVE, SINGLE_THREAD, MULTI_THREAD, TRIANGLE
         };
     private:
         DecompType mDecompType;
@@ -21,20 +21,23 @@ namespace LMFAO::LinearAlgebra
         unsigned int mNumFeatsExp;
         unsigned int mNumFeatsCont;
         unsigned int mNumFeats;
+        std::vector<bool> mvIsCat;
         public : SVDecomp(const std::string &path, DecompType decompType) : mDecompType(decompType), mPath(path)
         {
-            
+
         }
         // !!! ASSUMPTION, mapMatAgg lives in the same block.
         SVDecomp(DecompType decompType, const MapMatrixAggregate &mapMatAgg,
-                 unsigned int numFeatsExp, unsigned int numFeats, 
-                 unsigned int numFeatsCont) : mDecompType(decompType), 
-                 mNumFeatsExp(numFeatsExp), mNumFeats(numFeats), 
-                 mNumFeatsCont(numFeatsCont)  
+                 unsigned int numFeatsExp, unsigned int numFeats,
+                 unsigned int numFeatsCont,
+                 const std::vector<bool> &vIsCat) : mDecompType(decompType),
+                 mNumFeatsExp(numFeatsExp), mNumFeats(numFeats),
+                 mNumFeatsCont(numFeatsCont)
                  {
                     mpmapMatAgg = &mapMatAgg;
+                    mvIsCat = vIsCat;
                  }
         void decompose();
     };
 }
-#endif 
+#endif

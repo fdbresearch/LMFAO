@@ -11,87 +11,101 @@ namespace LMFAO::LinearAlgebra
     {
         std::ifstream f(path);
         unsigned int row, col;
-        bool isCategorical; 
+        bool isCategorical;
         long double val;
+        unsigned int isCat;
         f >> mNumFeatsExp;
         f >> mNumFeats;
         f >> mNumFeatsCont;
         std::cout << mNumFeatsExp << mNumFeats << mNumFeatsCont << std::endl;
+
+        std::vector<bool> vIsCat(mNumFeatsExp, false);
         mSigma = Eigen::MatrixXd::Zero(mNumFeatsExp, mNumFeatsExp);
-        MatrixBool matIsCategorical = MatrixBool::Constant(mNumFeatsExp, mNumFeatsExp, false);
 
         mNumFeatsExp = mNumFeatsExp;
         mNumFeatsCat = mNumFeats - mNumFeatsCont;
 
-        while (f >> row >> col >> val >> isCategorical) 
+        for (unsigned int idx = 0; idx < mNumFeatsExp; idx ++)
         {
-            std::cout << row << " " <<  col << " " << val << " " 
-                      << isCategorical << std::endl;
-            mSigma(row, col) = val;
-            matIsCategorical(row, col) = isCategorical;
+            f >> isCategorical;
+            vIsCat[idx] = isCategorical;
+            std::cout << vIsCat[idx] << " ";
         }
-        rearrangeMatrix(matIsCategorical);
+        std::cout << std::endl;
+
+        while (f >> row >> col >> val)
+        {
+            //std::cout << row << " " <<  col << " " << val << " " << std::endl;
+            mSigma(row, col) = val;
+        }
+        rearrangeMatrix(vIsCat);
     }
 
     void QRDecomposition::formMatrix(const MapMatrixAggregate &matrixAggregate,
-                                     unsigned int numFeatsExp, unsigned int numFeats, 
-                                     unsigned int numFeatsCont)
+                                     unsigned int numFeatsExp, unsigned int numFeats,
+                                     unsigned int numFeatsCont,
+                                     const std::vector<bool>& vIsCat)
     {
         unsigned int row, col;
-        bool isCategorical;
         long double val;
         mNumFeatsExp = numFeatsExp;
         mNumFeats = numFeats;
         mNumFeatsCont = numFeatsCont;
         mNumFeatsCat = mNumFeats - mNumFeatsCont;
         mSigma = Eigen::MatrixXd::Zero(mNumFeatsExp, mNumFeatsExp);
-        MatrixBool matIsCategorical = MatrixBool::Constant(mNumFeatsExp, mNumFeatsExp, false);
 
         for (auto& keyValue: matrixAggregate)
         {
             const auto& key = keyValue.first;
             const auto& value = keyValue.second;
-            row = key.first; 
+            row = key.first;
             col = key.second;
-            val = value.first;
-            isCategorical = value.second;
-            mSigma(row, col) = val;
-            matIsCategorical(row, col) = isCategorical;
+            mSigma(row, col) = value;
         }
-        rearrangeMatrix(matIsCategorical);
+        std::cout << vIsCat.size() << std::endl;
+        rearrangeMatrix(vIsCat);
     }
 
-    void QRDecomposition::rearrangeMatrix(const MatrixBool& mIsCategorical)
+    void QRDecomposition::rearrangeMatrix(const std::vector<bool>& vIsCat)
     {
-        vector<unsigned int> dispCont(mNumFeatsExp, 0);
-        vector<unsigned int> dispCat(mNumFeatsExp, 0);
+        vector<unsigned int> cntCat(mNumFeatsExp, 0);
+        vector<unsigned int> cntCont(mNumFeatsExp, 0);
         for (unsigned int idx = 1; idx < mNumFeatsExp; idx++)
         {
-            dispCont[idx] = dispCont[idx - 1] + mIsCategorical(idx - 1, 0);
-            dispCat[idx] = dispCat[idx - 1] + !mIsCategorical(idx - 1, 0);
+            std::cout << vIsCat[idx-1] << std::endl;
+            cntCat[idx] = cntCat[idx - 1] + vIsCat[idx - 1];
+            cntCont[idx] = cntCont[idx - 1] + !vIsCat[idx - 1];
         }
 
         for (unsigned int row = 0; row < mNumFeatsExp; row++)
         {
             for (unsigned int col = 0; col < mNumFeatsExp; col++)
             {
-                unsigned int row_idx = mIsCategorical(row, 0) ? (row - dispCat[row] + mNumFeatsCont) : (row - dispCont[row]);
-                unsigned int col_idx = mIsCategorical(col, 0) ? (col - dispCat[col] + mNumFeatsCont) : (col - dispCont[col]);
-                if (mIsCategorical(row, col) && (mSigma(row, col) != 0))
+                unsigned int row_idx = vIsCat[row] ? (row - cntCont[row] + mNumFeatsCont) : (row - cntCat[row]);
+                unsigned int col_idx = vIsCat[col] ? (col - cntCont[col] + mNumFeatsCont) : (col - cntCat[col]);
+                if (vIsCat[row] || (vIsCat[col]))
                 {
-                    mCatVals.push_back(make_tuple(row_idx, col_idx, mSigma(row, col)));
+                    mNaiveCatVals.push_back(make_tuple(row_idx, col_idx, mSigma(row, col)));
+                    if ((mSigma(row, col) != 0))
+                    {
+                        mCatVals.push_back(make_tuple(row_idx, col_idx, mSigma(row, col)));
+                    }
                 }
-                mSigma(row - dispCont[row], col - dispCont[col]) = mSigma(row, col);
+                else
+                {
+                    mSigma(row - cntCat[row], col - cntCat[col]) = mSigma(row, col);
+                }
             }
         }
-        for (const Triple &triple : mCatVals)
+        for (const Triple &triple : mNaiveCatVals)
         {
             unsigned int row = get<0>(triple);
             unsigned int col = get<1>(triple);
             long double aggregate = get<2>(triple);
             mSigma(row, col) = aggregate;
         }
-
+        std::cout << "Matrix" << std::endl;
+        /*
         for (unsigned int row = 0; row < mNumFeatsExp; row++)
         {
             for (unsigned int col = 0; col < mNumFeatsExp; col++)
@@ -99,11 +113,13 @@ namespace LMFAO::LinearAlgebra
                 cout << row << " " << col << " " << mSigma(row, col) << endl;
             }
         }
+        std::cout << "******************" << std::endl;
+        */
     }
 
     void QRDecomposition::expandSigma(vector<long double> &sigmaExpanded, bool isNaive)
     {
-        unsigned int numRows = isNaive ?  mNumFeatsExp : mNumFeatsCont; 
+        unsigned int numRows = isNaive ?  mNumFeatsExp : mNumFeatsCont;
         for (unsigned int row = 0; row < numRows; row ++)
         {
             for (unsigned int col = 0; col < numRows; col ++)

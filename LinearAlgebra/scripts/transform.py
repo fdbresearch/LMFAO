@@ -155,7 +155,7 @@ def is_first_cat(domain_shifts, feature_idx: int, category: int):
 
 def print_cell(row, col, val, cell_type, domain_size_cnt, domains_shifts):
     if cell_type == 'c':
-        print("{} {} {} 0".format(row + domain_size_cnt[row], col + domain_size_cnt[col], 
+        print("{} {} {}".format(row + domain_size_cnt[row], col + domain_size_cnt[col],
                                 val[()]))
     elif cell_type == 'rv':
         for dom_val in val:
@@ -163,7 +163,7 @@ def print_cell(row, col, val, cell_type, domain_size_cnt, domains_shifts):
             if is_first_cat(domains_shifts, col, f1_cat_dom):
                 continue
             idx = get_idx(domain_size_cnt, domains_shifts, col, f1_cat_dom)
-            print("{} {} {} 1".format(row + domain_size_cnt[row],
+            print("{} {} {}".format(row + domain_size_cnt[row],
                                     col + idx, val[dom_val]))
     elif cell_type == 'cv':
         for dom_val in val:
@@ -171,7 +171,7 @@ def print_cell(row, col, val, cell_type, domain_size_cnt, domains_shifts):
             if is_first_cat(domains_shifts, row, f1_cat_dom):
                 continue
             idx = get_idx(domain_size_cnt, domains_shifts, row, f1_cat_dom)
-            print("{} {} {} 1".format(row + idx,
+            print("{} {} {}".format(row + idx,
                                     col + domain_size_cnt[col], val[dom_val]))
     elif cell_type == 'd':
         #print(row, col)
@@ -181,7 +181,7 @@ def print_cell(row, col, val, cell_type, domain_size_cnt, domains_shifts):
             if is_first_cat(domains_shifts, row, f1_cat_dom):
                 continue
             idx = get_idx(domain_size_cnt, domains_shifts, row, f1_cat_dom)
-            print("{} {} {} 1".format(row + idx, col + idx, val[dom_val]))
+            print("{} {} {}".format(row + idx, col + idx, val[dom_val]))
 
     elif cell_type == 'm':
         # Output of categorical variables is problematic
@@ -199,7 +199,7 @@ def print_cell(row, col, val, cell_type, domain_size_cnt, domains_shifts):
 
             idx1 = get_idx(domain_size_cnt, domains_shifts, row, f1_cat_dom)
             idx2 = get_idx(domain_size_cnt, domains_shifts, col, f2_cat_dom)
-            print("{} {} {} 1".format(row + idx1, col + idx2, val[dom_val]))
+            print("{} {} {}".format(row + idx1, col + idx2, val[dom_val]))
 
 
 def get_domains(triangular_array,  cat_features_cnt, features, n):
@@ -291,6 +291,17 @@ def parse_faqs(output_path: str, features):
     print('{:0}'.format(n))
     # Continuous
     print('{:0}'.format(n - cat_features_cnt[-1]))
+
+    first = True
+    for idx_feat in range(0, n):
+        num_dom = domain_size_cnt[idx_feat+1] - domain_size_cnt[idx_feat] + 1
+        for idx_dom in range(0, num_dom):
+            if not first:
+                print(" ", end='')
+            first = False
+            is_cat = 1 if features[idx_feat]['is_cat'] else 0
+            print(is_cat, end='')
+    print()
 
     for row in range(0, n):
         for col in range(0, n):

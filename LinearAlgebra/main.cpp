@@ -7,7 +7,7 @@ using namespace std;
 static const string FILE_INPUT = "test.in";
 using namespace LMFAO::LinearAlgebra;
 
-void unitTest() 
+void unitTest()
 {
     SVDecomp aSvdecomp[] = {
         SVDecomp(FILE_INPUT, SVDecomp::DecompType::NAIVE),

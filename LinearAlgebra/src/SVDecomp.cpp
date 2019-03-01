@@ -6,7 +6,7 @@ using namespace std;
 
 namespace LMFAO::LinearAlgebra
 {
-    void SVDecomp::decompose() 
+    void SVDecomp::decompose()
     {
         QRDecomposition *pQRDecomp = nullptr;
         switch (mDecompType)
@@ -16,21 +16,25 @@ namespace LMFAO::LinearAlgebra
                 {
                     pQRDecomp = new QRDecompositionNaive(mPath);
                 }
-                else 
+                else
                 {
-                    std::cout << "Some" <<  mNumFeatsExp << " " << mNumFeats << " " <<  mNumFeatsCont << std::endl;
-                    pQRDecomp = new QRDecompositionNaive(*mpmapMatAgg, mNumFeatsExp, mNumFeats, mNumFeatsCont);
+                    pQRDecomp = new QRDecompositionNaive(*mpmapMatAgg, mNumFeatsExp,
+                                                         mNumFeats, mNumFeatsCont,
+                                                         mvIsCat);
                 }
-                    
+
             break;
             case DecompType::SINGLE_THREAD:
                 if (nullptr == mpmapMatAgg)
                 {
                     pQRDecomp = new QRDecompositionSingleThreaded(mPath);
                 }
-                else 
+                else
                 {
-                    pQRDecomp = new QRDecompositionSingleThreaded(*mpmapMatAgg, mNumFeatsExp, mNumFeats, mNumFeatsCont);
+                    std::cout << "Some" <<  mNumFeatsExp << " " << mNumFeats << " " <<  mNumFeatsCont << std::endl;
+                    pQRDecomp = new QRDecompositionSingleThreaded(*mpmapMatAgg, mNumFeatsExp,
+                                                                  mNumFeats, mNumFeatsCont,
+                                                                  mvIsCat);
                 }
                 break;
 
@@ -38,6 +42,7 @@ namespace LMFAO::LinearAlgebra
                 break;
         }
         pQRDecomp->decompose();
+        std::cout << "Yes" << std::endl;
         pQRDecomp->getR(mR);
         delete pQRDecomp;
 
