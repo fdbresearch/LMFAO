@@ -2,8 +2,6 @@
 #include "SVDecomp.h"
 #include "QRDecomp.h"
 
-using namespace std;
-
 namespace LMFAO::LinearAlgebra
 {
     void SVDecomp::decompose()
@@ -31,28 +29,36 @@ namespace LMFAO::LinearAlgebra
                 }
                 else
                 {
-                    std::cout << "Some" <<  mNumFeatsExp << " " << mNumFeats << " " <<  mNumFeatsCont << std::endl;
                     pQRDecomp = new QRDecompositionSingleThreaded(*mpmapMatAgg, mNumFeatsExp,
                                                                   mNumFeats, mNumFeatsCont,
                                                                   mvIsCat);
                 }
                 break;
-
+            case DecompType::MULTI_THREAD:
+                if (nullptr == mpmapMatAgg)
+                {
+                    pQRDecomp = new QRDecompositionMultiThreaded(mPath);
+                }
+                else
+                {
+                    pQRDecomp = new QRDecompositionMultiThreaded(*mpmapMatAgg, mNumFeatsExp,
+                                                                  mNumFeats, mNumFeatsCont,
+                                                                  mvIsCat);
+                }
             default:
                 break;
         }
         pQRDecomp->decompose();
-        std::cout << "Yes" << std::endl;
         pQRDecomp->getR(mR);
         delete pQRDecomp;
 
         Eigen::BDCSVD<Eigen::MatrixXd> svdR(mR, Eigen::ComputeFullU | Eigen::ComputeFullV);
 
-        cout << "Its singular values are:" << endl
-             << svdR.singularValues() << endl;
-        cout << "Its left singular vectors are the columns of the thin U matrix:" << endl
-             << svdR.matrixU() << endl;
-        cout << "Its right singular vectors are the columns of the thin V matrix:" << endl
-             << svdR.matrixV() << endl;
+        std::cout << "Its singular values are:" << std::endl
+             << svdR.singularValues() << std::endl;
+        std::cout << "Its left singular vectors are the columns of the thin U matrix:" << std::endl
+             << svdR.matrixU() << std::endl;
+        std::cout << "Its right singular vectors are the columns of the thin V matrix:" << std::endl
+             << svdR.matrixV() << std::endl;
     }
 }

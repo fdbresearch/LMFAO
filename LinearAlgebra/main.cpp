@@ -10,8 +10,9 @@ using namespace LMFAO::LinearAlgebra;
 void unitTest()
 {
     SVDecomp aSvdecomp[] = {
-        SVDecomp(FILE_INPUT, SVDecomp::DecompType::NAIVE),
-        SVDecomp(FILE_INPUT, SVDecomp::DecompType::SINGLE_THREAD)
+        //SVDecomp(FILE_INPUT, SVDecomp::DecompType::NAIVE),
+        //SVDecomp(FILE_INPUT, SVDecomp::DecompType::SINGLE_THREAD),
+        SVDecomp(FILE_INPUT, SVDecomp::DecompType::MULTI_THREAD)
         };
     for (SVDecomp& svdDecomp: aSvdecomp)
     {

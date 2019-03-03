@@ -26,13 +26,13 @@ namespace LMFAO::LinearAlgebra
         {
 
         }
-        // !!! ASSUMPTION, mapMatAgg lives in the same block.
+        // !!! ASSUMPTION, mapMatAgg lives in the same block as SVDDEcomp.
         SVDecomp(DecompType decompType, const MapMatrixAggregate &mapMatAgg,
                  unsigned int numFeatsExp, unsigned int numFeats,
                  unsigned int numFeatsCont,
                  const std::vector<bool> &vIsCat) : mDecompType(decompType),
-                 mNumFeatsExp(numFeatsExp), mNumFeats(numFeats),
-                 mNumFeatsCont(numFeatsCont)
+                 mNumFeatsExp(numFeatsExp), mNumFeatsCont(numFeatsCont),
+                 mNumFeats(numFeats)
                  {
                     mpmapMatAgg = &mapMatAgg;
                     mvIsCat = vIsCat;

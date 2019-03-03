@@ -2,18 +2,14 @@
 #include <iostream>
 #include "QRDecomp.h"
 
-using namespace std;
-
 namespace LMFAO::LinearAlgebra
 {
-
     void QRDecomposition::readMatrix(const std::string& path)
     {
         std::ifstream f(path);
         unsigned int row, col;
         bool isCategorical;
         long double val;
-        unsigned int isCat;
         f >> mNumFeatsExp;
         f >> mNumFeats;
         f >> mNumFeatsCont;
@@ -47,7 +43,6 @@ namespace LMFAO::LinearAlgebra
                                      const std::vector<bool>& vIsCat)
     {
         unsigned int row, col;
-        long double val;
         mNumFeatsExp = numFeatsExp;
         mNumFeats = numFeats;
         mNumFeatsCont = numFeatsCont;
@@ -68,8 +63,8 @@ namespace LMFAO::LinearAlgebra
 
     void QRDecomposition::rearrangeMatrix(const std::vector<bool>& vIsCat)
     {
-        vector<unsigned int> cntCat(mNumFeatsExp, 0);
-        vector<unsigned int> cntCont(mNumFeatsExp, 0);
+        std::vector<unsigned int> cntCat(mNumFeatsExp, 0);
+        std::vector<unsigned int> cntCont(mNumFeatsExp, 0);
         for (unsigned int idx = 1; idx < mNumFeatsExp; idx++)
         {
             std::cout << vIsCat[idx-1] << std::endl;
@@ -85,10 +80,10 @@ namespace LMFAO::LinearAlgebra
                 unsigned int col_idx = vIsCat[col] ? (col - cntCont[col] + mNumFeatsCont) : (col - cntCat[col]);
                 if (vIsCat[row] || (vIsCat[col]))
                 {
-                    mNaiveCatVals.push_back(make_tuple(row_idx, col_idx, mSigma(row, col)));
+                    mNaiveCatVals.push_back(std::make_tuple(row_idx, col_idx, mSigma(row, col)));
                     if ((mSigma(row, col) != 0))
                     {
-                        mCatVals.push_back(make_tuple(row_idx, col_idx, mSigma(row, col)));
+                        mCatVals.push_back(std::make_tuple(row_idx, col_idx, mSigma(row, col)));
                     }
                 }
                 else
@@ -99,9 +94,9 @@ namespace LMFAO::LinearAlgebra
         }
         for (const Triple &triple : mNaiveCatVals)
         {
-            unsigned int row = get<0>(triple);
-            unsigned int col = get<1>(triple);
-            long double aggregate = get<2>(triple);
+            unsigned int row = std::get<0>(triple);
+            unsigned int col = std::get<1>(triple);
+            long double aggregate = std::get<2>(triple);
             mSigma(row, col) = aggregate;
         }
         std::cout << "Matrix" << std::endl;
@@ -117,7 +112,7 @@ namespace LMFAO::LinearAlgebra
         */
     }
 
-    void QRDecomposition::expandSigma(vector<long double> &sigmaExpanded, bool isNaive)
+    void QRDecomposition::expandSigma(std::vector<long double> &sigmaExpanded, bool isNaive)
     {
         unsigned int numRows = isNaive ?  mNumFeatsExp : mNumFeatsCont;
         for (unsigned int row = 0; row < numRows; row ++)

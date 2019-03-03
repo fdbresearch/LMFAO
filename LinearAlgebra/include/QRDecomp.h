@@ -4,6 +4,8 @@
 #include <Eigen/Dense>
 #include <vector>
 #include <map>
+#include <mutex>
+#include <boost/thread/barrier.hpp>
 
 namespace LMFAO::LinearAlgebra
 {
@@ -110,20 +112,28 @@ namespace LMFAO::LinearAlgebra
         void calculateCR(void);
     };
 
-    class QRDecompositionParallel : public QRDecomposition
+    class QRDecompositionMultiThreaded: public QRDecomposition
     {
-        // Sigma; Categorical cofactors as an ordered coordinate list
-        std::vector<Triple> mCofactorList;
+    // Sigma; Categorical cofactors as an ordered coordinate list
+    std::vector<Triple> mCofactorList;
 
-        // Phi; Categorical cofactors as list of lists
-        std::vector<std::vector<Pair>> mCofactorPerFeature;
+    // Phi; Categorical cofactors as list of lists
+    std::vector<std::vector<Pair>> mCofactorPerFeature;
 
-      public:
-        ~QRDecompositionParallel() {}
+    const unsigned int mNumThreads = 8;
+    boost::barrier mBarrier{mNumThreads};
+    std::mutex mMutex;
+    public:
+        QRDecompositionMultiThreaded(const std::string &path) : QRDecomposition(path) {}
+        QRDecompositionMultiThreaded(const MapMatrixAggregate &mMatrix, unsigned int numFeatsExp,
+                            unsigned int numFeats, unsigned int numFeatsCont,
+                            const std::vector<bool>& vIsCat) :
+         QRDecomposition(mMatrix, numFeatsExp, numFeats, numFeatsCont, vIsCat) {}
+
+        ~QRDecompositionMultiThreaded() {}
         virtual void decompose(void) override;
         void processCofactors(void);
-        void calculateCR(void);
-        QRDecompositionParallel(const std::string &path) : QRDecomposition(path) {}
+        void calculateCR(unsigned int threadId);
     };
 
 }
