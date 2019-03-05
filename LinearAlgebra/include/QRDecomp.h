@@ -26,8 +26,10 @@ namespace LMFAO::LinearAlgebra
     #define unlikely(x) x
     #endif
 
-    typedef std::tuple<unsigned int, unsigned  int,
-                       long double> Triple;
+    void svdCuda(const Eigen::MatrixXd &a);
+
+    typedef std::tuple<unsigned int, unsigned int,
+                           long double> Triple;
     typedef std::tuple<unsigned int, long double> Pair;
 
     typedef std::map<std::pair<unsigned int, unsigned int>,

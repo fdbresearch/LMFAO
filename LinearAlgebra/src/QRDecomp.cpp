@@ -13,7 +13,8 @@ namespace LMFAO::LinearAlgebra
         f >> mNumFeatsExp;
         f >> mNumFeats;
         f >> mNumFeatsCont;
-        std::cout << mNumFeatsExp << mNumFeats << mNumFeatsCont << std::endl;
+        std::cout << mNumFeatsExp << " " << mNumFeats << 
+                " " << mNumFeatsCont << std::endl;
 
         std::vector<bool> vIsCat(mNumFeatsExp, false);
         mSigma = Eigen::MatrixXd::Zero(mNumFeatsExp, mNumFeatsExp);
@@ -25,9 +26,9 @@ namespace LMFAO::LinearAlgebra
         {
             f >> isCategorical;
             vIsCat[idx] = isCategorical;
-            std::cout << vIsCat[idx] << " ";
+            //std::cout << idx << " " << vIsCat[idx] << " ";
         }
-        std::cout << std::endl;
+        //std::cout << std::endl;
 
         while (f >> row >> col >> val)
         {
@@ -57,7 +58,7 @@ namespace LMFAO::LinearAlgebra
             col = key.second;
             mSigma(row, col) = value;
         }
-        std::cout << vIsCat.size() << std::endl;
+        //std::cout << vIsCat.size() << std::endl;
         rearrangeMatrix(vIsCat);
     }
 
@@ -67,7 +68,7 @@ namespace LMFAO::LinearAlgebra
         std::vector<unsigned int> cntCont(mNumFeatsExp, 0);
         for (unsigned int idx = 1; idx < mNumFeatsExp; idx++)
         {
-            std::cout << vIsCat[idx-1] << std::endl;
+            //std::cout << vIsCat[idx-1] << std::endl;
             cntCat[idx] = cntCat[idx - 1] + vIsCat[idx - 1];
             cntCont[idx] = cntCont[idx - 1] + !vIsCat[idx - 1];
         }
