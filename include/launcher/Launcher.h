@@ -10,6 +10,8 @@
 #ifndef INCLUDE_RUN_LAUNCHER_H_
 #define INCLUDE_RUN_LAUNCHER_H_
 
+#include <boost/program_options.hpp>
+
 #include <Application.hpp>
 #include <CodeGenerator.hpp>
 #include <GlobalParams.hpp>
@@ -37,19 +39,15 @@ public:
      * Constructor; need to provide path to the schema, table and other
      * configuration files.
      */
-    Launcher(const std::string& pathToFiles);
+    Launcher();
 
     ~Launcher();
 
     /**
      * Launches the database operations.
      */
-    int launch(const std::string& model, const std::string& codeGenerator,
-               const std::string& parallel, const std::string& featureFile,
-               const std::string& tdFile, const std::string& outDirectory,
-               const bool mo, const bool resort, const bool microbench,
-               const bool compress, const int k);
-
+    int launch(boost::program_options::variables_map& vm);
+    
     /**
      * Returns a pointer to the tree decomposition.
      */

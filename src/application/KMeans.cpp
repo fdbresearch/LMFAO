@@ -28,7 +28,11 @@ static const char NUMBER_SEPARATOR_CHAR = ',';
 static const char ATTRIBUTE_NAME_CHAR = ':';
 
 using namespace std;
+
 using namespace multifaq::params;
+using namespace multifaq::dir;
+using namespace multifaq::config;
+
 namespace phoenix = boost::phoenix;
 using namespace boost::spirit;
 
@@ -38,9 +42,8 @@ const bool INCLUDE_EVALUATION = true;
 
 std::unordered_map<size_t, size_t> clusterToVariableMap;
 
-KMeans::KMeans(
-    const string& pathToFiles, shared_ptr<Launcher> launcher, const int k) :
-    _pathToFiles(pathToFiles), _launcher(launcher), _k(k)
+KMeans::KMeans(shared_ptr<Launcher> launcher, const int k) :
+     _launcher(launcher), _k(k)
 {
     _compiler = launcher->getCompiler();
     _td = launcher->getTreeDecomposition();
@@ -141,11 +144,11 @@ void KMeans::loadFeatures()
     _queryRootIndex = new size_t[NUM_OF_VARIABLES]();
     
     /* Load the two-pass variables config file into an input stream. */
-    ifstream input(_pathToFiles + FEATURE_CONF);
+    ifstream input(FEATURE_CONF);
 
     if (!input)
     {
-        ERROR(_pathToFiles + FEATURE_CONF+" does not exist. \n");
+        ERROR(FEATURE_CONF+" does not exist. \n");
         exit(1);
     }
 
@@ -233,7 +236,7 @@ void KMeans::loadFeatures()
     }
 }
 
-void KMeans::generateCode(const std::string& outputDirectory)
+void KMeans::generateCode()
 {
     // Get view for grid query -- equivalent to count query
     std::string gridViewName = "V"+
@@ -272,7 +275,7 @@ void KMeans::generateCode(const std::string& outputDirectory)
         offset(2)+"std::cout << sum << std::endl;\n"+"#endif\n"+
         offset(1)+"}\n";
     
-    std::ofstream ofs(outputDirectory+"/ApplicationHandler.h", std::ofstream::out);
+    std::ofstream ofs(multifaq::dir::OUTPUT_DIRECTORY+"/ApplicationHandler.h", std::ofstream::out);
     ofs << "#ifndef INCLUDE_APPLICATIONHANDLER_HPP_\n"
         << "#define INCLUDE_APPLICATIONHANDLER_HPP_\n\n"
         << "#include \"DataHandler.h\"\n\n"
@@ -281,7 +284,7 @@ void KMeans::generateCode(const std::string& outputDirectory)
         << "}\n\n#endif /* INCLUDE_APPLICATIONHANDLER_HPP_*/\n";    
     ofs.close();
 
-    ofs.open(outputDirectory+"/ApplicationHandler.cpp", std::ofstream::out);
+    ofs.open(multifaq::dir::OUTPUT_DIRECTORY+"/ApplicationHandler.cpp", std::ofstream::out);
     
     ofs << "#include \"ApplicationHandler.h\"\n";
 
@@ -1211,9 +1214,9 @@ std::string KMeans::genClusterInitialization(const std::string& gridName)
 
 
     /* Load the cluster initialization file into an input stream. */
-    ifstream input(_pathToFiles + "/cluster_init_"+DATASET_NAME+".conf");
+    ifstream input(multifaq::dir::PATH_TO_FILES + "/cluster_init_"+DATASET_NAME+".conf");
 
-    std::cout << _pathToFiles + "/cluster_init_"+DATASET_NAME+".conf" << std::endl;
+    std::cout << multifaq::dir::PATH_TO_FILES + "/cluster_init_"+DATASET_NAME+".conf" << std::endl;
 
     if (!input)
     {

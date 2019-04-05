@@ -20,7 +20,11 @@ static const char NUMBER_SEPARATOR_CHAR = ',';
 static const char ATTRIBUTE_NAME_CHAR = ':';
 
 using namespace std;
+
 using namespace multifaq::params;
+using namespace multifaq::dir;
+using namespace multifaq::config;
+
 namespace phoenix = boost::phoenix;
 using namespace boost::spirit;
 
@@ -35,15 +39,11 @@ struct QueryThresholdPair
 
 std::vector<QueryThresholdPair> queryToThreshold;
 
-RegressionTree::RegressionTree(
-    const string& pathToFiles, shared_ptr<Launcher> launcher, bool classification) :
-    _classification(classification), _pathToFiles(pathToFiles)
+RegressionTree::RegressionTree(shared_ptr<Launcher> launcher, bool classification) :
+    _classification(classification)
 {
     _compiler = launcher->getCompiler();
     _td = launcher->getTreeDecomposition();
-    
-    if (_pathToFiles.back() == '/')
-        _pathToFiles.pop_back();
 }
 
 RegressionTree::~RegressionTree()
@@ -104,7 +104,6 @@ void RegressionTree::computeCandidates()
     
     /* CANDIDATES ARE FUNCTIONS --- so we define the functions for all
      * candidates and set them accordingly  */
-    size_t counter = 0;
     
     // Push them on the functionList in the order they are accessed 
     for (size_t var=0; var < NUM_OF_VARIABLES; ++var)
@@ -469,11 +468,11 @@ void RegressionTree::loadFeatures()
     _queryRootIndex = new size_t[NUM_OF_VARIABLES]();
 
     /* Load the two-pass variables config file into an input stream. */
-    ifstream input(_pathToFiles + FEATURE_CONF);
+    ifstream input(FEATURE_CONF);
 
     if (!input)
     {
-        ERROR(_pathToFiles + FEATURE_CONF+" does not exist. \n");
+        ERROR(FEATURE_CONF+" does not exist. \n");
         exit(1);
     }
 
@@ -530,11 +529,17 @@ void RegressionTree::loadFeatures()
     /* Extract the dimension of the current attribute. */
     getline(ssLine, typeOfLabel);
 
-    if (stoi(typeOfLabel) != 0)
+    if (!_classification && stoi(typeOfLabel) != 0)
     {
         ERROR("The label needs to be continuous! ");
         exit(1);
-    }    
+    }
+    else if (_classification && stoi(typeOfLabel) != 1)
+    {
+        ERROR("The label needs to be categorical! ");
+        exit(1);
+    }
+        
 
     _labelID = _td->getAttributeIndex(labelName);
 
@@ -603,7 +608,7 @@ void RegressionTree::loadFeatures()
 }
 
 
-void RegressionTree::genDynamicFunctions(const std::string& outDirectory)
+void RegressionTree::genDynamicFunctions()
 {
     std::string functionHeaders = "";
     std::string functionSource = "";
@@ -629,19 +634,19 @@ void RegressionTree::genDynamicFunctions(const std::string& outDirectory)
                 offset(1)+"{\n"+offset(2)+"return 1.0;\n"+offset(1)+"}\n";
         }
     }
-    std::ofstream ofs(outDirectory+"DynamicFunctions.h", std::ofstream::out);
+    std::ofstream ofs(multifaq::dir::OUTPUT_DIRECTORY+"DynamicFunctions.h", std::ofstream::out);
     ofs << "#ifndef INCLUDE_DYNAMICFUNCTIONS_H_\n"<<
         "#define INCLUDE_DYNAMICFUNCTIONS_H_\n\n"<<
         "namespace lmfao\n{\n"<< functionHeaders <<
         "}\n\n#endif /* INCLUDE_DYNAMICFUNCTIONS_H_*/\n";    
     ofs.close();
     
-    ofs.open(outDirectory+"DynamicFunctions.cpp", std::ofstream::out);
+    ofs.open(multifaq::dir::OUTPUT_DIRECTORY+"DynamicFunctions.cpp", std::ofstream::out);
     ofs << "#include \"DynamicFunctions.h\"\nnamespace lmfao\n{\n"+functionSource+"}\n";
     ofs.close();
 
 
-    ofs.open(outDirectory+"DynamicFunctionsGenerator.hpp", std::ofstream::out);
+    ofs.open(multifaq::dir::OUTPUT_DIRECTORY+"DynamicFunctionsGenerator.hpp", std::ofstream::out);
     ofs << dynamicFunctionsGenerator();
     ofs.close();
 }
@@ -1032,9 +1037,7 @@ std::string RegressionTree::genVarianceComputation()
 
 std::string RegressionTree::genGiniComputation()
 {
-    std::string returnString = "";
-    
-    std::vector<std::vector<std::string>> giniPerView(_compiler->numberOfViews());
+    // std::vector<std::vector<std::string>> giniPerView(_compiler->numberOfViews());
     std::vector<std::vector<std::string>> thresholdPerView(_compiler->numberOfViews());
     std::vector<Query*> complementQueryPerView(_compiler->numberOfViews());
     std::vector<size_t> firstThresholdPerVariable(NUM_OF_VARIABLES);
@@ -1055,6 +1058,8 @@ std::string RegressionTree::genGiniComputation()
     string overallCountViewStr = "V"+std::to_string(countViewID);
 
     string numAggs = std::to_string(_functionOfAggregate.size());
+
+    std::string returnString = "";
 
     /* This creates the gini computation for continuous variables. */ 
     returnString += offset(2)+"double squaredSum["+numAggs+"] = {}, "+
@@ -1088,22 +1093,31 @@ std::string RegressionTree::genGiniComputation()
             std::to_string(_functionOfAggregate.size() / 2)+";\n\n";
     }
 
-    // TODO: // TODO: // TODO: The below is just a check and can probably be removed ! 
-    size_t numOfContThresholds = 0;
-    for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
-    {
-        if (!_features.test(var) || _categoricalFeatures.test(var))
-            continue;
-        numOfContThresholds += _thresholds[var].size();
-    }
-    if (numOfContThresholds != (_functionOfAggregate.size()-1) / 2)
-        std::cout << "WHY IS THIS THIS CASE!?!?!?\n";
-    // TODO: // TODO: // TODO:
+    // The below is just a check and can probably be removed ! 
+    // size_t numOfContThresholds = 0;
+    // for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+    // {
+    //     if (!_features.test(var) || _categoricalFeatures.test(var))
+    //         continue;
+    //     numOfContThresholds += _thresholds[var].size();
+    // }
+    // if (numOfContThresholds != (_functionOfAggregate.size()-1) / 2)
+    //     std::cout << "WHY IS THIS THIS CASE!?!?!?\n";
+    // Check done! 
 
     std::string numOfThresholds = "numberOfThresholds = "+
         std::to_string(_functionOfAggregate.size() / 2);
 
     std::string thresholdMap = "";
+
+#if defined(__GNUC__) && defined(NDEBUG) && !defined(__clang__)
+    std::string sortAlgo = "__gnu_parallel::sort(";
+#else
+    std::string sortAlgo = "std::sort(";
+#endif
+
+    std::string sortViews = "";
+
     size_t idx = 0;
     for (size_t f = 1; f < _functionOfAggregate.size(); f += 2)
     {
@@ -1114,6 +1128,7 @@ std::string RegressionTree::genGiniComputation()
             "&"+countViewStr+"[0].aggregates["+to_string(f)+"],"+
             "&"+countViewStr+"[0].aggregates["+to_string(f+1)+"]);\n";
     }
+
 
     // Then iterate over the other queries and go from there
     for (size_t p = 1; p < queryToThreshold.size(); ++p)
@@ -1184,6 +1199,17 @@ std::string RegressionTree::genGiniComputation()
                 offset(3)+"thresholdMap[categIndex++].set("
                 +std::to_string(qtPair.varID)+",tuple."+att->_name+",1,"+
                 "&tuple.aggregates[0],&"+overallCountViewStr+"[0].aggregates[0]);\n";
+
+            if ((size_t) _labelID < qtPair.varID)
+            {
+                sortViews += offset(2)+sortAlgo+viewStr+".begin(),"+viewStr+".end(),"+
+                    "[ ](const "+viewStr+"_tuple& lhs, const "+viewStr+"_tuple& rhs)\n"+
+                    offset(3)+"{\n"+
+                    offset(4)+"if(lhs."+var+" != rhs."+var+")\n"+
+                        offset(5)+"return lhs."+var+" < rhs."+var+";\n"+
+                    offset(4)+"return lhs."+label+" < rhs."+label+";\n"+
+                    offset(3)+"});\n";
+            }
         }
         else
         {
@@ -1193,7 +1219,7 @@ std::string RegressionTree::genGiniComputation()
     }
 
     
-    std::string initVariance = offset(2)+numOfThresholds+";\n"+
+    std::string initGini = offset(2)+numOfThresholds+";\n"+
         offset(2)+"gini = new double[numberOfThresholds];\n"+
         offset(2)+"size_t categIndex = "+
         std::to_string(_functionOfAggregate.size()/2)+";\n";
@@ -1235,16 +1261,16 @@ std::string RegressionTree::genGiniComputation()
         offset(1)+"double* gini = nullptr;\n"+
         offset(1)+"Threshold* thresholdMap = nullptr;\n\n"+
         offset(1)+"void initCostArray()\n"+
-        offset(1)+"{\n"+initVariance+
+        offset(1)+"{\n"+initGini+
         offset(2)+"thresholdMap = new Threshold[numberOfThresholds];\n"+
-        thresholdMap+offset(1)+"}\n\n"+
+        thresholdMap+sortViews+offset(1)+"}\n\n"+
         offset(1)+"void computeCost()\n"+
         offset(1)+"{\n"+returnString+offset(1)+"}\n";
 }
 
 
 
-void RegressionTree::generateCode(const std::string& outDirectory)
+void RegressionTree::generateCode()
 {
     std::string runFunction = offset(1)+"void runApplication()\n"+offset(1)+"{\n"+
         offset(2)+"int64_t startProcess = duration_cast<milliseconds>("+
@@ -1263,7 +1289,7 @@ void RegressionTree::generateCode(const std::string& outDirectory)
         offset(1)+"}\n";
 
         
-    std::ofstream ofs(outDirectory+"ApplicationHandler.h", std::ofstream::out);
+    std::ofstream ofs(multifaq::dir::OUTPUT_DIRECTORY+"ApplicationHandler.h", std::ofstream::out);
     ofs << "#ifndef INCLUDE_APPLICATIONHANDLER_HPP_\n"<<
         "#define INCLUDE_APPLICATIONHANDLER_HPP_\n\n"<<
         "#include \"DataHandler.h\"\n\n"<<
@@ -1272,7 +1298,7 @@ void RegressionTree::generateCode(const std::string& outDirectory)
         "}\n\n#endif /* INCLUDE_APPLICATIONHANDLER_HPP_*/\n";    
     ofs.close();
 
-    ofs.open(outDirectory+"ApplicationHandler.cpp", std::ofstream::out);
+    ofs.open(multifaq::dir::OUTPUT_DIRECTORY+"ApplicationHandler.cpp", std::ofstream::out);
     
     ofs << "#include \"ApplicationHandler.h\"\nnamespace lmfao\n{\n";
     if (_classification)
@@ -1285,7 +1311,7 @@ void RegressionTree::generateCode(const std::string& outDirectory)
 
 
 
-    genDynamicFunctions(outDirectory);
+    genDynamicFunctions();
 }
 
 

@@ -7,7 +7,6 @@
 //
 //--------------------------------------------------------------------
 
-#include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 #include <cstdlib>
 #include <fstream>
@@ -20,8 +19,10 @@
 #include <Logging.hpp>
 
 
-std::string multifaq::params::PATH_TO_DATA = "";
-std::string multifaq::params::DATASET_NAME = "";
+std::string multifaq::dir::PATH_TO_DATA;
+std::string multifaq::dir::PATH_TO_FILES;
+std::string multifaq::dir::DATASET_NAME;
+std::string multifaq::dir::OUTPUT_DIRECTORY;
 
 int main(int argc, char *argv[])
 {
@@ -30,33 +31,39 @@ int main(int argc, char *argv[])
    boost::program_options::options_description desc("multiFAQ - allowed options");
    desc.add_options()
        /* Option to show help. */
-       ("help", "produce help message.")
+       ("help,h", "produce help message.")
        /* Option to show some info. */
        ("info", "show some information about the program.")
        /* Option for path to data and configuration files. */
-       ("path", boost::program_options::value<std::string>(),
+       ("path,p", boost::program_options::value<std::string>(),
         "set path for data and configuration files - required.")
+       /* Option for path to data and configuration files. */
+       ("files,f", boost::program_options::value<std::string>(),
+        "set path for config files - if different from path to data.")     
+       /* Option for feature config file. */
+       ("feat", boost::program_options::value<std::string>()->
+        default_value("features.conf"),
+        "features file for this model, assumed to be in pathToFiles")
+       /* Option for treedecomposition config file. */
+       ("td", boost::program_options::value<std::string>()->
+        default_value("treedecomposition.conf"),
+        "tree decomposition config file, assumed to be in pathToFiles")
+       /* Option for treedecomposition config file. */
+       ("schema", boost::program_options::value<std::string>()->
+        default_value("schema.conf"),
+        "schmea config file, assumed to be in pathToFiles")
        /* Option for machine learning model. */
-       ("model", boost::program_options::value<std::string>()->default_value("reg"),
-        "model to be computed: reg (default), covar, ctree, rtree, cube, mi or perc")
+       ("model,m", boost::program_options::value<std::string>()->default_value("covar"),
+        "model to be computed: reg, covar (default), ctree, rtree, cube, mi, or perc")
        /* Option for code generator. */
-       ("codegen", boost::program_options::value<std::string>()->default_value("cpp"),
+       ("codegen,g", boost::program_options::value<std::string>()->default_value("cpp"),
         "open for code generation: cpp (default), or sql")
        /* Option for directory of generated code. */
-       ("out",
-        boost::program_options::value<std::string>()->default_value("runtime/cpp/"),
+       ("out,o",boost::program_options::value<std::string>(),
         "output directory for the generated code, default: runtime/{codegen}/")
        /* Option for parallellization. */
        ("parallel", boost::program_options::value<std::string>()->default_value("none"),
         "options for parallelization: none (default), task, domain, or both")
-       /* Option for feature config file. */
-       ("feat", boost::program_options::value<std::string>()->
-        default_value("features.conf"),
-        "features file for this model, assumed to be in {pathToFiles}/config/")
-       /* Option for feature config file. */
-       ("td", boost::program_options::value<std::string>()->
-        default_value("treedecomposition.conf"),
-        "tree decomposition config file, assumed to be in {pathToFiles}/config/")
        /* Option to turn off mutlti output operator. */
        ("mo", boost::program_options::value<bool>()->default_value("1"),
         "turn multioutput operator on (default)/off")
@@ -67,7 +74,9 @@ int main(int argc, char *argv[])
        ("resort", "enables resorting of views / relations, requires multiout off.")
        /* Option to turn off mutlti output operator. */
        ("microbench", "enables micro benchmarking.")
-       ("k", boost::program_options::value<int>()->default_value(3),
+       /* Option to turn off mutlti output operator. */
+       ("bench_individual", "enables benchmarking for each group individually.")
+       ("clusters,k", boost::program_options::value<int>()->default_value(3),
         "k for k-means algorithm. (Default = 3).")
        /* Option for parallellization. */
        ("degree", boost::program_options::value<int>()->default_value(1),
@@ -102,40 +111,48 @@ int main(int argc, char *argv[])
       return EXIT_SUCCESS;
    }
 
-   std::string pathString;
-
+   
+   boost::filesystem::path pathToData;
+   
    /* Retrieve compulsory path. */
    if (vm.count("path"))
    {
-       boost::filesystem::path p =
-           boost::filesystem::canonical(vm["path"].as<std::string>());
-       pathString = p.string();
+       
+       pathToData = boost::filesystem::canonical(vm["path"].as<std::string>());
 
        /*If provided path is not a directory, return failure. */
-       if (!boost::filesystem::is_directory(pathString))
+       if (!boost::filesystem::is_directory(pathToData))
        {
            ERROR("Provided path is not a directory. \n");
            return EXIT_FAILURE;
        }
-
-       multifaq::params::DATASET_NAME += p.filename().string();
-       multifaq::params::PATH_TO_DATA += p.string();
    }
    else
    {
       ERROR(
-         "You must specify a path containing the database and " <<
-         "configuration files.\n");
-      ERROR(
-         "Run program with --help for more information about " <<
-         "command line options.\n");
-
+         "You must specify a path containing the database and configuration files.\n" <<
+         "Run program with --help for more information about command line options.\n");
       return EXIT_FAILURE;
-   }
+   }   
 
-   /* TODO: when this gets fixed, degree needs to be passed to relevant models. */
-   if (vm["degree"].as<int>() > 1)
-       ERROR("A degree > 1 is currenlty not supported.\n");
+   boost::filesystem::path pathToFiles;
+
+   /* Retrieve path to files. */
+   if (vm.count("files"))
+   {
+       pathToFiles = boost::filesystem::canonical(vm["files"].as<std::string>());
+
+       /*If provided path is not a directory, return failure. */
+       if (!boost::filesystem::is_directory(pathToFiles))
+       {
+           ERROR("Provided path to files is not a directory. \n");
+           return EXIT_FAILURE;
+       }
+   }
+   else
+   {
+       pathToFiles = pathToData;
+   }   
 
    /* Check the code generator is supported */
    std::string codeGenerator = vm["codegen"].as<std::string>();
@@ -146,28 +163,35 @@ int main(int argc, char *argv[])
        return EXIT_FAILURE;
    }
 
-   std::string outputDirectory;
 
    /* Set the path for outDirectory */
+   std::string outputDirectory;
    if (vm.count("out"))
-   {
        outputDirectory = boost::filesystem::weakly_canonical(
            vm["out"].as<std::string>()).string()+"/";
-   }
    else
        outputDirectory = "runtime/"+codeGenerator+"/";
-
-   /*If provided path is not a directory, return failure. */
+   
+   /*If provided path is not a directory, create it. */
    if (boost::filesystem::create_directories(outputDirectory))
-   {
+   {   
        DINFO("INFO: Output directory " << outputDirectory << " created." << std::endl);
    }
    else
-   {
+   {    
        DINFO("INFO: Output directory " << outputDirectory << " exists." << std::endl);
    }
+   
+           
+   /* Setting global parameters for directories */
+   multifaq::dir::PATH_TO_DATA = pathToData.string();
+   multifaq::dir::DATASET_NAME = pathToData.filename().string();
+   multifaq::dir::PATH_TO_FILES = pathToFiles.string();
+   multifaq::dir::OUTPUT_DIRECTORY = outputDirectory;
 
-   std::shared_ptr<Launcher> launcher(new Launcher(pathString));
+
+   /* Create and run Launcher */
+   std::shared_ptr<Launcher> launcher(new Launcher());
 
 #ifdef BENCH
    int64_t start = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -175,18 +199,7 @@ int main(int argc, char *argv[])
 #endif
 
    /* Launch program. */
-   int result = launcher->launch(vm["model"].as<std::string>(),
-                                 vm["codegen"].as<std::string>(),
-                                 vm["parallel"].as<std::string>(),
-                                 vm["feat"].as<std::string>(),
-                                 vm["td"].as<std::string>(),
-                                 outputDirectory,
-                                 vm["mo"].as<bool>(),
-                                 vm.count("resort"),
-                                 vm.count("microbench"),
-                                 vm["compress"].as<bool>(),
-                                 vm["k"].as<int>()
-       );
+   int result = launcher->launch(vm);
 
 #ifdef BENCH
    int64_t end = std::chrono::duration_cast<std::chrono::milliseconds>(

@@ -19,13 +19,15 @@ static const char NUMBER_SEPARATOR_CHAR = ',';
 static const char ATTRIBUTE_NAME_CHAR = ':';
 
 using namespace std;
+
 using namespace multifaq::params;
+using namespace multifaq::dir;
+using namespace multifaq::config;
+
 namespace phoenix = boost::phoenix;
 using namespace boost::spirit;
 
-CovarianceMatrix::CovarianceMatrix(
-    const string& pathToFiles, shared_ptr<Launcher> launcher) :
-    _pathToFiles(pathToFiles)
+CovarianceMatrix::CovarianceMatrix(shared_ptr<Launcher> launcher)
 {
     _compiler = launcher->getCompiler();
     _td = launcher->getTreeDecomposition();
@@ -232,11 +234,11 @@ void CovarianceMatrix::loadFeatures()
     _queryRootIndex = new size_t[NUM_OF_VARIABLES]();
     
     /* Load the two-pass variables config file into an input stream. */
-    ifstream input(_pathToFiles + FEATURE_CONF);
+    ifstream input(FEATURE_CONF);
 
     if (!input)
     {
-        ERROR(_pathToFiles + FEATURE_CONF +" does not exist. \n");
+        ERROR(FEATURE_CONF +" does not exist. \n");
         exit(1);
     }
 
@@ -348,7 +350,7 @@ void CovarianceMatrix::loadFeatures()
     }
 }
 
-void CovarianceMatrix::generateCode(const std::string& outputDirectory)
+void CovarianceMatrix::generateCode()
 {
     std::string dumpListOfQueries = "";
 
@@ -371,7 +373,7 @@ void CovarianceMatrix::generateCode(const std::string& outputDirectory)
         "#endif /* DUMP_OUTPUT */ \n"+
         offset(1)+"}\n";
     
-    std::ofstream ofs(outputDirectory+"ApplicationHandler.h", std::ofstream::out);
+    std::ofstream ofs(multifaq::dir::OUTPUT_DIRECTORY+"ApplicationHandler.h", std::ofstream::out);
     ofs << "#ifndef INCLUDE_APPLICATIONHANDLER_HPP_\n"<<
         "#define INCLUDE_APPLICATIONHANDLER_HPP_\n\n"<<
         "#include \"DataHandler.h\"\n\n"<<
@@ -380,7 +382,7 @@ void CovarianceMatrix::generateCode(const std::string& outputDirectory)
         "}\n\n#endif /* INCLUDE_APPLICATIONHANDLER_HPP_*/\n";    
     ofs.close();
 
-    ofs.open(outputDirectory+"ApplicationHandler.cpp", std::ofstream::out);
+    ofs.open(multifaq::dir::OUTPUT_DIRECTORY+"ApplicationHandler.cpp", std::ofstream::out);
     ofs << "#include \"ApplicationHandler.h\"\n"
         << "namespace lmfao\n{\n";
     ofs << runFunction << std::endl;

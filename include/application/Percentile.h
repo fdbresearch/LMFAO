@@ -28,14 +28,13 @@ class Percentile: public Application
 {
 public:
 
-    Percentile(const std::string& pathToFiles,
-          std::shared_ptr<Launcher> launcher);
+    Percentile(std::shared_ptr<Launcher> launcher);
 
     ~Percentile();
 
     void run();
 
-    void generateCode(const std::string& outputString);
+    void generateCode();
 
 private:
     

@@ -21,13 +21,11 @@ class SqlGenerator: public CodeGenerator
 {
 public:
 
-    SqlGenerator(const std::string path, const std::string outputDirectory,
-                 std::shared_ptr<Launcher> launcher);
+    SqlGenerator(std::shared_ptr<Launcher> launcher);
     
     ~SqlGenerator();
 
-    void generateCode(const ParallelizationType parallelization_type,
-                      bool hasApplicationHandler,
+    void generateCode(bool hasApplicationHandler,
                       bool hasDynamicFunctions);
 
     size_t numberOfGroups()

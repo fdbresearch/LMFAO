@@ -22,9 +22,9 @@ static const char COMMENT_CHAR = '#';
 static const char PARAMETER_SEPARATOR_CHAR = ' ';
 static const char EDGE_SEPARATOR_CHAR = '-';
 
-TreeDecomposition::TreeDecomposition(std::string filename)
+TreeDecomposition::TreeDecomposition()
 {
-    buildFromFile(filename);
+    buildFromFile();
 }
 
 TreeDecomposition::~TreeDecomposition()
@@ -98,18 +98,18 @@ void TreeDecomposition::addAttribute(
     updateNeighborSchema(rel, relID, attID);
 }
 
-void TreeDecomposition::buildFromFile(std::string fileName)
+void TreeDecomposition::buildFromFile()
 {
-    /* Load the DTree config file into an input stream. */
-    std::ifstream input(fileName);
+    /* Load the TreeDecomposition config file into an input stream. */
+    std::ifstream input(multifaq::config::TREEDECOMP_CONF);
 
     if (!input)
     {
-        ERROR(fileName+" does not exist. \n");
+        ERROR(multifaq::config::TREEDECOMP_CONF+" does not exist. \n");
         exit(1);
     }
 
-    DINFO("Building the TD from file: " << fileName << " ... ");
+    DINFO("Building the TD from file: " << multifaq::config::TREEDECOMP_CONF << " ... ");
    
     /* Number of attributes and tables. */
     size_t n, m, e;

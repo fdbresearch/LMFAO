@@ -17,18 +17,13 @@
 using namespace std;
 using namespace multifaq::params;
 
-SqlGenerator::SqlGenerator(const std::string path, const std::string outDirectory,
-                           std::shared_ptr<Launcher> launcher) :
-    _pathToData(path), _outputDirectory(outDirectory) 
+SqlGenerator::SqlGenerator(std::shared_ptr<Launcher> launcher) 
 {
      DINFO("Constructing SQL - Generator \n");
    
     _td = launcher->getTreeDecomposition();
     _qc = launcher->getCompiler();
-    _app = launcher->getApplication();
-    
-    if (_pathToData.back() == '/')
-        _pathToData.pop_back();
+    _app = launcher->getApplication();    
 }
 
 SqlGenerator::~SqlGenerator()
@@ -36,14 +31,10 @@ SqlGenerator::~SqlGenerator()
 }
 
 
-void SqlGenerator::generateCode(const ParallelizationType parallelization_type,
-                                bool hasApplicationHandler,
+void SqlGenerator::generateCode(bool hasApplicationHandler,
                                 bool hasDynamicFunctions)
 {
     DINFO("Starting SQL - Generator \n");
-
-    if (parallelization_type != NO_PARALLELIZATION)
-        ERROR("The SQLGenerator currently does not support parallelization.\n");
 
     hasApplicationHandler = true;
     hasDynamicFunctions = true;
@@ -143,7 +134,7 @@ void SqlGenerator::generateLmfaoQuery()
         returnString += ";\n\n";
     }
 
-    std::ofstream ofs("runtime/sql/lmfao.sql", std::ofstream::out);
+    std::ofstream ofs(multifaq::dir::OUTPUT_DIRECTORY+"/lmfao.sql", std::ofstream::out);
     ofs << returnString;
     ofs.close();
     // DINFO(returnString);   
@@ -166,108 +157,15 @@ void SqlGenerator::generateJoinQuery()
         attributeString += _td->getAttribute(var)->_name + ",";
     attributeString.pop_back();
 
-    std::ofstream ofs("runtime/sql/join.sql", std::ofstream::out);
+    std::ofstream ofs(multifaq::dir::OUTPUT_DIRECTORY+"/join.sql", std::ofstream::out);
     ofs << "CREATE TABLE joinres AS (SELECT "+attributeString+
         "\nFROM "+joinString+");\n";
     ofs.close();
 
-    ofs.open("runtime/sql/export.sql", std::ofstream::out);
+    ofs.open(multifaq::dir::OUTPUT_DIRECTORY+"/export.sql", std::ofstream::out);
     ofs << "\\COPY joinres TO \'joinresult.txt\' CSV DELIMITER '|';\n";
     ofs.close();
 }
-
-// void SqlGenerator::generateNaiveQueries()
-// {
-// #ifdef PREVIOUS
-//     string joinString = "", aggregateString = "", fVarString = "",
-//         attributeString  = "";
-//     for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
-//     {    
-//         joinString += _td->getRelation(rel)->_name;
-//         if (rel + 1 < _td->numberOfRelations())
-//             joinString += " NATURAL JOIN ";
-//     }
-//     for (size_t var = 0; var < _td->numberOfAttributes(); ++var)
-//         attributeString += _td->getAttribute(var)->_name + ",";
-//     attributeString.pop_back();
-//     std::ofstream ofs("runtime/sql/flat_join.sql", std::ofstream::out);
-//     ofs << "SELECT "+attributeString+"\nFROM "+joinString+";\n";
-//     ofs.close();
-//     //  DINFO("SELECT "+attributeString+"\nFROM "+joinString+";\n\n");
-//     if (_model == LinearRegressionModel)
-//     {
-//         // Add parameters to the join string !
-//         var_bitset features = _app->getFeatures();
-//         const var_bitset categoricalFeatures =
-//             static_pointer_cast<LinearRegression>(_app)->
-//             getCategoricalFeatures();
-//         std::string catParams = "", contParams = "";
-//         for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
-//         {
-//             if (features[var])
-//             {
-//                 Attribute* attr = _td->getAttribute(var);
-//                 if (categoricalFeatures[var])
-//                     catParams += " NATURAL JOIN "+attr->_name+"_param";
-//                 else
-//                     contParams += ","+attr->_name+"_param";
-//             }
-//         }
-//         joinString += catParams + contParams;
-//     }
-//     ofs.open("runtime/sql/aggjoin_naive.sql", std::ofstream::out);
-//     for (size_t queryID = 0; queryID < _qc->numberOfQueries(); ++queryID)
-//     {
-//         Query* query = _qc->getQuery(queryID);
-//         aggregateString = "", fVarString = "";
-//         for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
-//         {
-//             if (query->_fVars[var])
-//                 fVarString += _td->getAttribute(var)->_name + ",";
-//         }
-//         std::string aggregateString = "";
-//         for (size_t agg = 0; agg < query->_aggregates.size(); ++agg)
-//         {
-//             Aggregate* aggregate = query->_aggregates[agg];
-//             size_t aggIdx = 0;
-//             for (size_t i = 0; i < aggregate->_n; i++)
-//             {
-//                 while (aggIdx < aggregate->_m[i])
-//                 {
-//                     const prod_bitset prod = aggregate->_agg[aggIdx];
-//                     for (size_t f = 0; f < NUM_OF_FUNCTIONS; f++)
-//                     {
-//                         if (prod.test(f))
-//                         {
-//                             aggregateString += getFunctionString(f)+"*";
-//                         }
-//                     }
-//                     aggregateString.pop_back();
-//                     aggregateString += "+";
-//                     ++aggIdx;
-//                 }
-//             }
-//             aggregateString.pop_back();
-//             aggregateString += ",";
-//         }
-//         aggregateString.pop_back();
-//         if (aggregateString.empty())
-//             aggregateString = "1";
-        
-//         ofs << "SELECT "+fVarString+"SUM("+aggregateString+")\nFROM "+joinString;
-//         if (!fVarString.empty())
-//         {
-//             fVarString.pop_back();
-//             ofs << "\nGROUP BY "+fVarString;
-//         }
-//         ofs << ";\n";
-        
-//         //   DINFO("SELECT "+fVarString+aggregateString+"\nFROM "+joinString+";\n");
-//     }
-//     ofs.close();
-// #endif
-// }
-
 
 
 void SqlGenerator::generateAggregateQueries()
@@ -362,7 +260,7 @@ void SqlGenerator::generateAggregateQueries()
         it_pair.first->second += aggregateString;        
     }
 
-    ofstream ofs("runtime/sql/aggregates_merged.sql", std::ofstream::out);
+    ofstream ofs(multifaq::dir::OUTPUT_DIRECTORY+"/aggregates_merged.sql", std::ofstream::out);
 
     size_t aggID = 0;
     for (auto& fvarAggPair : fVarAggregateMap)
@@ -389,7 +287,7 @@ void SqlGenerator::generateAggregateQueries()
 
     ofs.close();
 
-    ofs.open("runtime/sql/aggregates.sql", std::ofstream::out);
+    ofs.open(multifaq::dir::OUTPUT_DIRECTORY+"/aggregates.sql", std::ofstream::out);
 
     size_t aggID_unmerged = 0;
     for (size_t queryID = 0; queryID < _qc->numberOfQueries(); ++queryID)
@@ -453,12 +351,12 @@ void SqlGenerator::generateAggregateQueries()
 
     ofs.close();
 
-    ofs.open("runtime/sql/aggregate_merged_cleanup.sql", std::ofstream::out);
+    ofs.open(multifaq::dir::OUTPUT_DIRECTORY+"/aggregate_merged_cleanup.sql", std::ofstream::out);
     for (size_t i = 0; i < aggID; ++i)
         ofs << "DROP TABLE IF EXISTS agg_"+to_string(i)+";\n";
     ofs.close();
 
-    ofs.open("runtime/sql/aggregate_cleanup.sql", std::ofstream::out);
+    ofs.open(multifaq::dir::OUTPUT_DIRECTORY+"/aggregate_cleanup.sql", std::ofstream::out);
     for (size_t i = 0; i < aggID_unmerged; ++i)
         ofs << "DROP TABLE IF EXISTS agg_"+to_string(i)+";\n";
     ofs.close();
@@ -490,11 +388,11 @@ void SqlGenerator::generateLoadQuery()
         load.pop_back();
         load += ");\n";
 
-        load += "\\COPY "+relName+" FROM \'"+_pathToData+"/"+relName+".tbl\' "+
+        load += "\\COPY "+relName+" FROM \'"+multifaq::dir::PATH_TO_DATA+"/"+relName+".tbl\' "+
                 "DELIMITER \'|\' CSV;\n";
     }
 
-    std::ofstream ofs("runtime/sql/load_data.sql", std::ofstream::out);
+    std::ofstream ofs(multifaq::dir::OUTPUT_DIRECTORY+"/load_data.sql", std::ofstream::out);
     ofs << drop + load;
     ofs.close();
     // DINFO(drop + load);
@@ -504,11 +402,11 @@ void SqlGenerator::generateLoadQuery()
     for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
         drop_views +=  "DROP TABLE IF EXISTS view_"+std::to_string(viewID)+";\n";
 
-    ofs.open("runtime/sql/lmfao_cleanup.sql", std::ofstream::out);
+    ofs.open(multifaq::dir::OUTPUT_DIRECTORY+"/lmfao_cleanup.sql", std::ofstream::out);
     ofs << drop_views;
     ofs.close();
     
-    ofs.open("runtime/sql/drop_data.sql", std::ofstream::out);
+    ofs.open(multifaq::dir::OUTPUT_DIRECTORY+"/drop_data.sql", std::ofstream::out);
     ofs << drop + drop_views;
     ofs.close();
 }
@@ -516,7 +414,7 @@ void SqlGenerator::generateLoadQuery()
 
 void SqlGenerator::generateOutputQueries()
 {
-    ofstream ofs("runtime/sql/output.sql");
+    ofstream ofs(multifaq::dir::OUTPUT_DIRECTORY+"/output.sql");
     
     for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
     {

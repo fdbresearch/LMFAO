@@ -28,14 +28,13 @@ class CovarianceMatrix: public Application
 {
 public:
 
-    CovarianceMatrix(const std::string& pathToFiles,
-                     std::shared_ptr<Launcher> launcher);
+    CovarianceMatrix(std::shared_ptr<Launcher> launcher);
 
     ~CovarianceMatrix();
 
     void run();
   
-    void generateCode(const std::string& outputDirectory);
+    void generateCode();
 
 private:
     

@@ -20,15 +20,17 @@ static const char NUMBER_SEPARATOR_CHAR = ',';
 static const char ATTRIBUTE_NAME_CHAR = ':';
 
 using namespace std;
+
 using namespace multifaq::params;
+using namespace multifaq::dir;
+using namespace multifaq::config;
+
 namespace phoenix = boost::phoenix;
 using namespace boost::spirit;
 
 using namespace std;
 
-DataCube::DataCube(
-    const string& pathToFiles, shared_ptr<Launcher> launcher) :
-    _pathToFiles(pathToFiles)
+DataCube::DataCube(shared_ptr<Launcher> launcher) 
 {
     _compiler = launcher->getCompiler();
     _td = launcher->getTreeDecomposition();
@@ -47,7 +49,7 @@ void DataCube::run()
     _compiler->compile();
 }
 
-void DataCube::generateCode(const std::string& outputString)
+void DataCube::generateCode()
 {}
 
 
@@ -158,11 +160,11 @@ void DataCube::loadFeatures()
     _queryRootIndex = new size_t[NUM_OF_VARIABLES]();
     
     /* Load the two-pass variables config file into an input stream. */
-    ifstream input(_pathToFiles + FEATURE_CONF);
+    ifstream input(FEATURE_CONF);
 
     if (!input)
     {
-        ERROR(_pathToFiles + FEATURE_CONF + " does not exist. \n");
+        ERROR(FEATURE_CONF + " does not exist. \n");
         exit(1);
     }
 

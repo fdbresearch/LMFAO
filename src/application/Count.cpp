@@ -14,8 +14,7 @@
 
 using namespace std;
 
-Count::Count(const string& pathToFiles, shared_ptr<Launcher> launcher) :
-    _pathToFiles(pathToFiles)
+Count::Count(shared_ptr<Launcher> launcher) 
 {
     _compiler = launcher->getCompiler();
     _td = launcher->getTreeDecomposition();
@@ -31,7 +30,7 @@ void Count::run()
     _compiler->compile();
 }
 
-void Count::generateCode(const std::string& outputString)
+void Count::generateCode()
 {}
 
 void Count::modelToQueries()

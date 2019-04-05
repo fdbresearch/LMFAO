@@ -28,14 +28,13 @@ class DataCube: public Application
 {
 public:
 
-    DataCube(const std::string& pathToFiles,
-          std::shared_ptr<Launcher> launcher);
+    DataCube(std::shared_ptr<Launcher> launcher);
 
     ~DataCube();
 
     void run();
 
-    void generateCode(const std::string& outputString);
+    void generateCode();
 
     
 private:

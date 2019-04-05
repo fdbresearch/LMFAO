@@ -28,15 +28,14 @@ class KMeans: public Application
 {
 public:
 
-    KMeans(const std::string& pathToFiles,
-           std::shared_ptr<Launcher> launcher,
+    KMeans(std::shared_ptr<Launcher> launcher,
            const int k);
 
     ~KMeans();
 
     void run();
     
-    void generateCode(const std::string& outputString);
+    void generateCode();
         
 private:
     
