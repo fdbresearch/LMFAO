@@ -6661,13 +6661,13 @@ std::string CppGenerator::getFunctionString(Function* f, std::string& fvars)
         return "(0.15)";  // "_param["+fvars+"]"; // // TODO: THIS NEEDS TO BE A
                           // CATEGORICAL PARAMETER - Index?!
     case Operation::indicator_eq : 
-        return "("+fvars+" == "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
+        return "("+fvars+" == "+std::to_string(f->_parameter[0])+")"; // " ? 1 : 0)";
     case Operation::indicator_lt : 
-        return "("+fvars+" <= "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
+        return "("+fvars+" <= "+std::to_string(f->_parameter[0])+")"; // " ? 1 : 0)";
     case Operation::indicator_neq : 
-        return "("+fvars+" != "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
+        return "("+fvars+" != "+std::to_string(f->_parameter[0])+")"; // " ? 1 : 0)";
     case Operation::indicator_gt : 
-        return "("+fvars+" > "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
+        return "("+fvars+" > "+std::to_string(f->_parameter[0])+")";  // " ? 1 : 0)";
     case Operation::dynamic : 
         return  f->_name+"("+fvars+")";
     default : return "f("+fvars+")";
