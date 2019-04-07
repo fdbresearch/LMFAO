@@ -8,25 +8,20 @@ struct Condition
     double threshold;
     std::string op;
 
-    Condition() 
-    {
-    };
-
+    Condition() {}
 };
 
 struct RegTreeNode
 {
     Condition condition;
 
-    // Set of parent conditions, stored as a product of functions. 
-    // std::vector<Condition> _parentConditions;
-
     size_t count;
     double prediction;
-    double variance;
+    double cost = 0.0;
+    bool isLeaf = true;
 
-    RegTreeNode* lchild;
-	RegTreeNode* rchild;
+    RegTreeNode* lchild = nullptr;
+	RegTreeNode* rchild = nullptr;
 
     RegTreeNode() {}
 };  

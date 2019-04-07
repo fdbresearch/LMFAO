@@ -10,12 +10,12 @@
 #include <vector>
 
 #include "RegressionTreeNode.hpp"
-#include "../runtime/cpp/DynamicFunctionsGenerator.hpp"
+#include "RegressionTreeHelper.hpp"
 
 const size_t max_depth = 2;
 const double min_size = 1000.0;
 
-void loadSplit(RegTreeNode* node, double& leftCount, double& rightCount)
+void loadSplit(RegTreeNode* node, double& leftCount, double& rightCount, double& leftValue, double& rightValue)
 {
     std::ifstream input("bestsplit.out");
     if (!input)
@@ -60,6 +60,7 @@ void loadSplit(RegTreeNode* node, double& leftCount, double& rightCount)
     Condition* cond = new Condition();
     node->condition.variable = varID;
     node->condition.threshold = threshold;
+
     if (categorical)
     {
         node->condition.op = "==";
@@ -88,7 +89,7 @@ void splitNode(RegTreeNode* node, std::vector<Condition> conditions, size_t dept
         return;
     
     // Push it to the queue -- if it should be split further 
-    if (leftCount > min_size)
+    if (leftCount > min_size && leftValue > 0.0)
     {
         // pushCondition to the the vector
         std::vector<Condition> left = conditions; 
@@ -101,7 +102,7 @@ void splitNode(RegTreeNode* node, std::vector<Condition> conditions, size_t dept
     }
 
     // Push it to the queue -- if it should be split further
-    if (rightCount > min_size)
+    if (rightCount > min_size && rightValue > 0.0)
     {
         // pushCondition to the the vector
         std::vector<Condition> right = conditions; 
@@ -121,12 +122,14 @@ void splitNode(RegTreeNode* node, std::vector<Condition> conditions, size_t dept
     }
 }
 
+
 int main(int argc, char *argv[])
 {
     RegTreeNode* root = new RegTreeNode();
     std::vector<Condition> conditions;
     
     splitNode(root, conditions, 1);
+    evaluateModel(root);
 
     return 0;
 };

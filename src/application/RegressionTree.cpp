@@ -303,7 +303,7 @@ void RegressionTree::regressionTreeQueries()
                     aggQ_complement->_agg[0].set(_complementFunction[f]);
 
                     Query* query = new Query();
-                    query->_rootID = _td->_root->_id;// _queryRootIndex[var];
+                    query->_rootID =  _queryRootIndex[var]; // _td->_root->_id;
                     query->_aggregates = {aggC,aggL,aggQ,
                          aggC_complement,aggL_complement,aggQ_complement};
                     
@@ -649,16 +649,25 @@ void RegressionTree::genDynamicFunctions()
     ofs.open(multifaq::dir::OUTPUT_DIRECTORY+"DynamicFunctionsGenerator.hpp", std::ofstream::out);
     ofs << dynamicFunctionsGenerator();
     ofs.close();
+
+    ofs.open(multifaq::dir::OUTPUT_DIRECTORY+"RegressionTreeHelper.hpp", std::ofstream::out);
+    ofs << dynamicFunctionsGenerator();
+    ofs.close();
 }
+
 
 
 std::string RegressionTree::dynamicFunctionsGenerator()
 {
+    std::string condition[] = {" <= "," == "};
+    
     std::string varList = "", relationMap = ""; 
     for (size_t var = 0; var< _td->numberOfAttributes(); ++var)
     {
-	varList += "\""+_td->getAttribute(var)->_name+"\","; 
-	relationMap += std::to_string(_queryRootIndex[var])+",";
+        const std::string varName = _td->getAttribute(var)->_name;
+
+	varList += "\""+varName+"\","; 
+	relationMap += std::to_string(_queryRootIndex[var])+",";        
     }
     varList.pop_back();
     relationMap.pop_back();
@@ -686,11 +695,18 @@ std::string RegressionTree::dynamicFunctionsGenerator()
     relationName.pop_back();
     conditionsString.pop_back();
     varTypeList.pop_back();
-
-    std::string headerFiles =
-        "#include <fstream>\n#include <vector>\n#include \"RegressionTreeNode.hpp\"\n\n";
     
-    return headerFiles+
+    std::string headerFiles =offset(0)+
+        "#include <fstream>\n"+
+        "#include <vector>\n"+
+        "#include \"RegressionTreeNode.hpp\"\n\n"+
+        "#include <boost/spirit/include/qi.hpp>\n"+
+        "#include <boost/spirit/include/phoenix_core.hpp>\n"+
+        "#include <boost/spirit/include/phoenix_operator.hpp>\n\n"+
+        "namespace qi = boost::spirit::qi;\n"+
+        "namespace phoenix = boost::phoenix;\n\n";
+    
+    std::string genDynFuncs =
         "void generateDynamicFunctions(std::vector<Condition>& conditions)\n{\n"+
 	offset(1)+"std::string variableMap[] = {"+varList+"};\n"+
 	offset(1)+"std::string variableList[] = {"+varTypeList+"};\n"+
@@ -718,6 +734,86 @@ std::string RegressionTree::dynamicFunctionsGenerator()
         "{\\n\\treturn 1.0;\\n}\\n\";\n"+
         offset(2)+"}\n"+offset(1)+"}\n"+
         offset(1)+"ofs << \"}\\n\";\n"+offset(1)+"ofs.close();\n}\n";
+
+
+    /********************************************************/
+    /************ This is for loading Test Data *************/
+    /********************************************************/
+    
+    // TODO: This should only output the features not all variables.
+    // If changed it should be changed in the SQL generator as well.
+    std::string attributeString = "",
+        attrConstruct = offset(3)+"qi::phrase_parse(tuple.begin(),tuple.end(),";
+        
+    for (size_t var = 0; var < _td->numberOfAttributes(); ++var)
+    {
+        Attribute* att = _td->getAttribute(var);
+        attrConstruct += "\n"+offset(4)+"qi::"+typeToStr(att->_type)+
+            "_[phoenix::ref("+att->_name+") = qi::_1]>>";
+        attributeString += offset(1)+typeToStr(att->_type) + " "+
+            att->_name + ";\n";
+    }
+
+    // attrConstruct.pop_back();
+    attrConstruct.pop_back();
+    attrConstruct.pop_back();
+    attrConstruct += ",\n"+offset(4)+"\'|\');\n";
+
+    std::string testTuple = "\nstruct Test_tuple\n{\n"+
+        attributeString+offset(1)+"Test_tuple(const std::string& tuple)\n"+
+        offset(1)+"{\n"+attrConstruct+offset(1)+"}\n};\n\n";
+
+    std::string loadFunction =
+        "void loadTestDataset(std::vector<Test_tuple>& TestDataset)\n{\n"+
+        offset(1)+"std::ifstream input;\n"+offset(1)+"std::string line;\n"+
+        offset(1)+"input.open(\""+PATH_TO_DATA+"/test_data.tbl\");\n"+
+        offset(1)+"if (!input)\n"+offset(1)+"{\n"+
+        offset(2)+"std::cerr << \"TestDataset.tbl does is not exist.\\n\";\n"+
+        offset(2)+"exit(1);\n"+offset(1)+"}\n"+
+        offset(1)+"while(getline(input, line))\n"+
+        offset(2)+"TestDataset.push_back(Test_tuple(line));\n"+
+        offset(1)+"input.close();\n}\n\n";
+    
+
+    /****************************************************************/
+    /************ This is for finding prediction & eval *************/
+    /****************************************************************/
+
+    std::string findPredSwitch=""; 
+    for (size_t var = 0; var< _td->numberOfAttributes(); ++var)
+    {
+        const std::string& varName = _td->getAttribute(var)->_name;
+        findPredSwitch += offset(3)+"case "+std::to_string(var)+" : "+
+            "goLeft = (tuple."+varName+condition[_categoricalFeatures[var]]+
+            "c.threshold); break;\n";       
+    }
+    
+    std::string findPrediction =
+        "double findPrediction(const RegTreeNode* node, const Test_tuple& tuple)\n{\n"+
+        offset(1)+"if (node->isLeaf)\n"+
+        offset(2)+"return node->prediction;\n\n"+
+        offset(1)+"bool goLeft = true;\n"+
+        offset(1)+"const Condition& c = node->condition;\n"+
+        offset(1)+"switch (c.variable)\n"+
+        offset(1)+"{\n"+findPredSwitch+offset(1)+"}\n"+
+        offset(1)+"if (goLeft)\n"+
+        offset(2)+"return findPrediction(node->lchild, tuple);\n"+
+        offset(1)+"else\n"+
+        offset(2)+"return findPrediction(node->rchild, tuple);\n}\n\n";
+    
+    std::string evalFunction = "void evaluateModel(const RegTreeNode* root)\n{\n"+
+        offset(1)+"std::vector<Test_tuple> TestDataset;\n"+
+        offset(1)+"loadTestDataset(TestDataset);\n"+
+        offset(1)+"double pred, diff, error = 0.0;\n"+
+        offset(1)+"for (const Test_tuple& tuple : TestDataset)\n"+offset(2)+"{\n"+
+        offset(2)+"pred = findPrediction(root, tuple);\n"+
+        offset(2)+"diff = tuple."+_td->getAttribute(_labelID)->_name+"-pred;\n"+
+        offset(2)+"error += diff * diff;\n"+
+        offset(1)+"}\n"+
+        offset(1)+"error /= TestDataset.size();\n"+
+        offset(1)+"std::cout << \"RMSE: \" << sqrt(error) << std::endl;\n}\n\n";
+    
+    return headerFiles+testTuple+loadFunction+findPrediction+evalFunction+genDynFuncs;
 }
 
 
@@ -1063,7 +1159,7 @@ std::string RegressionTree::genGiniComputation()
 
     /* This creates the gini computation for continuous variables. */ 
     returnString += offset(2)+"double squaredSum["+numAggs+"] = {}, "+
-        "largestCount["+numAggs+"] = {};\n"+
+        "largestCount[numberOfThresholds*2] = {};\n"+
         offset(2)+"for("+viewStr+"_tuple& tuple : "+viewStr+")\n"+offset(2)+"{\n"+
         offset(3)+"for (size_t agg = 1; agg < "+numAggs+"; ++agg)\n"+
         offset(3)+"{\n"+

@@ -133,8 +133,6 @@ int Launcher::launch(boost::program_options::variables_map& vm)
 
     _compiler.reset(new QueryCompiler(_treeDecomposition));
     
-    std::cout << "HERE \n" ;
-
     bool hasApplicationHandler = false;
     bool hasDynamicFunctions = false;
     
