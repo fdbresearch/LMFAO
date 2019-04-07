@@ -34,8 +34,8 @@ void loadSplit(RegTreeNode* node, double& leftCount, double& rightCount, double&
     std::stringstream ss(line);
 
     getline(ss, attr, '\t');
-    cost = std::stod(attr);
-    
+    cost = std::stod(attr);    
+
     getline(ss, attr, '\t');
     varID = std::stoi(attr);
 
@@ -99,7 +99,7 @@ void splitNode(RegTreeNode* node, std::vector<Condition> conditions, size_t dept
         return;
     
     // Push it to the queue -- if it should be split further 
-    if (leftCount > min_size && leftValue > 0.0)
+    if (leftCount > min_size && cost > 0.0001)
     {
         // pushCondition to the the vector
         std::vector<Condition> left = conditions; 
@@ -111,7 +111,7 @@ void splitNode(RegTreeNode* node, std::vector<Condition> conditions, size_t dept
     }
 
     // Push it to the queue -- if it should be split further
-    if (rightCount > min_size && rightValue > 0.0)
+    if (rightCount > min_size && cost > 0.0001)
     {
         // pushCondition to the the vector
         std::vector<Condition> right = conditions; 
@@ -131,9 +131,23 @@ void splitNode(RegTreeNode* node, std::vector<Condition> conditions, size_t dept
 }
 
 
+void printTree(RegTreeNode* node, int& counter, int depth)
+{
+   std::cout << std::string(depth*3,' ') << "Node: " << counter++ << " Variable: " << node->condition.variable 
+        << " Condition: " << node->condition.threshold << " Predcition: " << node->prediction << std::endl;
+
+   if (!node->isLeaf)
+   {
+     printTree(node->lchild, counter, depth+1);
+     printTree(node->rchild, counter, depth+1);
+   }
+}
+
 int main(int argc, char *argv[])
 {
     RegTreeNode* root = new RegTreeNode();
+    root->isLeaf = false;
+
     std::vector<Condition> conditions;
     
     splitNode(root, conditions, 0);
