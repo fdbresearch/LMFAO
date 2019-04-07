@@ -1088,13 +1088,14 @@ std::string RegressionTree::genVarianceComputation()
         "\" for variable \" << thresholdMap[threshold].varID << \" and threshold:"+
         " \" << thresholdMap[threshold].threshold << std::endl;\n"+
         offset(2)+"std::ofstream ofs(\"bestsplit.out\",std::ofstream::out);\n"+
-        offset(2)+"ofs << thresholdMap[threshold].varID << \"\\t\" << "+
-        "thresholdMap[threshold].threshold  << \"\\t\" << "+
+        offset(2)+"ofs << std::fixed << min_variance << \"\\t\" << "+
+        "thresholdMap[threshold].varID << \"\\t\" << "+
+        "thresholdMap[threshold].threshold  << \"\\t\" << "+ 
         "thresholdMap[threshold].categorical  << \"\\t\" << "+
         "thresholdMap[threshold].aggregates[0]  << \"\\t\" << "+
         "thresholdMap[threshold].compAggregates[0] << \"\\t\" << "+
-        "thresholdMap[threshold].aggregates[1] << \"\\t\" << "+
-        "thresholdMap[threshold].compAggregates[1] << std::endl;\n"+
+        "thresholdMap[threshold].aggregates[1]/thresholdMap[threshold].aggregates[0] << \"\\t\" << "+
+        "thresholdMap[threshold].compAggregates[1]/thresholdMap[threshold].compAggregates[0] << std::endl;\n"+
         offset(2)+"ofs.close();\n";
 
     std::string functionIndex = contFunctionIndex;
