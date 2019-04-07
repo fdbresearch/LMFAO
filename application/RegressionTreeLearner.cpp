@@ -84,6 +84,16 @@ void splitNode(RegTreeNode* node, std::vector<Condition> conditions, size_t dept
     double leftCount, rightCount, leftValue, rightValue;
     loadSplit(node, leftCount, rightCount, leftValue, rightValue);
 
+    RegTreeNode* leftNode = new RegTreeNode();
+    leftNode->prediction = leftValue;
+
+    node->lchild = leftNode;
+
+    RegTreeNode* rightNode = new RegTreeNode();
+    rightNode->prediction = rightValue;
+
+    node->rchild = rightNode;
+
     // Check if you continue Splitting left
     if (depth == max_depth)
         return;
@@ -95,8 +105,7 @@ void splitNode(RegTreeNode* node, std::vector<Condition> conditions, size_t dept
         std::vector<Condition> left = conditions; 
         left.push_back(node->condition);
 
-        RegTreeNode* leftNode = new RegTreeNode();
-        node->lchild = leftNode;
+        leftNode->isLeaf = false;
 
         splitNode(leftNode, left, depth+1);
     }
@@ -115,8 +124,7 @@ void splitNode(RegTreeNode* node, std::vector<Condition> conditions, size_t dept
 
         right.push_back(rightCondition);
 
-        RegTreeNode* rightNode = new RegTreeNode();
-        node->rchild = rightNode;
+        rightNode->isLeaf = false;
 
         splitNode(rightNode, right, depth+1);
     }
@@ -128,7 +136,7 @@ int main(int argc, char *argv[])
     RegTreeNode* root = new RegTreeNode();
     std::vector<Condition> conditions;
     
-    splitNode(root, conditions, 1);
+    splitNode(root, conditions, 0);
     evaluateModel(root);
 
     return 0;
