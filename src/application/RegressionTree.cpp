@@ -1090,7 +1090,7 @@ std::string RegressionTree::genVarianceComputation()
         offset(2)+"std::ofstream ofs(\"bestsplit.out\",std::ofstream::out);\n"+
         offset(2)+"ofs << std::fixed << min_variance << \"\\t\" << "+
         "thresholdMap[threshold].varID << \"\\t\" << "+
-        "thresholdMap[threshold].threshold  << \"\\t\" << "+ 
+        "thresholdMap[threshold].threshold  << \"\\t\" << "+
         "thresholdMap[threshold].categorical  << \"\\t\" << "+
         "thresholdMap[threshold].aggregates[0]  << \"\\t\" << "+
         "thresholdMap[threshold].compAggregates[0] << \"\\t\" << "+
@@ -1154,19 +1154,21 @@ std::string RegressionTree::genGiniComputation()
     string countViewStr = "V"+std::to_string(countViewID);
     string overallCountViewStr = "V"+std::to_string(countViewID);
 
+    string label = _td->getAttribute(_labelID)->_name;
+
     string numAggs = std::to_string(_functionOfAggregate.size());
 
     std::string returnString = "";
 
     /* This creates the gini computation for continuous variables. */ 
-    returnString += offset(2)+"double squaredSum["+numAggs+"] = {}, "+
-        "largestCount[numberOfThresholds*2] = {};\n"+
+    returnString += offset(2)+"double squaredSum["+numAggs+"] = {};\n"+
+        offset(2)"std::vector<double> prediction (numberOfThresholds*2, 0.0);\n"+
         offset(2)+"for("+viewStr+"_tuple& tuple : "+viewStr+")\n"+offset(2)+"{\n"+
         offset(3)+"for (size_t agg = 1; agg < "+numAggs+"; ++agg)\n"+
         offset(3)+"{\n"+
         offset(4)+"squaredSum[agg] += tuple.aggregates[agg] * tuple.aggregates[agg];\n"+
-        offset(4)+"largestCount[agg] = (tuple.aggregates[agg] > largestCount[agg] ? "+
-        "tuple.aggregates[agg] : largestCount[agg]);\n"+
+        offset(4)+"prediction[agg] = (tuple.aggregates[agg] > prediction[agg] ? "+
+        "tuple."+label+" : prediction[agg]);\n"+
         offset(3)+"}\n"+
         offset(2)+"}\n"+
         offset(2)+countViewStr+"_tuple& tup = "+countViewStr+"[0];\n"+
@@ -1272,12 +1274,12 @@ std::string RegressionTree::genGiniComputation()
                 offset(4)+"rhs += complementCount * complementCount;\n"+
                 offset(4)+"if (tuple."+var+" != varCountTup."+var+") "+
                 "std::cout << \"ERROR \\n\";\n"+
-                offset(4)+"largestCount[categIndex*2] = (tuple.aggregates[0] > "+
-                "largestCount[categIndex*2] ? tuple.aggregates[categIndex*2] : "+
-                "largestCount[categIndex*2]);\n"+
-                offset(4)+"largestCount[categIndex*2+1] = (complementCount > "+
-                "largestCount[categIndex*2+1] ? complementCount : "+
-                "largestCount[categIndex*2+1]);\n"+
+                offset(4)+"prediction[categIndex*2] = (tuple.aggregates[0] > "+
+                "prediction[categIndex*2] ? tuple."+label+" : "+
+                "prediction[categIndex*2]);\n"+
+                offset(4)+"prediction[categIndex*2+1] = (complementCount > "+
+                "prediction[categIndex*2+1] ? tuple."+label+" : "+
+                "prediction[categIndex*2+1]);\n"+
                 offset(4)+"++idx;\n"+offset(3)+"}\n"+
                 offset(3)+"gini[categIndex] = (1 - lhs/"+
                 "(varCountTup.aggregates[0]*varCountTup.aggregates[0])) "+
@@ -1340,17 +1342,22 @@ std::string RegressionTree::genGiniComputation()
         offset(3)+"if (gini[t] < min_gini)\n"+offset(3)+"{\n"+
         offset(4)+"min_gini = gini[t];\n"+offset(4)+"threshold = t;\n"+
         offset(3)+"}\n"+offset(2)+"}\n"+
+        offset(2)+"double complementCount = "+
+        "thresholdMap[threshold].compAggregates[0];\n"+
+        offset(2)+"if (thresholdMap[threshold].categorical)\n"+
+        offset(3)+"complementCount -= thresholdMap[threshold].aggregates[0];\n\n"+
         offset(2)+"std::cout << \"The minimum gini index is: \" << min_gini <<"+
         "\" for variable \" << thresholdMap[threshold].varID << \" and threshold:"+
         " \" << thresholdMap[threshold].threshold << std::endl;\n"+
         offset(2)+"std::ofstream ofs(\"bestsplit.out\",std::ofstream::out);\n"+
-        offset(2)+"ofs << thresholdMap[threshold].varID << \"\\t\" << "+
+        offset(2)+"ofs << std::fixed << min_gini << \"\\t\" << "+
+        "thresholdMap[threshold].varID << \"\\t\" << "+
         "thresholdMap[threshold].threshold  << \"\\t\" << "+
         "thresholdMap[threshold].categorical  << \"\\t\" << "+
         "thresholdMap[threshold].aggregates[0]  << \"\\t\" << "+
         "thresholdMap[threshold].compAggregates[0]  << \"\\t\" << "+
-        "largestCount[threshold*2]  << \"\\t\" << "+
-        "largestCount[threshold*2+1] << std::endl;\n"+
+        "prediction[threshold*2]  << \"\\t\" << "+
+        "prediction[threshold*2+1] << std::endl;\n"+
         offset(2)+"ofs.close();\n";
     
     return thresholdStruct+

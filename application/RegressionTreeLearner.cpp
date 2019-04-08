@@ -15,7 +15,7 @@
 const size_t max_depth = 2;
 const double min_size = 1000.0;
 
-void loadSplit(RegTreeNode* node, double& leftCount, double& rightCount, double& leftValue, double& rightValue)
+void loadSplit(RegTreeNode* node, double& leftCount, double& rightCount, double& leftPred, double& rightPred)
 {
     std::ifstream input("bestsplit.out");
     if (!input)
@@ -52,10 +52,10 @@ void loadSplit(RegTreeNode* node, double& leftCount, double& rightCount, double&
     rightCount = std::stod(attr);
 
     getline(ss, attr, '\t');
-    leftValue = std::stod(attr);
+    leftPred = std::stod(attr);
     
     getline(ss, attr, '\t');
-    rightValue = std::stod(attr);
+    rightPred = std::stod(attr);
     
     Condition* cond = new Condition();
     node->condition.variable = varID;
@@ -81,16 +81,16 @@ void splitNode(RegTreeNode* node, std::vector<Condition> conditions, size_t dept
     system("./lmfao");
 
     // Load the new split proposed by LMFAO and the corresponding stats
-    double leftCount, rightCount, leftValue, rightValue;
-    loadSplit(node, leftCount, rightCount, leftValue, rightValue);
+    double leftCount, rightCount, leftPred, rightPred;
+    loadSplit(node, leftCount, rightCount, leftPred, rightPred);
 
     RegTreeNode* leftNode = new RegTreeNode();
-    leftNode->prediction = leftValue;
+    leftNode->prediction = leftPred;
 
     node->lchild = leftNode;
 
     RegTreeNode* rightNode = new RegTreeNode();
-    rightNode->prediction = rightValue;
+    rightNode->prediction = rightPred;
 
     node->rchild = rightNode;
 
@@ -99,7 +99,7 @@ void splitNode(RegTreeNode* node, std::vector<Condition> conditions, size_t dept
         return;
     
     // Push it to the queue -- if it should be split further 
-    if (leftCount > min_size && cost > 0.0001)
+    if (leftCount > min_size)
     {
         // pushCondition to the the vector
         std::vector<Condition> left = conditions; 
@@ -111,7 +111,7 @@ void splitNode(RegTreeNode* node, std::vector<Condition> conditions, size_t dept
     }
 
     // Push it to the queue -- if it should be split further
-    if (rightCount > min_size && cost > 0.0001)
+    if (rightCount > min_size)
     {
         // pushCondition to the the vector
         std::vector<Condition> right = conditions; 
@@ -151,6 +151,10 @@ int main(int argc, char *argv[])
     std::vector<Condition> conditions;
     
     splitNode(root, conditions, 0);
+
+    int counter = 0; 
+    printTree(root, counter, 0);
+
     evaluateModel(root);
 
     return 0;
