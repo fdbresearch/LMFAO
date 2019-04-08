@@ -49,10 +49,19 @@ private:
     std::shared_ptr<Application> _app;
 
     Model _model;
+    var_bitset _features;
+
+    void loadFeatures();
     
     void generateLoadQuery();
 
-    void generateJoinQuery();
+    void generateJoinQueries();
+
+    void generateFullJoinQuery();
+
+    void generateExportJoinQuery();
+
+    void generateFeatureOnlyJoinQuery();
 
     void generateLmfaoQuery();
 

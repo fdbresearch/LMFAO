@@ -6,6 +6,8 @@
 // Author: Max
 //
 //--------------------------------------------------------------------
+#include <boost/spirit/include/qi.hpp>
+#include <boost/spirit/include/phoenix_operator.hpp>
 
 #include <fstream>
 #include <string>
@@ -16,6 +18,18 @@
 
 using namespace std;
 using namespace multifaq::params;
+
+static const std::string FEATURE_CONF = "/features.conf";
+
+static const char COMMENT_CHAR = '#';
+static const char NUMBER_SEPARATOR_CHAR = ',';
+static const char ATTRIBUTE_NAME_CHAR = ':';
+
+using namespace std;
+using namespace multifaq::params;
+namespace phoenix = boost::phoenix;
+using namespace boost::spirit;
+
 
 SqlGenerator::SqlGenerator(const std::string path,
                            std::shared_ptr<Launcher> launcher) : _pathToData(path)
@@ -29,12 +43,110 @@ SqlGenerator::SqlGenerator(const std::string path,
     
     if (_pathToData.back() == '/')
         _pathToData.pop_back();
+    loadFeatures();
 }
 
 SqlGenerator::~SqlGenerator()
 {
 }
 
+
+void SqlGenerator::loadFeatures()
+{
+    /* Load the two-pass variables config file into an input stream. */
+    ifstream input(_pathToData + FEATURE_CONF);
+
+    if (!input)
+    {
+        ERROR(_pathToData + FEATURE_CONF+" does not exist. \n");
+        exit(1);
+    }
+
+    /* String and associated stream to receive lines from the file. */
+    string line;
+    stringstream ssLine;
+
+    int numOfFeatures = 0;
+    int degreeOfInteractions = 0;
+    
+    /* Ignore comment and empty lines at the top */
+    while (getline(input, line))
+    {
+        if (line[0] == COMMENT_CHAR || line == "")
+            continue;
+
+        break;
+    }
+    
+    /* 
+     * Extract number of labels, features and interactions from the config. 
+     * Parse the line with the three numbers; ignore spaces. 
+     */
+    bool parsingSuccess =
+        qi::phrase_parse(line.begin(), line.end(),
+
+                         /* Begin Boost Spirit grammar. */
+                         ((qi::int_[phoenix::ref(numOfFeatures) = qi::_1])
+                          >> NUMBER_SEPARATOR_CHAR
+                          >> (qi::int_[phoenix::ref(degreeOfInteractions) =
+                                       qi::_1])),
+                         /*  End grammar. */
+                         ascii::space);
+
+    assert(parsingSuccess && "The parsing of the features file has failed.");
+    
+    /* Read in the features. */
+    for (int featureNo = 0; featureNo < numOfFeatures; ++featureNo)
+    {
+        getline(input, line);
+        if (line[0] == COMMENT_CHAR || line == "")
+        {
+            --featureNo;
+            continue;
+        }
+
+        ssLine << line;
+ 
+        string attrName;
+        /* Extract the name of the attribute in the current line. */
+        getline(ssLine, attrName, ATTRIBUTE_NAME_CHAR);
+
+        string typeOfFeature;
+        /* Extract the dimension of the current attribute. */
+        getline(ssLine, typeOfFeature, ATTRIBUTE_NAME_CHAR);
+
+        string rootName;
+        /* Extract the dimension of the current attribute. */
+        getline(ssLine, rootName, ATTRIBUTE_NAME_CHAR);
+
+        int attributeID = _td->getAttributeIndex(attrName);
+        int categorical = stoi(typeOfFeature); 
+        int rootID = _td->getRelationIndex(rootName);
+
+        if (attributeID == -1)
+        {
+            ERROR("Attribute |"+attrName+"| does not exist.");
+            exit(1);
+        }
+
+        if (rootID == -1)
+        {
+            ERROR("Relation |"+rootName+"| does not exist.");
+            exit(1);
+        }
+
+        if (featureNo == 0 && categorical == 1)
+        {
+            ERROR("The label needs to be continuous! ");
+            exit(1);
+        }
+
+        _features.set(attributeID);
+
+        /* Clear string stream. */
+        ssLine.clear();
+    }
+}
 
 void SqlGenerator::generateCode(const ParallelizationType parallelization_type,
                                 bool hasApplicationHandler,
@@ -49,7 +161,7 @@ void SqlGenerator::generateCode(const ParallelizationType parallelization_type,
     hasDynamicFunctions = true;
     
     generateLoadQuery();
-    generateJoinQuery();
+    generateJoinQueries();
     generateLmfaoQuery();
     generateAggregateQueries();
     generateOutputQueries();
@@ -149,7 +261,14 @@ void SqlGenerator::generateLmfaoQuery()
     // DINFO(returnString);   
 }
 
-void SqlGenerator::generateJoinQuery()
+void SqlGenerator::generateExportJoinQuery()
+{
+    std::ofstream ofs("runtime/sql/export.sql", std::ofstream::out);
+    ofs << "\\COPY joinres TO \'joinresult.txt\' CSV DELIMITER '|';\n";
+    ofs.close();
+}
+
+void SqlGenerator::generateFullJoinQuery()
 {
     string joinString = "", attributeString  = "";
     
@@ -166,14 +285,48 @@ void SqlGenerator::generateJoinQuery()
         attributeString += _td->getAttribute(var)->_name + ",";
     attributeString.pop_back();
 
-    std::ofstream ofs("runtime/sql/join.sql", std::ofstream::out);
+    std::ofstream ofs("runtime/sql/join_full.sql", std::ofstream::out);
     ofs << "CREATE TABLE joinres AS (SELECT "+attributeString+
         "\nFROM "+joinString+");\n";
     ofs.close();
+}
 
-    ofs.open("runtime/sql/export.sql", std::ofstream::out);
-    ofs << "\\COPY joinres TO \'joinresult.txt\' CSV DELIMITER '|';\n";
+void SqlGenerator::generateFeatureOnlyJoinQuery()
+{
+    string joinString = "", attributeString  = "";
+    
+    for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
+    {    
+        joinString += _td->getRelation(rel)->_name;
+        if (rel + 1 < _td->numberOfRelations())
+            joinString += " NATURAL JOIN ";
+    }
+
+    for (size_t var = 0; var < NUM_OF_VARIABLES; var ++)
+    {
+        if (_features[var])
+        {
+            std::string featureName = _td->getAttribute(var)->_name;
+            attributeString += featureName + ",";
+
+        }
+    }   
+    attributeString.pop_back();
+    /*
+    for (size_t var = 0; var < _td->numberOfAttributes(); ++var)
+        attributeString += _td->getAttribute(var)->_name + ",";
+    */
+    std::ofstream ofs("runtime/sql/join_features.sql", std::ofstream::out);
+    ofs << "CREATE TABLE joinres AS (SELECT "+attributeString+
+        "\nFROM "+joinString+");\n";
     ofs.close();
+}
+
+void SqlGenerator::generateJoinQueries()
+{
+    generateFullJoinQuery();
+    generateFeatureOnlyJoinQuery();
+    generateExportJoinQuery();
 }
 
 // void SqlGenerator::generateNaiveQueries()
