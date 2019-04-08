@@ -1162,7 +1162,7 @@ std::string RegressionTree::genGiniComputation()
 
     /* This creates the gini computation for continuous variables. */ 
     returnString += offset(2)+"double squaredSum["+numAggs+"] = {};\n"+
-        offset(2)"std::vector<double> prediction (numberOfThresholds*2, 0.0);\n"+
+        offset(2)+"std::vector<double> prediction (numberOfThresholds*2, 0.0);\n"+
         offset(2)+"for("+viewStr+"_tuple& tuple : "+viewStr+")\n"+offset(2)+"{\n"+
         offset(3)+"for (size_t agg = 1; agg < "+numAggs+"; ++agg)\n"+
         offset(3)+"{\n"+
