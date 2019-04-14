@@ -292,7 +292,10 @@ void CppGenerator::genMakeFile()
         << "-fno-signed-zeros -v -ftime-report -fno-stack-protector\n\n";
 
     ofs << "lmfao : " + objectList + "\n\t$(CXX) $(CXXFLAG) " + 
-          objectList + " ../../LinearAlgebra/liblmfaolalib.a -o lmfao\n\n";
+          objectList + " ../../LinearAlgebra/liblmfaolalib.a " 
+          + "/usr/local/boost_1_68_0/bin.v2/libs/thread/build/gcc-7.3.0/release/link-static/threadapi-pthread/threading-multi/libboost_thread.a " 
+          + "/usr/local/boost_1_68_0/bin.v2/libs/system/build/gcc-7.3.0/release/link-static/threading-multi/libboost_system.a "
+          + "-o lmfao\n\n";
 
     ofs << "main.o : main.cpp\n"
         << "\t$(CXX) $(FLAG) $(CXXFLAG) -c main.cpp -o main.o\n\n"

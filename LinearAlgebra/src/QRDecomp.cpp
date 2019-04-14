@@ -13,9 +13,10 @@ namespace LMFAO::LinearAlgebra
         f >> mNumFeatsExp;
         f >> mNumFeats;
         f >> mNumFeatsCont;
+        /*
         std::cout << mNumFeatsExp << " " << mNumFeats << 
                 " " << mNumFeatsCont << std::endl;
-
+        */
         std::vector<bool> vIsCat(mNumFeatsExp, false);
         mSigma = Eigen::MatrixXd::Zero(mNumFeatsExp, mNumFeatsExp);
 
@@ -44,9 +45,11 @@ namespace LMFAO::LinearAlgebra
                                      const std::vector<bool>& vIsCat)
     {
         unsigned int row, col;
-        mNumFeatsExp = numFeatsExp;
-        mNumFeats = numFeats;
-        mNumFeatsCont = numFeatsCont;
+        mNumFeatsExp = numFeatsExp - 1;
+        mNumFeats = numFeats - 1;
+        mNumFeatsCont = numFeatsCont - 1;
+        std::cout << mNumFeatsExp << " " << mNumFeatsExp << " " <<
+            mNumFeatsCont << std::endl;
         mNumFeatsCat = mNumFeats - mNumFeatsCont;
         mSigma = Eigen::MatrixXd::Zero(mNumFeatsExp, mNumFeatsExp);
 
@@ -54,11 +57,16 @@ namespace LMFAO::LinearAlgebra
         {
             const auto& key = keyValue.first;
             const auto& value = keyValue.second;
-            row = key.first;
-            col = key.second;
-            mSigma(row, col) = value;
+            if ((key.first > 0) && (key.second > 0))
+            {
+                row = key.first - 1;
+                col = key.second - 1;
+                mSigma(row, col) = value;
+            }
         }
         //std::cout << vIsCat.size() << std::endl;
+        const_cast<std::vector<bool>&>(vIsCat).erase(vIsCat.begin());
+        std::cout << vIsCat.size() << std::endl;
         rearrangeMatrix(vIsCat);
     }
 
@@ -100,7 +108,7 @@ namespace LMFAO::LinearAlgebra
             long double aggregate = std::get<2>(triple);
             mSigma(row, col) = aggregate;
         }
-        std::cout << "Matrix" << std::endl;
+        //std::cout << "Matrix" << std::endl;
         /*
         for (unsigned int row = 0; row < mNumFeatsExp; row++)
         {

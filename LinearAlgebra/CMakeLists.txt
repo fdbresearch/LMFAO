@@ -17,8 +17,8 @@ set(CMAKE_CXX_FLAGS_BENCHMARK "${CMAKE_CXX_FLAGS_RELEASE} -DBENCH")
 # Set to Debug, Benchmark or Release.
 set(CMAKE_BUILD_TYPE Benchmark)
 set(LMFAO_RUN true)
-set(LMFAO_GPU true)
-#set(LMFAO_LIB true)
+set(LMFAO_GPU false)
+set(LMFAO_LIB true)
 #set(LMFAO_TEST true)
 
 if (LMFAO_GPU)
@@ -43,13 +43,7 @@ if (LMFAO_GPU)
   set(LMFAO_CUDA_LIBS cublas_svd ${CUDA_LINK_LIBRARIES})
 endif()
 
-#Builds static library which will be loaded in runtime.
-if (LMFAO_LIB)
-  add_library(lmfaolalib STATIC  ${SRCFILES} ${SRCCUFILES})
-  if (LMFAO_GPU)
-    target_link_libraries(lmfaolalib ${CUDA_LINK_LIBRARIES})
-  endif()
-endif()
+
 
 if (LMFAO_RUN)
   add_executable(lmfaola main.cpp ${SRCFILES})
@@ -64,7 +58,7 @@ endif()
 set(Boost_USE_STATIC_LIBS OFF)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME OFF)
-find_package(Boost REQUIRED COMPONENTS system iostreams program_options thread)
+find_package(Boost REQUIRED COMPONENTS system thread iostreams program_options)
 include_directories(${Boost_INCLUDE_DIRS})
 
 # Add libraries.
@@ -78,3 +72,19 @@ if (LMFAO_TEST)
   include_directories(${GTEST_INCLUDE_DIRS})
   target_link_libraries(lmfaola_test ${LMFAO_CUDA_LIBS} ${Boost_LIBRARIES} ${GTEST_LIBRARIES})
 endif()
+
+
+#Builds static library which will be loaded in runtime.
+if (LMFAO_LIB)
+  #add_library(lmfaolalib STATIC  ${SRCFILES} ${SRCCUFILES})
+  add_library(lmfaolalib STATIC ${SRCFILES} )
+  #target_link_libraries(lmfaolalib ${Boost_LIBRARIES})
+  if (LMFAO_GPU)
+    target_link_libraries(lmfaolalib ${CUDA_LINK_LIBRARIES})
+  endif()
+endif()
+
+#if (LMFAO_LIB)
+#  message(${Boost_LIBRARIES})
+#  target_link_libraries(lmfaolalib ${Boost_LIBRARIES})
+#endif()
