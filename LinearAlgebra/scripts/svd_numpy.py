@@ -1,29 +1,44 @@
+from argparse import ArgumentParser
+
 import numpy as np
 import pandas as pd
 from scipy import linalg
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 
 
 JOIN_RES_PATH = "/media/popina/test/dfdb/LMFAO/runtime/sql/joinresult.txt"
 
+
+class DummyEncoder(BaseEstimator, TransformerMixin):
+    def transform(self, X):
+        ohe = OneHotEncoder(handle_unknown='ignore')
+        return ohe.fit_transform(X)[:,1:]
+
+    def fit(self, X, y=None, **fit_params):
+        return self
+
+
 if __name__ == "__main__":
-    columns = ["inventoryunits", "rgn_cd", "clim_zn_nbr", "tot_area_sq_ft", "sell_area_sq_ft", "avghhi",
-           "supertargetdistance", "supertargetdrivetime", "targetdistance", "targetdrivetime", "walmartdistance",
-           "walmartdrivetime", "walmartsupercenterdistance", "walmartsupercenterdrivetime", "white", "asian",
-           "pacific", "black", "medianage", "houseunits", "families", "households", "husbwife", "males", "females",
-           "householdschildren", "hispanic", "category", "prize", "rain", "snow", "maxtemp", "mintemp", "meanwind",
-           "thunder"]
-    preprocessor = ColumnTransformer(
-        transformers=[
-            ('thunder_onehot', OneHotEncoder(handle_unknown='ignore'), ['thunder']),
-            ('snow_onehot', OneHotEncoder(handle_unknown='ignore'), ['snow']),
-            ('rain_onehot', OneHotEncoder(handle_unknown='ignore'), ['rain']),
-            ('category_onehot', OneHotEncoder(handle_unknown='ignore'), ['category'])],
-        remainder='passthrough')
-    #a = np.loadtxt(open(JOIN_RES_PATH, "r"), delimiter="|")
+    parser = ArgumentParser()
+    parser.add_argument("-f", "--features", dest="features", required=True)
+    parser.add_argument("-c", "--categorical_features", dest="categorical_features", required=True)
+
+    args = parser.parse_args()
+    features = args.features
+    cat_featurs = args.categorical_features
+    columns = features.split(",")
+
+    columns_cat = cat_featurs.split(",")
+
+    transformer_a = []
     data = pd.read_csv(JOIN_RES_PATH, names=columns, delimiter="|", header=None)
+    for column in columns_cat:
+        transf_name = column + "_onehot"
+        transformer_a.append((transf_name, DummyEncoder(), [column]))
+        preprocessor = ColumnTransformer(transformers=transformer_a, remainder='passthrough')
+
     one_hot_a = preprocessor.fit_transform(data)
-    one_hot_a = np.delete(one_hot_a, np.s_[0, 2, 4, 6], axis=1)
     u, s, vh = np.linalg.svd(one_hot_a, full_matrices=False)
     print(s)

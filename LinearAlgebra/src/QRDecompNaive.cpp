@@ -10,15 +10,16 @@ namespace LMFAO::LinearAlgebra
         unsigned int N = mNumFeatsExp;
         expandSigma(sigmaExpanded, true /*isNaive*/);
         mR[0] = sigmaExpanded[0];
-        // We skip k=0 since it contains necessary values
+        
+        // We skip k=0 since the ineer loops don't iterate over it. 
         for (unsigned int k = 1; k < N; k++)
         {
-            unsigned int idxR = N * k;
+            unsigned int idxRCol = N * k;
             for (unsigned int i = 0; i <= k - 1; i++)
             {
                 for (unsigned int l = 0; l <= i; l++)
                 {
-                    mR[idxR + i] += mC[N * l + i] * sigmaExpanded[N * l + k];
+                    mR[idxRCol + i] += mC[N * l + i] * sigmaExpanded[N * l + k];
                 }
             }
 
@@ -28,7 +29,7 @@ namespace LMFAO::LinearAlgebra
 
                 for (unsigned int i = j; i <= k - 1; i++)
                 {
-                    mC[rowIdx + k] -= mR[idxR + i] * mC[rowIdx + i] / mR[i * N + i];
+                    mC[rowIdx + k] -= mR[idxRCol + i] * mC[rowIdx + i] / mR[i * N + i];
                 }
             }
 
@@ -39,7 +40,7 @@ namespace LMFAO::LinearAlgebra
                 {
                     res += mC[p * N + k] * sigmaExpanded[l * N + p];
                 }
-                mR[idxR + k] += mC[l * N + k] * res;
+                mR[idxRCol + k] += mC[l * N + k] * res;
             }
         }
     }
