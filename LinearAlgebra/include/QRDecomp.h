@@ -61,12 +61,19 @@ namespace LMFAO::LinearAlgebra
         // Number of categorical features in sigma matrix.
         //
         unsigned int mNumFeatsCat;
+        // Controls whether linearly independent columns are allowed.
+        // When they are allowed this can lead to numerical instability. 
+        // Use it with caution!!!
+        //
+        const bool mIsLinDepAllowed = false;
+        static constexpr long double mcPrecisionError = 1e-12;
 
         void expandSigma(std::vector <long double> &sigmaExpanded, bool isNaive);
 
     public:
         virtual void decompose(void) = 0;
-        QRDecomposition(const std::string& path)
+        QRDecomposition(const std::string& path, const bool isLinDepAllowed=false) :
+        mIsLinDepAllowed(isLinDepAllowed)
         {
             readMatrix(path);
         }
@@ -83,7 +90,8 @@ namespace LMFAO::LinearAlgebra
     class QRDecompositionNaive: public QRDecomposition
     {
     public:
-        QRDecompositionNaive(const std::string &path) : QRDecomposition(path) {}
+        QRDecompositionNaive(const std::string &path, const bool isLinDepAllowed=false) : 
+            QRDecomposition(path, isLinDepAllowed) {}
         QRDecompositionNaive(const MapMatrixAggregate &mMatrix, unsigned int numFeatsExp,
                             unsigned int numFeats, unsigned int numFeatsCont,
                             const std::vector<bool>& vIsCat) :
@@ -102,7 +110,8 @@ namespace LMFAO::LinearAlgebra
     std::vector<std::vector<Pair>> mCofactorPerFeature;
 
     public:
-        QRDecompositionSingleThreaded(const std::string &path) : QRDecomposition(path) {}
+        QRDecompositionSingleThreaded(const std::string &path, const bool isLinDepAllowed=false) 
+        : QRDecomposition(path, isLinDepAllowed) {}
         QRDecompositionSingleThreaded(const MapMatrixAggregate &mMatrix, unsigned int numFeatsExp,
                             unsigned int numFeats, unsigned int numFeatsCont,
                             const std::vector<bool>& vIsCat) :
@@ -126,11 +135,12 @@ namespace LMFAO::LinearAlgebra
     boost::barrier mBarrier{mNumThreads};
     std::mutex mMutex;
     public:
-        QRDecompositionMultiThreaded(const std::string &path) : QRDecomposition(path) {}
+        QRDecompositionMultiThreaded(const std::string &path, const bool isLinDepAllowed=false) : 
+        QRDecomposition(path, isLinDepAllowed) {}
         QRDecompositionMultiThreaded(const MapMatrixAggregate &mMatrix, unsigned int numFeatsExp,
                             unsigned int numFeats, unsigned int numFeatsCont,
-                            const std::vector<bool>& vIsCat) :
-         QRDecomposition(mMatrix, numFeatsExp, numFeats, numFeatsCont, vIsCat) {}
+                            const std::vector<bool>& vIsCat) : 
+        QRDecomposition(mMatrix, numFeatsExp, numFeats, numFeatsCont, vIsCat) {}
 
         ~QRDecompositionMultiThreaded() {}
         virtual void decompose(void) override;

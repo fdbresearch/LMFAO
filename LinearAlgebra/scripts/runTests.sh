@@ -21,13 +21,14 @@ function get_features() {
     echo $file_name
     
     local regex_num="^([0-9]+)(, ?)?([0-9]+)(, ?)?([0-9]+)(, ?)?$"
-    local regex_features="^([a-z_]+):[0-9]+:[a-zA-Z_]+$"
-    local regex_cat_features="^([a-z_]+):([1-9][0-9]*):[a-zA-Z_]+$"
+    local regex_features="^([a-zA-Z_]+):[0-9]+:[a-zA-Z_]+$"
+    local regex_cat_features="^([a-zA-Z_]+):([1-9][0-9]*):[a-zA-Z_]+$"
     local features=()
     features_cat=()
     while IFS='' read -r line || [[ -n "$line" ]]; do
         if [[ $line =~ $regex_num ]]; then
             NUM_FEATURES=${BASH_REMATCH[1]}
+            echo ${line}
             DUMB_1=${BASH_REMATCH[3]}
             DUMB_2=${BASH_REMATCH[5]}
         fi
@@ -58,7 +59,7 @@ make -j8
 
 cd $DFDB_SH_LA_SCRIPT
 
-data_sets=(usretailer_35f_100)
+data_sets=(usretailer_36f_100)
 #usretailer_36f_1 usretailer_36f_10 usretailer_36f_100 usretailer_36f_1000 usretailer_36f)
 for data_set in ${data_sets[@]}; do
     echo data_set_name: "$data_set"; 
@@ -76,7 +77,7 @@ for data_set in ${data_sets[@]}; do
     echo 'LenCat: '${#DFDB_SH_FEATURES_CAT[@]}
 
     log_psql=${DFDB_SH_LOG_PATH}/psql/log"${data_set}".txt
-    (source generate_join.sh ${data_set} &> ${log_psql}) 
+    #(source generate_join.sh ${data_set} &> ${log_psql}) 
 
     log_lmfao=${DFDB_SH_LOG_PATH}/lmfao/log"${data_set}".txt
     log_r=${DFDB_SH_LOG_PATH}/r/log"${data_set}".txt
@@ -85,8 +86,10 @@ for data_set in ${data_sets[@]}; do
 
     (source testLmfaola.sh ${data_set} &> ${log_lmfao})
     #eval ${DFDB_TIME} Rscript "${DFDB_SH_LA_SCRIPT}/svd.R" &> ${log_r}
+    : '
     eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/svd_numpy.py" \
                       -f ${features_out} -c ${features_cat_out} &> ${log_numpy}
     eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/svd_scipy.py" \
                       -f ${features_out} -c ${features_cat_out} &> ${log_scipy}
+    '
 done

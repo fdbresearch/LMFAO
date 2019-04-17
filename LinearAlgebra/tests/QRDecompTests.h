@@ -298,3 +298,53 @@ TEST(QRMultiThreaded, 3Size2Cnt1Cat33Matrix)
     EXPECT_NEAR(R(3, 4), 0.7925939239, PRECISION_ERROR);
     EXPECT_NEAR(R(3, 5), -0.22645540682, PRECISION_ERROR);
 }
+
+
+TEST(QRNaive, 3SizeCntZeroMatrix)
+{
+    static const string FILE_INPUT = "tests/data/test6/test.in";
+    QRDecompositionNaive qrDecomp(FILE_INPUT, true /*isLinDepAllowed*/);
+    qrDecomp.decompose();
+    Eigen::MatrixXd R;
+    qrDecomp.getR(R);
+    EXPECT_NEAR(R(0, 0), 3.74165738677, PRECISION_ERROR);
+    EXPECT_NEAR(R(0, 1), 7.48331477355, PRECISION_ERROR);
+    EXPECT_NEAR(R(0, 2), 11.2249721603, PRECISION_ERROR);
+    EXPECT_NEAR(R(1, 0), 0, PRECISION_ERROR);
+    EXPECT_NEAR(R(1, 1), 0, PRECISION_ERROR);
+    EXPECT_NEAR(R(1, 2), 0, PRECISION_ERROR);
+    EXPECT_NEAR(R(2, 2), 0, PRECISION_ERROR);
+}
+
+TEST(QRSingleThreaded, 3SizeCntZeroMatrix)
+{
+    static const string FILE_INPUT = "tests/data/test6/test.in";
+    QRDecompositionSingleThreaded qrDecomp(FILE_INPUT, true /*isLinDepAllowed*/);
+    qrDecomp.decompose();
+    Eigen::MatrixXd R;
+    qrDecomp.getR(R);
+    EXPECT_NEAR(R(0, 0), 3.74165738677, PRECISION_ERROR);
+    EXPECT_NEAR(R(0, 1), 7.48331477355, PRECISION_ERROR);
+    EXPECT_NEAR(R(0, 2), 11.2249721603, PRECISION_ERROR);
+    EXPECT_NEAR(R(1, 0), 0, PRECISION_ERROR);
+    EXPECT_NEAR(R(1, 1), 0, PRECISION_ERROR);
+    EXPECT_NEAR(R(1, 2), 0, PRECISION_ERROR);
+    EXPECT_NEAR(R(2, 2), 0, PRECISION_ERROR);
+}
+
+
+TEST(QRMultiThreaded, 3SizeCntZeroMatrix)
+{
+    static const string FILE_INPUT = "tests/data/test6/test.in";
+    QRDecompositionMultiThreaded qrDecomp(FILE_INPUT, true /*isLinDepAllowed*/);
+    qrDecomp.decompose();
+    Eigen::MatrixXd R;
+    qrDecomp.getR(R);
+    EXPECT_NEAR(R(0, 0), 3.74165738677, PRECISION_ERROR);
+    EXPECT_NEAR(R(0, 1), 7.48331477355, PRECISION_ERROR);
+    EXPECT_NEAR(R(0, 2), 11.2249721603, PRECISION_ERROR);
+    EXPECT_NEAR(R(1, 0), 0, PRECISION_ERROR);
+    EXPECT_NEAR(R(1, 1), 0, PRECISION_ERROR);
+    EXPECT_NEAR(R(1, 2), 0, PRECISION_ERROR);
+    EXPECT_NEAR(R(2, 2), 0, PRECISION_ERROR);
+}

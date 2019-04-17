@@ -1,5 +1,6 @@
 #include <fstream>
 #include <iostream>
+#include <cmath>
 #include <thread>
 #include "QRDecomp.h"
 
@@ -102,7 +103,11 @@ namespace LMFAO::LinearAlgebra
                 // note that $i in \{ j, ..., k-1 \} -- i.e. mC is upper triangular
                 for (unsigned int i = j; i <= k - 1; i++)
                 {
-                    mC[rowIdx + k] -= mR[idxRCol + i] * mC[rowIdx + i] / mR[expIdx(i, i, N)];
+                    if (!mIsLinDepAllowed || fabs((mR[expIdx(i, i, N)]) >= mcPrecisionError))
+                    {
+                        mC[rowIdx + k] -= mR[idxRCol + i] * mC[rowIdx + i] / mR[expIdx(i, i, N)];
+                    }
+                    //mR[idxRCol + i] * mC[rowIdx + i] / mR[expIdx(i, i, N)];
                     // mC[j,k] -= R(i,k) * mC(j, i) / R(i,i);
                 }
             }
@@ -182,14 +187,18 @@ namespace LMFAO::LinearAlgebra
         {
             threadsCR[idx].join();
         }
-        std::cout << "Hej" << std::endl;
-        //calculateCR();
+        std::cout << "Threads joined" << std::endl;
 
         // Normalise R' to obtain R
         for (unsigned int row = 0; row < N; row++)
         {
             //std::cout << "Norm" << mR[row * N + row] << std::endl;
-            double norm = sqrt(mR[row * N + row]);
+            long double norm = 1;;
+            if (!mIsLinDepAllowed || (fabs(mR[row * N + row]) >= mcPrecisionError))
+            {
+                norm = sqrt(mR[row * N + row]);
+            }
+
             for (unsigned int col = row; col < N; col++)
             {
                 //std::cout << row << " " << col << mR[col * N + row] << std::endl;

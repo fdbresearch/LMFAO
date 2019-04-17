@@ -57,10 +57,10 @@ namespace LMFAO::LinearAlgebra
 
         mR[0] = sigmaExpanded[0];
 
-        // We skip k=0 since it contains the labels (dependent variable)
+        // We skip k=0 since the ineer loops don't iterate over it. 
         for (unsigned int k = 1; k < N; k++)
         {
-            unsigned int idxR = N * k;
+            unsigned int idxRCol = N * k;
 
             if (k < T)
             {
@@ -68,7 +68,7 @@ namespace LMFAO::LinearAlgebra
                 {
                     for (unsigned int l = 0; l <= i; l++)
                     {
-                        mR[idxR + i] += mC[expIdx(l, i, N)] * sigmaExpanded[expIdx(l, k, T)];
+                        mR[idxRCol + i] += mC[expIdx(l, i, N)] * sigmaExpanded[expIdx(l, k, T)];
                         // R(i,k) += mC(l, i) * Cofactor(l, k);
                     }
                 }
@@ -84,7 +84,7 @@ namespace LMFAO::LinearAlgebra
                         if (unlikely(l > i))
                             break;
 
-                        mR[idxR + i] += mC[expIdx(l, i, N)] * std::get<1>(tl);
+                        mR[idxRCol + i] += mC[expIdx(l, i, N)] * std::get<1>(tl);
                         // R(i,k) += mC(l, i) * Cofactor(l, k);
                     }
                 }
@@ -97,7 +97,10 @@ namespace LMFAO::LinearAlgebra
                 // note that $i in \{ j, ..., k-1 \} -- i.e. mC is upper triangular
                 for (unsigned int i = j; i <= k - 1; i++)
                 {
-                    mC[rowIdx + k] -= mR[idxR + i] * mC[rowIdx + i] / mR[expIdx(i, i, N)];
+                    if (!mIsLinDepAllowed || fabs((mR[expIdx(i, i, N)]) >= mcPrecisionError))
+                    {
+                        mC[rowIdx + k] -= mR[idxRCol + i] * mC[rowIdx + i] / mR[expIdx(i, i, N)];
+                    }
                     // mC[j,k] -= R(i,k) * mC(j, i) / R(i,i);
                 }
             }
@@ -138,7 +141,7 @@ namespace LMFAO::LinearAlgebra
 
             if (k > 0)
             {
-                mR[idxR + k] += D_k;
+                mR[idxRCol + k] += D_k;
             }
         }
     }
@@ -165,7 +168,11 @@ namespace LMFAO::LinearAlgebra
         for (unsigned int row = 0; row < N; row++)
         {
             //std::cout << "Norm" << mR[row * N + row] << std::endl;
-            double norm = sqrt(mR[row * N + row]);
+            long double norm = 1;;
+            if (!mIsLinDepAllowed || (fabs(mR[row * N + row]) >= mcPrecisionError))
+            {
+                norm = sqrt(mR[row * N + row]);
+            }
             for (unsigned int col = row; col < N; col++)
             {
                 //std::cout << row << " " << col << mR[col * N + row] << std::endl;

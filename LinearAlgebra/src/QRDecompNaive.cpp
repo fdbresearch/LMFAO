@@ -29,7 +29,10 @@ namespace LMFAO::LinearAlgebra
 
                 for (unsigned int i = j; i <= k - 1; i++)
                 {
-                    mC[rowIdx + k] -= mR[idxRCol + i] * mC[rowIdx + i] / mR[i * N + i];
+                    if (!mIsLinDepAllowed || (fabs(mR[i * N + i] >= mcPrecisionError)))
+                    {
+                        mC[rowIdx + k] -= mR[idxRCol + i] * mC[rowIdx + i] / mR[expIdx(i, i, N)];
+                    }
                 }
             }
 
@@ -42,6 +45,7 @@ namespace LMFAO::LinearAlgebra
                 }
                 mR[idxRCol + k] += mC[l * N + k] * res;
             }
+
         }
     }
 
@@ -60,11 +64,16 @@ namespace LMFAO::LinearAlgebra
         // Normalise R
         for (unsigned int row = 0; row < N; row++)
         {
-            //std::cout << "Norm" << mR[expIdx(row, row, N)] <<  std::endl;
-            double norm = sqrt(mR[expIdx(row, row, N)]);
+            //std::cout << "Norm: " << row << " " <<  mR[expIdx(row, row, N)] <<  std::endl;
+            long double norm = 1;;
+            if (!mIsLinDepAllowed || (fabs(mR[expIdx(row, row, N)]) >= mcPrecisionError))
+            {
+                norm = sqrt(mR[expIdx(row, row, N)]);;
+            }
+
             for (unsigned int col = row; col < N; col++)
             {
-                //std::cout << row << " " << col << mR[col * N + row] << std::endl;
+                //std::cout << row << " " << col << " " << mR[col * N + row] << std::endl;
                 mR[col * N + row] /= norm;
             }
         }
