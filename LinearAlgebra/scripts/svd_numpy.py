@@ -37,8 +37,8 @@ if __name__ == "__main__":
     for column in columns_cat:
         transf_name = column + "_onehot"
         transformer_a.append((transf_name, DummyEncoder(), [column]))
-        preprocessor = ColumnTransformer(transformers=transformer_a, remainder='passthrough')
 
+    preprocessor = ColumnTransformer(transformers=transformer_a, remainder='passthrough')
     one_hot_a = preprocessor.fit_transform(data)
     u, s, vh = np.linalg.svd(one_hot_a, full_matrices=False)
     print(s)

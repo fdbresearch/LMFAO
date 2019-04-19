@@ -12,6 +12,7 @@ DFDB_SH_RUNTIME_SQL="$DFDB_SH_RUNTIME/sql"
 DFDB_SH_RUNTIME_OUTPUT="$DFDB_SH_RUNTIME_CPP/output"
 DFDB_SH_LOG_PATH="${DFDB_SH_LA}/logs"
 DFDB_TIME="/usr/bin/time -f \"%e %P %I %O\""
+DFDB_SH_DB="usretailer"
 DFDB_SH_FEATURES=()
 DFDB_SH_FEATURES_CAT=()
 
@@ -59,7 +60,7 @@ make -j8
 
 cd $DFDB_SH_LA_SCRIPT
 
-data_sets=(usretailer_36f_100)
+data_sets=(usretailer_35f_1)
 #usretailer_36f_1 usretailer_36f_10 usretailer_36f_100 usretailer_36f_1000 usretailer_36f)
 for data_set in ${data_sets[@]}; do
     echo data_set_name: "$data_set"; 
@@ -77,16 +78,20 @@ for data_set in ${data_sets[@]}; do
     echo 'LenCat: '${#DFDB_SH_FEATURES_CAT[@]}
 
     log_psql=${DFDB_SH_LOG_PATH}/psql/log"${data_set}".txt
-    #(source generate_join.sh ${data_set} &> ${log_psql}) 
 
     log_lmfao=${DFDB_SH_LOG_PATH}/lmfao/log"${data_set}".txt
+    log_madlib=${DFDB_SH_LOG_PATH}/madlib/log"${data_set}".txt
     log_r=${DFDB_SH_LOG_PATH}/r/log"${data_set}".txt
     log_numpy=${DFDB_SH_LOG_PATH}/numpy/log"${data_set}".txt
     log_scipy=${DFDB_SH_LOG_PATH}/scipy/log"${data_set}".txt
 
-    (source testLmfaola.sh ${data_set} &> ${log_lmfao})
-    #eval ${DFDB_TIME} Rscript "${DFDB_SH_LA_SCRIPT}/svd.R" &> ${log_r}
+    (source svd_madlib.sh ${data_set} ${features_cat_out}  &> ${log_madlib})
     : '
+
+    (source generate_join.sh ${data_set}  &> ${log_psql}) 
+
+    #(source test_lmfaola.sh ${data_set} &> ${log_lmfao})
+    #eval ${DFDB_TIME} Rscript "${DFDB_SH_LA_SCRIPT}/svd.R" &> ${log_r}
     eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/svd_numpy.py" \
                       -f ${features_out} -c ${features_cat_out} &> ${log_numpy}
     eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/svd_scipy.py" \
