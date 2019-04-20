@@ -85,13 +85,14 @@ for data_set in ${data_sets[@]}; do
     log_numpy=${DFDB_SH_LOG_PATH}/numpy/log"${data_set}".txt
     log_scipy=${DFDB_SH_LOG_PATH}/scipy/log"${data_set}".txt
 
-    (source svd_madlib.sh ${data_set} ${features_cat_out}  &> ${log_madlib})
+    #(source svd_madlib.sh ${data_set} ${features_cat_out}  &> ${log_madlib})
+    eval ${DFDB_TIME} Rscript "${DFDB_SH_LA_SCRIPT}/svd.R ${#DFDB_SH_FEATURES[@]} \
+                ${#DFDB_SH_FEATURES_CAT[@]} ${DFDB_SH_FEATURES[@]} ${DFDB_SH_FEATURES_CAT[@]}" &> ${log_r}
     : '
 
     (source generate_join.sh ${data_set}  &> ${log_psql}) 
 
     #(source test_lmfaola.sh ${data_set} &> ${log_lmfao})
-    #eval ${DFDB_TIME} Rscript "${DFDB_SH_LA_SCRIPT}/svd.R" &> ${log_r}
     eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/svd_numpy.py" \
                       -f ${features_out} -c ${features_cat_out} &> ${log_numpy}
     eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/svd_scipy.py" \
