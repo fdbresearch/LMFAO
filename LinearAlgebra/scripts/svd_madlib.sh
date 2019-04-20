@@ -40,10 +40,10 @@ echo "${sql_madlib_one_hot_encode}" > join_one_hot_madlib.sql
 echo "${sql_madlib_join_oh_cols}" > sql_madlib_feats_list.sql
 echo "${sql_madlib_svd}" > svd_madlib.sql
 
-#psql -d ${DFDB_SH_DB} -f drop_madlib.sql
-#eval ${DFDB_TIME} psql -d ${DFDB_SH_DB} -f load_data.sql
+psql -d ${DFDB_SH_DB} -f drop_madlib.sql
+eval ${DFDB_TIME} psql -d ${DFDB_SH_DB} -f load_data.sql
 
-#eval ${DFDB_TIME} psql -d ${DFDB_SH_DB} -f join_madlib.sql
+eval ${DFDB_TIME} psql -d ${DFDB_SH_DB} -f join_madlib.sql
 eval ${DFDB_TIME} psql -d ${DFDB_SH_DB} -f join_one_hot_madlib.sql
 sql_output=$( psql -d ${DFDB_SH_DB} -f sql_madlib_feats_list.sql )
 
@@ -67,4 +67,4 @@ done
 echo "$sql_madlib_drop_col_u" > drop_madlib_cols.sql
 psql -d ${DFDB_SH_DB} -f drop_madlib_cols.sql
 eval ${DFDB_TIME} psql -d ${DFDB_SH_DB} -f svd_madlib.sql
-#psql -d ${DFDB_SH_DB} -f drop_madlib.sql
+psql -d ${DFDB_SH_DB} -f drop_madlib.sql

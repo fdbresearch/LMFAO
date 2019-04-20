@@ -2,8 +2,8 @@ from argparse import ArgumentParser
 
 import numpy as np
 import pandas as pd
-#from scipy import linalg
-from scipy.sparse import  linalg
+from scipy import linalg
+#from scipy.sparse import  linalg
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
@@ -40,6 +40,6 @@ if __name__ == "__main__":
 
     preprocessor = ColumnTransformer(transformers=transformer_a, remainder='passthrough')
     one_hot_a = preprocessor.fit_transform(data)
-    #u, s, vh = linalg.svd(one_hot_a, full_matrices=False)
-    u, s, vh = linalg.svds(one_hot_a, k=len(columns))
+    u, s, vh = linalg.svd(one_hot_a, full_matrices=False)
+    #u, s, vh = linalg.svds(one_hot_a, k=len(columns))
     print(s)

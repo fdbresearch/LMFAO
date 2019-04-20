@@ -15,9 +15,18 @@ DFDB_TIME="/usr/bin/time -f \"%e %P %I %O\""
 DFDB_SH_DB="usretailer"
 DFDB_SH_FEATURES=()
 DFDB_SH_FEATURES_CAT=()
+DFDB_SH_POSITIONAL=()
+DFDB_SH_JOIN=false
+DFDB_SH_LMFAO=false
+DFDB_SH_JOIN=false
+DFDB_SH_MADLIB=false
+DFDB_SH_R=false
+DFDB_SH_SCIPY=false
+DFDB_SH_NUMPY=false
 
 
-function get_features() {
+function get_features() 
+{
     local file_name=$1"/features.conf"
     echo $file_name
     
@@ -48,6 +57,43 @@ function get_features() {
     DFDB_SH_FEATURES_CAT=(${features_cat[@]})
 }
 
+function get_str_args()
+{
+    for option in "$@"
+    do
+    case $option in
+        -m|--madlib)
+        DFDB_SH_MADLIB=true
+        ;;
+        -d|--data_set)
+        DFDB_SH_MADLIB=true
+        ;;
+        -j|--join)
+        DFDB_SH_JOIN=true
+        ;;
+        -l|--lmfao)
+        DFDB_SH_LMFAO=true
+        echo 'to'
+        ;;
+         -s|--scipy)
+        DFDB_SH_JOIN=true
+        DFDB_SH_SCIPY=true;
+        ;; 
+        -n|--numpy)
+        DFDB_SH_JOIN=true
+        DFDB_SH_NUMPY=true;
+        ;;
+        -r)
+        DFDB_SH_JOIN=true
+        DFDB_SH_R=true;
+        ;;
+        *)    # unknown option
+        echo "Wrong argument" $option
+        ;;
+    esac
+    done
+}
+
 : '
 cd $DFDB_SH_LA
 echo $DFDB_SH_LA
@@ -63,9 +109,10 @@ cd $DFDB_SH_LA_SCRIPT
 data_sets=(usretailer_35f_1)
 #usretailer_36f_1 usretailer_36f_10 usretailer_36f_100 usretailer_36f_1000 usretailer_36f)
 for data_set in ${data_sets[@]}; do
-    echo data_set_name: "$data_set"; 
+    echo tests for data set: "$data_set" are starting; 
     data_path=$DFDB_SH_DATA"/"$data_set
     get_features $data_path
+    get_str_args "$@"
 
     features_out=$(printf "%s," ${DFDB_SH_FEATURES[@]})
     features_out=${features_out::-1}
@@ -79,23 +126,49 @@ for data_set in ${data_sets[@]}; do
 
     log_psql=${DFDB_SH_LOG_PATH}/psql/log"${data_set}".txt
 
-    log_lmfao=${DFDB_SH_LOG_PATH}/lmfao/log"${data_set}".txt
     log_madlib=${DFDB_SH_LOG_PATH}/madlib/log"${data_set}".txt
+    log_lmfao=${DFDB_SH_LOG_PATH}/lmfao/log"${data_set}".txt
     log_r=${DFDB_SH_LOG_PATH}/r/log"${data_set}".txt
     log_numpy=${DFDB_SH_LOG_PATH}/numpy/log"${data_set}".txt
     log_scipy=${DFDB_SH_LOG_PATH}/scipy/log"${data_set}".txt
 
-    #(source svd_madlib.sh ${data_set} ${features_cat_out}  &> ${log_madlib})
-    eval ${DFDB_TIME} Rscript "${DFDB_SH_LA_SCRIPT}/svd.R ${#DFDB_SH_FEATURES[@]} \
+    [[ $DFDB_SH_MADLIB  == true ]] && {
+        echo '*********Madlib test started**********'
+        (source svd_madlib.sh ${data_set} ${features_cat_out}  &> ${log_madlib})
+        echo '*********Madlib test finished**********'
+    }
+    
+    [[ $DFDB_SH_JOIN  == true ]] && {
+        echo '*********Join started**********'
+        (source generate_join.sh ${data_set}  &> ${log_psql}) 
+        echo '*********Join finished**********'
+    }
+    
+    [[ $DFDB_SH_LMFAO  == true ]] && {
+        echo '*********LMFAO test started**********'
+        (source test_lmfaola.sh ${data_set} &> ${log_lmfao})
+        echo '*********LMFAO test finished**********'
+    }
+
+    [[ $DFDB_SH_R  == true ]] && {
+        echo '*********R test started**********'
+        eval ${DFDB_TIME} Rscript "${DFDB_SH_LA_SCRIPT}/svd.R ${#DFDB_SH_FEATURES[@]} \
                 ${#DFDB_SH_FEATURES_CAT[@]} ${DFDB_SH_FEATURES[@]} ${DFDB_SH_FEATURES_CAT[@]}" &> ${log_r}
+        echo '*********R test finished**********'
+    }
+    [[ $DFDB_SH_NUMPY  == true ]] && {
+        echo '*********numpy test started**********'
+        eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/svd_numpy.py" \
+                          -f ${features_out} -c ${features_cat_out} &> ${log_numpy}
+        echo '*********numpy test finished**********'
+    }
+    [[ $DFDB_SH_SCIPY  == true ]] && {
+        echo '*********scipy test started**********'
+        eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/svd_scipy.py" \
+                          -f ${features_out} -c ${features_cat_out} &> ${log_scipy}
+        echo '*********scipy test finished**********'
+    }
     : '
-
-    (source generate_join.sh ${data_set}  &> ${log_psql}) 
-
-    #(source test_lmfaola.sh ${data_set} &> ${log_lmfao})
-    eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/svd_numpy.py" \
-                      -f ${features_out} -c ${features_cat_out} &> ${log_numpy}
-    eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/svd_scipy.py" \
-                      -f ${features_out} -c ${features_cat_out} &> ${log_scipy}
+    aafdfsd
     '
 done
