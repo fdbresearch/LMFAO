@@ -82,7 +82,7 @@ namespace LMFAO::LinearAlgebra
             {
                 for (unsigned int i = start; i <= k - 1; i += step)
                 {
-                    for (Pair tl : mCofactorPerFeature[k - T])
+                    for (const Pair tl : mCofactorPerFeature[k - T])
                     {
                         unsigned int l = std::get<0>(tl);
 
@@ -134,7 +134,7 @@ namespace LMFAO::LinearAlgebra
                 //for (Triple tl : mCofactorList)
                 for (unsigned int idx = threadId; idx < mCofactorList.size(); idx += step)
                 {
-                    const Triple& tl = mCofactorList[idx];
+                    const Triple tl = mCofactorList[idx];
                     unsigned int p = std::get<0>(tl);
                     unsigned int l = std::get<1>(tl);
 
@@ -198,6 +198,7 @@ namespace LMFAO::LinearAlgebra
             {
                 norm = sqrt(mR[row * N + row]);
             }
+            //std::cout << "Norm" << "Preval" << mR[row * N + row] << " " <<  norm << std::endl;
 
             for (unsigned int col = row; col < N; col++)
             {

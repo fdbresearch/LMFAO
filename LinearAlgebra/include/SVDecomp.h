@@ -16,6 +16,7 @@ namespace LMFAO::LinearAlgebra
     private:
         DecompType mDecompType;
         Eigen::MatrixXd mR;
+        Eigen::BDCSVD<Eigen::MatrixXd> svdR;
         const std::string mPath;
         const LMFAO::LinearAlgebra::MapMatrixAggregate* mpmapMatAgg = nullptr;
         unsigned int mNumFeatsExp;
@@ -38,6 +39,11 @@ namespace LMFAO::LinearAlgebra
                     mvIsCat = vIsCat;
                  }
         void decompose();
+
+        void getSingularValues(Eigen::VectorXd& vSingularValues);
+
     };
+
+
 }
 #endif

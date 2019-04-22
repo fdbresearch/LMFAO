@@ -53,7 +53,7 @@ namespace LMFAO::LinearAlgebra
         mNumFeatsCat = mNumFeats - mNumFeatsCont;
         mSigma = Eigen::MatrixXd::Zero(mNumFeatsExp, mNumFeatsExp);
 
-        for (auto& keyValue: matrixAggregate)
+        for (const auto& keyValue: matrixAggregate)
         {
             const auto& key = keyValue.first;
             const auto& value = keyValue.second;

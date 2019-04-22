@@ -13,6 +13,7 @@ DFDB_SH_RUNTIME_OUTPUT="$DFDB_SH_RUNTIME_CPP/output"
 DFDB_SH_LOG_PATH="${DFDB_SH_LA}/logs"
 DFDB_TIME="/usr/bin/time -f \"%e %P %I %O\""
 DFDB_SH_DB="usretailer"
+DFDB_SH_USERNAME="popina"
 DFDB_SH_FEATURES=()
 DFDB_SH_FEATURES_CAT=()
 DFDB_SH_POSITIONAL=()
@@ -73,7 +74,6 @@ function get_str_args()
         ;;
         -l|--lmfao)
         DFDB_SH_LMFAO=true
-        echo 'to'
         ;;
          -s|--scipy)
         DFDB_SH_JOIN=true
@@ -106,23 +106,27 @@ make -j8
 
 cd $DFDB_SH_LA_SCRIPT
 
-data_sets=(usretailer_35f_1)
+data_sets=(favorita)
 #usretailer_36f_1 usretailer_36f_10 usretailer_36f_100 usretailer_36f_1000 usretailer_36f)
 for data_set in ${data_sets[@]}; do
+    DFDB_SH_DB=${data_set}
     echo tests for data set: "$data_set" are starting; 
     data_path=$DFDB_SH_DATA"/"$data_set
     get_features $data_path
     get_str_args "$@"
 
+    dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME || \
+    createdb $DFDB_SH_DB -U $DFDB_SH_USERNAME
+
     features_out=$(printf "%s," ${DFDB_SH_FEATURES[@]})
     features_out=${features_out::-1}
     echo 'Features: ' ${features_out}
-    echo 'Len: '${#DFDB_SH_FEATURES[@]}
+    echo 'Number of categorical feats: '${#DFDB_SH_FEATURES[@]}
 
     features_cat_out=$(printf "%s," ${DFDB_SH_FEATURES_CAT[@]})
     features_cat_out=${features_cat_out::-1}
-    echo 'Features: ' ${features_cat_out}
-    echo 'LenCat: '${#DFDB_SH_FEATURES_CAT[@]}
+    echo 'Categorical features: ' ${features_cat_out}
+    echo 'Number of categorical feats: '${#DFDB_SH_FEATURES_CAT[@]}
 
     log_psql=${DFDB_SH_LOG_PATH}/psql/log"${data_set}".txt
 
@@ -169,6 +173,7 @@ for data_set in ${data_sets[@]}; do
         echo '*********scipy test finished**********'
     }
     : '
+    dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME
     aafdfsd
     '
 done
