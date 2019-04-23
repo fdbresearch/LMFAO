@@ -6,7 +6,7 @@ namespace LMFAO::LinearAlgebra
 {
     void QRDecompositionNaive::calculateCR(void)
     {
-        std::vector<long double> sigmaExpanded(mNumFeatsExp * mNumFeatsExp);
+        std::vector<double> sigmaExpanded(mNumFeatsExp * mNumFeatsExp);
         unsigned int N = mNumFeatsExp;
         expandSigma(sigmaExpanded, true /*isNaive*/);
         mR[0] = sigmaExpanded[0];
@@ -65,7 +65,7 @@ namespace LMFAO::LinearAlgebra
         for (unsigned int row = 0; row < N; row++)
         {
             //std::cout << "Norm: " << row << " " <<  mR[expIdx(row, row, N)] <<  std::endl;
-            long double norm = 1;;
+            double norm = 1;;
             if (!mIsLinDepAllowed || (fabs(mR[expIdx(row, row, N)]) >= mcPrecisionError))
             {
                 norm = sqrt(mR[expIdx(row, row, N)]);;

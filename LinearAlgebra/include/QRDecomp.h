@@ -8,7 +8,7 @@
 #include <boost/thread/barrier.hpp>
 
 namespace LMFAO::LinearAlgebra
-{
+{   
     template <typename T>
     T inline expIdx(T row, T col, T numCols)
     {
@@ -29,11 +29,11 @@ namespace LMFAO::LinearAlgebra
     void svdCuda(const Eigen::MatrixXd &a);
 
     typedef std::tuple<unsigned int, unsigned int,
-                           long double> Triple;
-    typedef std::tuple<unsigned int, long double> Pair;
+                           double> Triple;
+    typedef std::tuple<unsigned int, double> Pair;
 
     typedef std::map<std::pair<unsigned int, unsigned int>,
-                     long double> MapMatrixAggregate;
+                     double> MapMatrixAggregate;
     class QRDecomposition
     {
         void formMatrix(const MapMatrixAggregate &, unsigned int numFeatsExp,
@@ -43,8 +43,13 @@ namespace LMFAO::LinearAlgebra
         void rearrangeMatrix(const std::vector<bool> &vIsCat);
     protected :
         Eigen::MatrixXd mSigma;
-        std::vector <long double> mC;
-        std::vector <long double> mR;
+        // R is  stored column-wise to exploit cache locality. 
+        // C is stored row-wise I don't know why, but it works faster.
+        // They have to be double instead of long double because 
+        // code runs 40% faster.  
+        //
+        std::vector <double> mC;
+        std::vector <double> mR;
         std::vector <Triple> mCatVals;
         std::vector <Triple> mNaiveCatVals;
 
@@ -66,9 +71,9 @@ namespace LMFAO::LinearAlgebra
         // Use it with caution!!!
         //
         const bool mIsLinDepAllowed = false;
-        static constexpr long double mcPrecisionError = 1e-12;
+        static constexpr double mcPrecisionError = 1e-12;
 
-        void expandSigma(std::vector <long double> &sigmaExpanded, bool isNaive);
+        void expandSigma(std::vector <double> &sigmaExpanded, bool isNaive);
 
     public:
         virtual void decompose(void) = 0;

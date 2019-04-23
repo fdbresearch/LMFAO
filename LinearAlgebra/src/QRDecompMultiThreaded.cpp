@@ -55,24 +55,32 @@ namespace LMFAO::LinearAlgebra
         unsigned int N = mNumFeatsExp;
         unsigned int step = mNumThreads;
         unsigned int start = threadId;
-        std::vector<long double> sigmaExpanded(T * T);
+        std::vector<double> sigmaExpanded(T * T);
 
         expandSigma(sigmaExpanded, false /*isNaive*/);
 
         mR[0] = sigmaExpanded[0];
         std::cout << "TID " << threadId << std::endl;
+        auto begin_timer = std::chrono::high_resolution_clock::now();
+        auto end_timer = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed_time = end_timer - begin_timer;
+        double time_spent = elapsed_time.count();
 
         // We skip k=0 since the ineer loops don't iterate over it. 
         for (unsigned int k = 1; k < N; k++)
         {
             unsigned int idxRCol = N * k;
-
+            
+           
             if (k < T)
             {
                 for (unsigned int i = start; i <= k - 1; i += step)
                 {
                     for (unsigned int l = 0; l <= i; l++)
                     {
+                        // Cache coherence is better in this case because:
+                        // 1) mR column is cached between cores 
+                        // 2) mC row is cached 
                         mR[idxRCol + i] += mC[expIdx(l, i, N)] * sigmaExpanded[expIdx(l, k, T)];
                         // R(i,k) += mC(l, i) * Cofactor(l, k);
                     }
@@ -94,8 +102,9 @@ namespace LMFAO::LinearAlgebra
                     }
                 }
             }
-            mBarrier.wait();
 
+            mBarrier.wait();
+            begin_timer = std::chrono::high_resolution_clock::now();
             for (unsigned int j = start; j <= k - 1; j += step)
             {
                 unsigned int rowIdx = N * j;
@@ -111,13 +120,16 @@ namespace LMFAO::LinearAlgebra
                     // mC[j,k] -= R(i,k) * mC(j, i) / R(i,i);
                 }
             }
+            end_timer = std::chrono::high_resolution_clock::now();
+            elapsed_time = end_timer - begin_timer;
+            time_spent +=  elapsed_time.count();
             mBarrier.wait();
 
             // Sum of sigma submatrix for continuous values.
-            long double D_k = 0; // stores R'(k,k)
+            double D_k = 0; // stores R'(k,k)
             for (unsigned int l = start; l <= std::min(k, T - 1); l += step)
             {
-                long double res = 0;
+                double res = 0;
                 for (unsigned p = 0; p <= std::min(k, T - 1); p++)
                 {
                     res += mC[expIdx(p, k, N)] * sigmaExpanded[expIdx(l, p, T)];
@@ -138,7 +150,7 @@ namespace LMFAO::LinearAlgebra
                     unsigned int p = std::get<0>(tl);
                     unsigned int l = std::get<1>(tl);
 
-                    long double agg = std::get<2>(tl);
+                    double agg = std::get<2>(tl);
 
                     if (unlikely(p > k || l > k))
                         break;
@@ -157,6 +169,7 @@ namespace LMFAO::LinearAlgebra
                 mMutex.unlock();
             }
         }
+        std::cout << "Time spent: " << time_spent << std::endl;
     }
 
     void QRDecompositionMultiThreaded::decompose(void)
@@ -188,12 +201,12 @@ namespace LMFAO::LinearAlgebra
             threadsCR[idx].join();
         }
         std::cout << "Threads joined" << std::endl;
-
+        auto begin_timer = std::chrono::high_resolution_clock::now();
         // Normalise R' to obtain R
         for (unsigned int row = 0; row < N; row++)
         {
             //std::cout << "Norm" << mR[row * N + row] << std::endl;
-            long double norm = 1;;
+            double norm = 1;;
             if (!mIsLinDepAllowed || (fabs(mR[row * N + row]) >= mcPrecisionError))
             {
                 norm = sqrt(mR[row * N + row]);
@@ -206,5 +219,10 @@ namespace LMFAO::LinearAlgebra
                 mR[col * N + row] /= norm;
             }
         }
+        auto end_timer = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed_time = end_timer - begin_timer;
+        auto time_spent = elapsed_time.count();
+        std::cout << "Elapsed norm time is:" << time_spent << std::endl;
+
     }
 }

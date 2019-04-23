@@ -79,14 +79,23 @@ namespace LMFAO::LinearAlgebra
         auto begin_timer = std::chrono::high_resolution_clock::now();
         //Eigen::BDCSVD<Eigen::MatrixXd> svdR(mR, Eigen::ComputeFullU | Eigen::ComputeFullV);
         svdR.compute(mR, Eigen::ComputeFullU | Eigen::ComputeFullV);
+        //RedSVD::RedSVD<Eigen::MatrixXd> testSVD(mR);
+        /*
+        auto t = testSVD.singularValues();
+        for (unsigned int idx = 0; idx < t.rows(); idx ++)
+        {
+            std::cout << t(idx) << std::endl;
+        }
+        */
+        
         auto end_timer = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed_time = end_timer - begin_timer;
         time_spent = elapsed_time.count();
         std::cout << "Elapsed SVD time is:" << time_spent << std::endl;
 
-        /*
         std::cout << "Its singular values are:" << std::endl
              << svdR.singularValues() << std::endl;
+        /*
         std::cout << "Its left singular vectors are the columns of the thin U matrix:" << std::endl
              << svdR.matrixU() << std::endl;
         std::cout << "Its right singular vectors are the columns of the thin V matrix:" << std::endl

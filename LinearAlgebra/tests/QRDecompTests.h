@@ -6,7 +6,7 @@
 using namespace LMFAO::LinearAlgebra;
 using namespace std;
 
-constexpr long double QR_TEST_PRECISION_ERROR = 1e-10;
+constexpr double QR_TEST_PRECISION_ERROR = 1e-10;
 
 TEST(QRNaive, 2SizeCntMatrix) {
     static const string FILE_INPUT = "tests/data/test1/test.in";

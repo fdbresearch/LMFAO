@@ -9,7 +9,7 @@ namespace LMFAO::LinearAlgebra
         std::ifstream f(path);
         unsigned int row, col;
         bool isCategorical;
-        long double val;
+        double val;
         f >> mNumFeatsExp;
         f >> mNumFeats;
         f >> mNumFeatsCont;
@@ -45,6 +45,8 @@ namespace LMFAO::LinearAlgebra
                                      const std::vector<bool>& vIsCat)
     {
         unsigned int row, col;
+        // We exclued intercept column passed from LMFAO.
+        //
         mNumFeatsExp = numFeatsExp - 1;
         mNumFeats = numFeats - 1;
         mNumFeatsCont = numFeatsCont - 1;
@@ -105,7 +107,7 @@ namespace LMFAO::LinearAlgebra
         {
             unsigned int row = std::get<0>(triple);
             unsigned int col = std::get<1>(triple);
-            long double aggregate = std::get<2>(triple);
+            double aggregate = std::get<2>(triple);
             mSigma(row, col) = aggregate;
         }
         //std::cout << "Matrix" << std::endl;
@@ -121,7 +123,7 @@ namespace LMFAO::LinearAlgebra
         */
     }
 
-    void QRDecomposition::expandSigma(std::vector<long double> &sigmaExpanded, bool isNaive)
+    void QRDecomposition::expandSigma(std::vector<double> &sigmaExpanded, bool isNaive)
     {
         unsigned int numRows = isNaive ?  mNumFeatsExp : mNumFeatsCont;
         for (unsigned int row = 0; row < numRows; row ++)

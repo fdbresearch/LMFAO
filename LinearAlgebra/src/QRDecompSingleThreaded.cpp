@@ -51,7 +51,7 @@ namespace LMFAO::LinearAlgebra
         // R(0,0) = Cofactor[1,1] (Note that the first row and column contain the label's aggregates)
         unsigned int T = mNumFeatsCont;
         unsigned int N = mNumFeatsExp;
-        std::vector<long double> sigmaExpanded(T * T);
+        std::vector<double> sigmaExpanded(T * T);
 
         expandSigma(sigmaExpanded, false /*isNaive*/);
 
@@ -105,10 +105,10 @@ namespace LMFAO::LinearAlgebra
                 }
             }
             // Sum of sigma submatrix for continuous values.
-            long double D_k = 0; // stores R'(k,k)
+            double D_k = 0; // stores R'(k,k)
             for (unsigned int l = 0; l <= std::min(k, T - 1); l++)
             {
-                long double res = 0;
+                double res = 0;
                 for (unsigned p = 0; p <= std::min(k, T - 1); p++)
                 {
                     res += mC[expIdx(p, k, N)] * sigmaExpanded[expIdx(l, p, T)];
@@ -127,7 +127,7 @@ namespace LMFAO::LinearAlgebra
                     unsigned int p = std::get<0>(tl);
                     unsigned int l = std::get<1>(tl);
 
-                    long double agg = std::get<2>(tl);
+                    double agg = std::get<2>(tl);
 
                     if (unlikely(p > k || l > k))
                         break;
@@ -168,7 +168,7 @@ namespace LMFAO::LinearAlgebra
         for (unsigned int row = 0; row < N; row++)
         {
             //std::cout << "Norm" << mR[row * N + row] << std::endl;
-            long double norm = 1;;
+            double norm = 1;;
             if (!mIsLinDepAllowed || (fabs(mR[row * N + row]) >= mcPrecisionError))
             {
                 norm = sqrt(mR[row * N + row]);
