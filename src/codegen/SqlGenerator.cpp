@@ -551,7 +551,7 @@ void SqlGenerator::generateAggregateQueries()
 
 void SqlGenerator::generateLoadQuery()
 {
-    string load = "", drop = "";
+    string load = "", drop = "DROP TABLE IF EXISTS joinres;\n";
     
     for (size_t relID = 0; relID < _td->numberOfRelations(); ++relID)
     {
