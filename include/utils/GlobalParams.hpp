@@ -33,7 +33,7 @@ namespace multifaq
 /* Runtime variable: can be used across different compilation units; must be
  * defined in a source file. */
 #else
-        const size_t NUM_OF_VARIABLES = 50;
+        const size_t NUM_OF_VARIABLES = 100;
 #endif
 
 /* Compile time constant: can be used directly to enable loop unrolling and
@@ -56,7 +56,14 @@ namespace multifaq
 #else
         const size_t NUM_OF_TABLES = 10;
 #endif
+        
+        extern std::string FEATURE_CONF;
+        
+        extern std::string TREEDECOMP_CONF;
+        
+        extern std::string PATH_TO_DATA;
 
+        extern std::string DATASET_NAME;
     }
 }
 

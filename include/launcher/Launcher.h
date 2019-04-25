@@ -12,16 +12,18 @@
 
 #include <Application.hpp>
 #include <CodeGenerator.hpp>
+#include <GlobalParams.hpp>
 #include <Logging.hpp>
 #include <QueryCompiler.h>
 #include <TreeDecomposition.h>
 
-enum Model 
-{
-    LinearRegressionModel,
-    RegressionTreeModel,
-    CovarianceMatrixModel
-};
+// enum Model 
+// {
+//     LinearRegressionModel,
+//     RegressionTreeModel,
+//     CovarianceMatrixModel
+// };
+
 
 /**
  * Class that takes care of assembling the different components of the database
@@ -43,12 +45,10 @@ public:
      * Launches the database operations.
      */
     int launch(const std::string& model, const std::string& codeGenerator,
-               const std::string& parallel);
-
-    // /**
-    //  * Returns a pointer to the DataHandler module.
-    //  */
-    // std::shared_ptr<DataHandler> getDataHandler();
+               const std::string& parallel, const std::string& featureFile,
+               const std::string& tdFile, const std::string& outDirectory,
+               const bool mo, const bool resort, const bool microbench,
+               const bool compress, const int k);
 
     /**
      * Returns a pointer to the tree decomposition.
@@ -63,17 +63,19 @@ public:
     /**
      * Returns a model identifier.
      */
-    Model getModel();
+    // Model getModel();
 
     /**
      * Returns a pointer to the Query Compiler.
      */
     std::shared_ptr<QueryCompiler> getCompiler();
-    
-private:
 
-    // //! DataHandler module of the database.
-    // std::shared_ptr<DataHandler> _dataHandler;
+    /**
+     * Returns a pointer to the Code Generator.
+     */
+    std::shared_ptr<CodeGenerator> getCodeGenerator();
+
+private:
 
     //! Query Compiler that turns queries into views. 
     std::shared_ptr<QueryCompiler> _compiler;
@@ -90,7 +92,10 @@ private:
     //! Path to the files used by the database.
     std::string _pathToFiles;
 
-    Model _model;
+    //! Path to the files used by the database.
+    std::string _outputDirectory;
+
+    // Model _model;
 
 };
 

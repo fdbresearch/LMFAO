@@ -14,8 +14,6 @@
 #include <Launcher.h>
 #include <LinearRegression.h>
 
-static const std::string FEATURE_CONF = "/features.conf";
-
 static const char COMMENT_CHAR = '#';
 static const char NUMBER_SEPARATOR_CHAR = ',';
 // static const char PARAMETER_SEPARATOR_CHAR = ' ';
@@ -48,6 +46,9 @@ void LinearRegression::run()
     modelToQueries();
     _compiler->compile();
 }
+
+void LinearRegression::generateCode(const std::string& outputString)
+{}
 
 // var_bitset LinearRegression::getFeatures()
 // {

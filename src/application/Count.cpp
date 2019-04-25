@@ -31,6 +31,8 @@ void Count::run()
     _compiler->compile();
 }
 
+void Count::generateCode(const std::string& outputString)
+{}
 
 void Count::modelToQueries()
 {

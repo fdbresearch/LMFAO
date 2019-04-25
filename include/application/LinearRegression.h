@@ -36,7 +36,9 @@ public:
     void run();
     
     var_bitset getCategoricalFeatures();
-    
+
+    void generateCode(const std::string& ouputDirectory);
+
 private:
     
     //! Physical path to the schema and table files.
@@ -59,7 +61,6 @@ private:
     void loadFeatures();
 
     Query** parameterQueries;
-    void generateCode();
     std::string generateParameters();
     std::string generateGradients();
     std::string generateConvergenceLoop();

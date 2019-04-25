@@ -12,6 +12,7 @@
 #include <QRDecompositionApplication.h>
 #include <CppGenerator.h>
 #include <DataCube.h>
+#include <KMeans.h>
 #include <Launcher.h>
 #include <LinearRegression.h>
 #include <MutualInformation.h>
@@ -22,14 +23,19 @@
 #include <bitset>
 #include <fstream>
 
-static const std::string TREEDECOMP_CONF = "/treedecomposition.conf";
+// static const std::string TREEDECOMP_CONF = "/treedecomposition.conf";
+std::string multifaq::params::FEATURE_CONF = "/";
+std::string multifaq::params::TREEDECOMP_CONF = "/";
 
 using namespace multifaq::params;
 using namespace std;
 using namespace std::chrono;
 
-Launcher::Launcher(const string& pathToFiles) : _pathToFiles(pathToFiles)
+Launcher::Launcher(const string& pathToFiles) :
+    _pathToFiles(pathToFiles)
 {
+    if (_pathToFiles.back() == '/')
+        _pathToFiles.pop_back();
 }
 
 Launcher::~Launcher()
@@ -51,36 +57,51 @@ shared_ptr<Application> Launcher::getApplication()
     return _application;
 }
 
-Model Launcher::getModel()
+shared_ptr<CodeGenerator> Launcher::getCodeGenerator()
 {
-    return _model;
+    return _codeGenerator;
 }
+// Model Launcher::getModel()
+// {
+//     return _model;
+// }
 
 int Launcher::launch(const string& model, const string& codeGenerator,
-                     const string& parallel)
-{   
+                     const string& parallel, const string& featureFile,
+                     const string& tdFile, const string& outDirectory,
+                     const bool multioutput_flag, const bool resort_flag,
+                     const bool microbench_flag, const bool compression_flag,
+                     const int k
+    )
+{
+    /* Define the Feature Conf File */
+    FEATURE_CONF += featureFile;
+
+    /* Define the TreeDecomposition Conf File */
+    TREEDECOMP_CONF += tdFile;
+
     /* Build tree decompostion. */
     _treeDecomposition.reset(new TreeDecomposition(_pathToFiles + TREEDECOMP_CONF));
 
-    DINFO("Built the TD. \n");
+    DINFO("INFO: Built the TreeDecomposition.\n");
     
     int64_t start = duration_cast<milliseconds>(
         system_clock::now().time_since_epoch()).count();
 
     _compiler.reset(new QueryCompiler(_treeDecomposition));
+    
 
     bool hasApplicationHandler = false;
     bool hasDynamicFunctions = false;
     
     if (model.compare("reg") == 0)
     {
-        _model = LinearRegressionModel;
         _application.reset(
             new LinearRegression(_pathToFiles, shared_from_this()));
+        hasApplicationHandler = true;
     }
     else if (model.compare("rtree") == 0)
     {
-        _model = RegressionTreeModel;
         _application.reset(
             new RegressionTree(_pathToFiles, shared_from_this(), false));
         hasApplicationHandler = true;
@@ -88,7 +109,6 @@ int Launcher::launch(const string& model, const string& codeGenerator,
     }
     else if (model.compare("ctree") == 0)
     {
-        _model = RegressionTreeModel;
         _application.reset(
             new RegressionTree(_pathToFiles, shared_from_this(), true));
         hasApplicationHandler = true;
@@ -96,7 +116,6 @@ int Launcher::launch(const string& model, const string& codeGenerator,
     }
     else if (model.compare("covar") == 0)
     {
-        _model = CovarianceMatrixModel;
         _application.reset(
             new CovarianceMatrix(_pathToFiles, shared_from_this()));
         hasApplicationHandler = true;
@@ -110,27 +129,29 @@ int Launcher::launch(const string& model, const string& codeGenerator,
     }
     else if (model.compare("count") == 0)
     {
-        // _model = CountModel;
         _application.reset(
             new Count(_pathToFiles, shared_from_this()));
     }
     else if (model.compare("cube") == 0)
     {
-        // _model = CountModel;
         _application.reset(
             new DataCube(_pathToFiles, shared_from_this()));
     }
     else if (model.compare("mi") == 0)
     {
-        // _model = CountModel;
         _application.reset(
             new MutualInformation(_pathToFiles, shared_from_this()));
     }
     else if (model.compare("perc") == 0)
     {
-        // _model = CountModel;
         _application.reset(
             new Percentile(_pathToFiles, shared_from_this()));
+        hasApplicationHandler = true;
+    }
+    else if (model.compare("kmeans") == 0)
+    {
+        _application.reset(
+            new KMeans(_pathToFiles, shared_from_this(), k));
         hasApplicationHandler = true;
     }
     else
@@ -138,6 +159,7 @@ int Launcher::launch(const string& model, const string& codeGenerator,
         ERROR("The model "+model+" is not supported. \n");
         exit(1);
     }
+    
     _application->run();
 
     ParallelizationType parallelization_type = NO_PARALLELIZATION;
@@ -153,10 +175,13 @@ int Launcher::launch(const string& model, const string& codeGenerator,
     
     if (codeGenerator.compare("cpp") == 0)
         _codeGenerator.reset(
-            new CppGenerator(_pathToFiles, shared_from_this()));
+            new CppGenerator(
+                _pathToFiles, outDirectory, multioutput_flag,resort_flag,
+                microbench_flag, compression_flag,shared_from_this())
+            );
     else if (codeGenerator.compare("sql") == 0)
         _codeGenerator.reset(
-            new SqlGenerator(_pathToFiles, shared_from_this()));
+            new SqlGenerator(_pathToFiles, outDirectory, shared_from_this()));
     else
     {
         ERROR("The code generator "+codeGenerator+" is not supported. \n");
@@ -165,6 +190,10 @@ int Launcher::launch(const string& model, const string& codeGenerator,
     
     _codeGenerator->generateCode(
         parallelization_type, hasApplicationHandler, hasDynamicFunctions);
+
+    if (hasApplicationHandler)
+        _application->generateCode(outDirectory);
+
     
     int64_t processingTime = duration_cast<milliseconds>(
         system_clock::now().time_since_epoch()).count() - start;

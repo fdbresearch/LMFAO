@@ -35,8 +35,6 @@ public:
 
     void run();
     
-//     var_bitset getCategoricalFeatures();
-    
 protected:
     
     //! Physical path to the schema and table files.
@@ -63,7 +61,7 @@ protected:
     virtual std::string getCodeOfFunDefinitions();
     virtual std::string getCodeOfRunAppFun();
     
-    void generateCode();
+    void generateCode(const std::string& outputDirectory);
 
     // std::string offset(size_t off);
     // std::string typeToStr(Type t);

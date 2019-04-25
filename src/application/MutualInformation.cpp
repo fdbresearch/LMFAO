@@ -15,8 +15,6 @@
 #include <Launcher.h>
 #include <MutualInformation.h>
 
-static const std::string FEATURE_CONF = "/features.conf";
-
 static const char COMMENT_CHAR = '#';
 static const char NUMBER_SEPARATOR_CHAR = ',';
 static const char ATTRIBUTE_NAME_CHAR = ':';
@@ -47,9 +45,22 @@ void MutualInformation::run()
     _compiler->compile();
 }
 
+void MutualInformation::generateCode(const std::string& outputString)
+{}
+
 
 void MutualInformation::modelToQueries()
-{    
+{
+    Aggregate* countAgg = new Aggregate();
+    countAgg->_agg.push_back(prod_bitset());
+
+    Query* countQuery = new Query();
+    countQuery->_aggregates.push_back(countAgg);
+    countQuery->_rootID = _td->_root->_id;
+
+    _compiler->addQuery(countQuery);
+
+                 
     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var) 
     {
         if (_isCategoricalFeature[var])
@@ -68,10 +79,10 @@ void MutualInformation::modelToQueries()
                     query->_aggregates.push_back(agg);
                     _compiler->addQuery(query);
 
-                    if (_queryRootIndex[var] <= _queryRootIndex[var2])
-                        query->_rootID = _queryRootIndex[var];
-                    else
-                        query->_rootID = _queryRootIndex[var2];                        
+                    // if (_queryRootIndex[var] <= _queryRootIndex[var2])
+                    //     query->_rootID = _queryRootIndex[var];
+                    // else
+                    query->_rootID = _queryRootIndex[var2];                        
                 }
             }
 

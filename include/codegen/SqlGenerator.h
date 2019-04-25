@@ -21,13 +21,11 @@ class SqlGenerator: public CodeGenerator
 {
 public:
 
-    SqlGenerator(const std::string path,
+    SqlGenerator(const std::string path, const std::string outputDirectory,
                  std::shared_ptr<Launcher> launcher);
     
     ~SqlGenerator();
 
-    // void generateCode();
-    // void generateCode(const ParallelizationType parallel);
     void generateCode(const ParallelizationType parallelization_type,
                       bool hasApplicationHandler,
                       bool hasDynamicFunctions);
@@ -41,6 +39,8 @@ public:
 private:
 
     std::string _pathToData;
+
+    std::string _outputDirectory;
     
     std::shared_ptr<TreeDecomposition> _td;
 
@@ -52,6 +52,7 @@ private:
     var_bitset _features;
 
     void loadFeatures();
+    // Model _model;
     
     void generateLoadQuery();
 
@@ -66,9 +67,7 @@ private:
     void generateLmfaoQuery();
 
     void generateOutputQueries();
-
-    // void generateNaiveQueries();
-
+    
     void generateAggregateQueries();
     
     inline std::string getFunctionString(size_t fid);

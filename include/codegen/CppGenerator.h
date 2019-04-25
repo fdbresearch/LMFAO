@@ -20,7 +20,7 @@
 
 // #define PREVIOUS
 
-const size_t LOOPIFY_THRESHOLD = 5;
+const size_t LOOPIFY_THRESHOLD = 2;
 
 namespace std
 {
@@ -120,7 +120,7 @@ struct AggRegTuple
     bool postLoopAgg = false;
     bool preLoopAgg = false;
 
-    size_t prevDepth = 100;
+    size_t prevDepth = multifaq::params::NUM_OF_VARIABLES;
 
     bool newViewProduct = false;
     bool singleViewAgg = false;
@@ -150,8 +150,8 @@ struct AggRegTuple_hash
     size_t operator()(const AggRegTuple &key ) const
     {
         size_t h = 0;
-        h ^= std::hash<int>()(key.previous.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
-        h ^= std::hash<int>()(key.previous.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<size_t>()(key.previous.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<size_t>()(key.previous.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
         h ^= std::hash<bool>()(key.product.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
         h ^= std::hash<size_t>()(key.product.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
         h ^= std::hash<bool>()(key.view.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
@@ -183,10 +183,10 @@ struct PostAggRegTuple_hash
     size_t operator()(const PostAggRegTuple &key ) const
     {
         size_t h = 0;
-        h ^= std::hash<int>()(key.local.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
-        h ^= std::hash<int>()(key.local.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
-        h ^= std::hash<int>()(key.post.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
-        h ^= std::hash<int>()(key.post.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<size_t>()(key.local.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<size_t>()(key.local.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<size_t>()(key.post.first)+ 0x9e3779b9 + (h<<6) + (h>>2);
+        h ^= std::hash<size_t>()(key.post.second)+ 0x9e3779b9 + (h<<6) + (h>>2);
         return h;
     }
 };
@@ -284,34 +284,6 @@ struct AggregateIndexes
         }
         return true;
     }
-
-    // bool setIncrement(const AggregateIndexes& bench,
-    //                  const size_t& offset,
-    //                  std::bitset<5>& increasing)
-    // {
-    //     increasing.reset();
-                        
-    //     if (other.present == bench.present)
-    //         return false;
-            
-    //     for (size_t i = 0; i < 7; i++)
-    //     {
-    //         if (other.present[i])
-    //         {
-    //             if (indexes[i] == bench.indexes[i] + 1)
-    //             {
-    //                 increasing.set(i);
-    //             }
-    //             else if (indexes[i] != bench.indexes[i])
-    //             {
-    //                 return false;
-    //             }
-    //         }
-    //     }
-
-    //     return true;
-    // }
-    
 };
 
 
@@ -319,22 +291,30 @@ class CppGenerator: public CodeGenerator
 {
 public:
 
-    CppGenerator(const std::string path,
+    CppGenerator(const std::string path, const std::string outputDirectory,
+                 const bool multioutput_flag, const bool resort_flag,
+                 const bool microbench_flag, const bool compression_flag,
                  std::shared_ptr<Launcher> launcher);
 
     ~CppGenerator();
 
     void generateCode(const ParallelizationType parallelization_type,
-                      bool hasApplicationHandler,
-                      bool hasDynamicFunctions);
+                      bool hasApplicationHandler, bool hasDynamicFunctions);
 
     size_t numberOfGroups()
     {
         return viewGroups.size();
     };
+
+    const std::vector<size_t>& getGroup(size_t group_id)
+    {
+        return viewGroups[group_id];
+    }
     
 private:
     std::string _pathToData;
+
+    std::string _outputDirectory;
 
     std::string _datasetName;
 
@@ -539,10 +519,17 @@ private:
     
     std::string genGroupLeapfrogJoinCode(size_t group_id, const TDNode& node,
                                          size_t depth);
-    
+
+    std::string genGroupGenericJoinCode(size_t group_id, const TDNode& node,
+                                        size_t depth);
+
     // One Generic Case for Seek Value 
     std::string seekValueCase(size_t depth, const std::string& rel_name,
                               const std::string& attr_name, bool parallel);
+
+    // One Generic Case for Seek Value 
+    std::string seekValueGenericJoin(size_t depth, const std::string& rel_name,
+                                     const std::string& attr_name, bool parallel, bool first);
     
     std::string updateMaxCase(size_t depth, const std::string& rel_name,
                               const std::string& attr_name, bool parallelize);

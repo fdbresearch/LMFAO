@@ -34,6 +34,9 @@ public:
     ~DataCube();
 
     void run();
+
+    void generateCode(const std::string& outputString);
+
     
 private:
     

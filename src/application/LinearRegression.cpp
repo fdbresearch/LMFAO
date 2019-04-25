@@ -14,9 +14,6 @@
 #include <Launcher.h>
 #include <LinearRegression.h>
 
-// #define DEGREE_TWO
-static const std::string FEATURE_CONF = "/features.conf";
-
 static const char COMMENT_CHAR = '#';
 static const char NUMBER_SEPARATOR_CHAR = ',';
 static const char ATTRIBUTE_NAME_CHAR = ':';
@@ -61,7 +58,6 @@ void LinearRegression::run()
     loadFeatures();
     modelToQueries();
     _compiler->compile();
-    generateCode();
 }
 
 void LinearRegression::modelToQueries()
@@ -1364,7 +1360,7 @@ std::string LinearRegression::typeToStr(Type t)
 }
 
 
-void LinearRegression::generateCode()
+void LinearRegression::generateCode(const std::string& outputDirectory)
 {
     // This is necessary here, because it constructs the firstEntry array used below
     std::string parameterGeneration = generateParameters();
@@ -1406,7 +1402,7 @@ void LinearRegression::generateCode()
         offset(2)+"evaluateModel();\n"+
         offset(1)+"}\n";
     
-    std::ofstream ofs("runtime/cpp/ApplicationHandler.h", std::ofstream::out);
+    std::ofstream ofs(outputDirectory+"ApplicationHandler.h", std::ofstream::out);
     ofs << "#ifndef INCLUDE_APPLICATIONHANDLER_HPP_\n"<<
         "#define INCLUDE_APPLICATIONHANDLER_HPP_\n\n"<<
         "#include \"DataHandler.h\"\n\n"<<
@@ -1415,7 +1411,7 @@ void LinearRegression::generateCode()
         "}\n\n#endif /* INCLUDE_APPLICATIONHANDLER_HPP_*/\n";    
     ofs.close();
 
-    ofs.open("runtime/cpp/ApplicationHandler.cpp", std::ofstream::out);
+    ofs.open(outputDirectory+"ApplicationHandler.cpp", std::ofstream::out);
     ofs << "#include \"ApplicationHandler.h\"\n"
         << "#include <boost/spirit/include/qi.hpp>\n"
         << "#include <boost/spirit/include/phoenix_operator.hpp>\n"

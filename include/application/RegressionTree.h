@@ -47,6 +47,9 @@ public:
     ~RegressionTree();
 
     void run();
+
+    void generateCode(const std::string& outputDirectory);
+
     
 private:
 
@@ -95,14 +98,12 @@ private:
 
     void classificationTreeQueries();
     
-    void genDynamicFunctions();
+    void genDynamicFunctions(const std::string& outDirectory);
 
     std::string genVarianceComputation();
 
     std::string genGiniComputation();
-
-    void generateCode();
-
+    
     void initializeThresholds();
 
     std::string dynamicFunctionsGenerator();

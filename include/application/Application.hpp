@@ -12,7 +12,6 @@
 
 #include <memory>
 
-// #include <DataHandler.hpp>
 #include <CompilerUtils.hpp>
 #include <GlobalParams.hpp>
 #include <Logging.hpp>
@@ -48,11 +47,12 @@ public:
     {
         return _features;
     }
+
+    virtual void generateCode(const std::string& outputDirectory) = 0;
     
 protected:
 
     var_bitset _features;
-
     var_bitset _isFeature;
     var_bitset _isCategoricalFeature;
 

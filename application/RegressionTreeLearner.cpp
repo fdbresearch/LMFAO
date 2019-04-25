@@ -28,11 +28,14 @@ void loadSplit(RegTreeNode* node, double& leftCount, double& rightCount)
     getline(input, line);
 
     int varID;
-    double threshold;
+    double threshold, cost;
     bool categorical;
 
     std::stringstream ss(line);
 
+    getline(ss, attr, '\t');
+    cost = std::stod(attr);
+    
     getline(ss, attr, '\t');
     varID = std::stoi(attr);
 
@@ -49,10 +52,10 @@ void loadSplit(RegTreeNode* node, double& leftCount, double& rightCount)
     rightCount = std::stod(attr);
 
     getline(ss, attr, '\t');
-    leftCount = std::stod(attr);
+    leftValue = std::stod(attr);
     
     getline(ss, attr, '\t');
-    rightCount = std::stod(attr);
+    rightValue = std::stod(attr);
     
     Condition* cond = new Condition();
     node->condition.variable = varID;
@@ -77,8 +80,8 @@ void splitNode(RegTreeNode* node, std::vector<Condition> conditions, size_t dept
     system("./lmfao");
 
     // Load the new split proposed by LMFAO and the corresponding stats
-    double leftCount, rightCount;
-    loadSplit(node, leftCount, rightCount);
+    double leftCount, rightCount, leftValue, rightValue;
+    loadSplit(node, leftCount, rightCount, leftValue, rightValue);
 
     // Check if you continue Splitting left
     if (depth == max_depth)
@@ -97,7 +100,6 @@ void splitNode(RegTreeNode* node, std::vector<Condition> conditions, size_t dept
         splitNode(leftNode, left, depth+1);
     }
 
-
     // Push it to the queue -- if it should be split further
     if (rightCount > min_size)
     {
@@ -105,7 +107,7 @@ void splitNode(RegTreeNode* node, std::vector<Condition> conditions, size_t dept
         std::vector<Condition> right = conditions; 
 
         Condition rightCondition = node->condition; 
-        if (rightCondition.op.compare("=") == 0)
+        if (rightCondition.op.compare("==") == 0)
             rightCondition.op = "!=";
         if (rightCondition.op.compare("<=") == 0)
             rightCondition.op = ">";

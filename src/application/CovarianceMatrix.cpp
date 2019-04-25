@@ -14,9 +14,6 @@
 #include <Launcher.h>
 #include <CovarianceMatrix.h>
 
-// #define DEGREE_TWO
-static const std::string FEATURE_CONF = "/features.conf";
-
 static const char COMMENT_CHAR = '#';
 static const char NUMBER_SEPARATOR_CHAR = ',';
 static const char ATTRIBUTE_NAME_CHAR = ':';
@@ -44,7 +41,6 @@ void CovarianceMatrix::run()
     loadFeatures();
     modelToQueries();
     _compiler->compile();
-    generateCode();
 }
 
 void CovarianceMatrix::modelToQueries()
@@ -182,10 +178,6 @@ void CovarianceMatrix::modelToQueries()
                 // else if (_categoricalFeatures[var2])
                 // {
                 //     quad_v2->_fVars.set(var2);
-                //     // If both varaibles are categoricalVars - we choose the
-                //     // var2 as the root
-                //     // TODO: We should use the root that is highest to the
-                //     // original root
                 //     quad_v2->_rootID = _queryRootIndex[var2];
                 // }
                 // else
@@ -244,7 +236,7 @@ void CovarianceMatrix::loadFeatures()
 
     if (!input)
     {
-        ERROR(_pathToFiles + FEATURE_CONF+" does not exist. \n");
+        ERROR(_pathToFiles + FEATURE_CONF +" does not exist. \n");
         exit(1);
     }
 
@@ -317,7 +309,7 @@ void CovarianceMatrix::loadFeatures()
 
         if (rootID == -1)
         {
-            ERROR("Relation |"+rootName+"| does not exist.");
+            ERROR("Relation |"+rootName+"| for "+attrName+" does not exist.");
             exit(1);
         }
 
@@ -379,22 +371,25 @@ std::string CovarianceMatrix::getCodeOfRunAppFun()
     }
     
     std::string runFunction = offset(1)+"void runApplication()\n"+offset(1)+"{\n"+
-        "#ifdef DUMP_OUTPUT\n"+
-        offset(2)+"std::ofstream ofs(\"output/covarianceMatrix.out\");\n"+
-        offset(2)+"ofs << \""+dumpListOfQueries+"\";\n"+
+        offset(2)+"std::ofstream ofs(\"times.txt\",std::ofstream::out | std::ofstream::app);\n"+
+        offset(2)+"ofs << \"\\n\";\n"+
         offset(2)+"ofs.close();\n\n"+
+        "#ifdef DUMP_OUTPUT\n"+
+        offset(2)+"ofs.open(\"output/covarianceMatrix.out\");\n"+
+        offset(2)+"ofs << \""+dumpListOfQueries+"\";\n"+
+        offset(2)+"ofs.close();\n"+
         "#endif /* DUMP_OUTPUT */ \n"+
         offset(1)+"}\n";
     return runFunction;
 }
 
-void CovarianceMatrix::generateCode()
+void CovarianceMatrix::generateCode(const std::string& outputDirectory)
 {   
     const std::string& includesStr = getCodeOfIncludes();
     const std::string& funDefinitions = getCodeOfFunDefinitions();
     const std::string& runFunction = getCodeOfRunAppFun();
         
-    std::ofstream ofs("runtime/cpp/ApplicationHandler.h", std::ofstream::out);
+    std::ofstream ofs(outputDirectory+"ApplicationHandler.h", std::ofstream::out);
     ofs << "#ifndef INCLUDE_APPLICATIONHANDLER_HPP_\n"<<
         "#define INCLUDE_APPLICATIONHANDLER_HPP_\n\n"<<
         "#include \"DataHandler.h\"\n\n"<<
@@ -403,7 +398,7 @@ void CovarianceMatrix::generateCode()
         "}\n\n#endif /* INCLUDE_APPLICATIONHANDLER_HPP_*/\n";    
     ofs.close();
 
-    ofs.open("runtime/cpp/ApplicationHandler.cpp", std::ofstream::out);
+    ofs.open(outputDirectory+"ApplicationHandler.cpp", std::ofstream::out);
     ofs << "#include \"ApplicationHandler.h\"\n"
         << includesStr 
         << "namespace lmfao\n{\n";

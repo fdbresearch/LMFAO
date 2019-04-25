@@ -58,12 +58,6 @@ Attribute* TreeDecomposition::getAttribute(size_t attID)
     return _attributes[attID];
 }
 
-// const std::vector<size_t>& getLeafNodes()
-// {
-//     return _leafNodes;
-// }
-
-
 size_t TreeDecomposition::getAttributeIndex(const std::string& name)
 {
     auto it = _attributeMap.find(name);
@@ -82,6 +76,28 @@ size_t TreeDecomposition::getRelationIndex(const std::string& name)
     return -1;
 }
 
+void TreeDecomposition::addAttribute(
+    const std::string name, const Type t,
+    std::pair<bool,double> constant, const size_t relID)
+{
+    size_t attID = _attributes.size();
+
+    if (constant.first) 
+        _attributes.push_back(new Attribute(name, attID, t, constant.second));
+    else
+        _attributes.push_back(new Attribute(name, attID, t));
+    
+    _attributeMap[name] = attID;
+
+    ++_numOfAttributes;
+
+    TDNode* rel = getRelation(relID);
+    
+    rel->_bag.set(attID);
+    
+    updateNeighborSchema(rel, relID, attID);
+}
+
 void TreeDecomposition::buildFromFile(std::string fileName)
 {
     /* Load the DTree config file into an input stream. */
@@ -93,7 +109,7 @@ void TreeDecomposition::buildFromFile(std::string fileName)
         exit(1);
     }
 
-    DINFO("Building the TD from file: " << fileName << "\n");
+    DINFO("Building the TD from file: " << fileName << " ... ");
    
     /* Number of attributes and tables. */
     size_t n, m, e;
@@ -141,7 +157,7 @@ void TreeDecomposition::buildFromFile(std::string fileName)
     this->_numOfEdges = e;
 
     this->_relations.resize(m);
-    this->_attributesInRelation.resize(m);
+    // this->_attributesInRelation.resize(m);
     this->_attributes.resize(n);
    
     for (size_t i = 0; i < n; ++i)
@@ -296,7 +312,7 @@ void TreeDecomposition::buildFromFile(std::string fileName)
     this->_root = _relations[0];
     var_bitset rootSchemaBitset = _root->_bag;
     
-    /* neighborsSchema as bitset! */
+    /* Setting neighborSchema for root node! */
     for (size_t n = 0; n < _root->_numOfNeighbors; n++)
     {
         neighborSchema(getRelation(_root->_neighbors[n]), _root->_id,
@@ -305,6 +321,7 @@ void TreeDecomposition::buildFromFile(std::string fileName)
         rootSchemaBitset |= _root->_neighborSchema[n];
     }
 
+    /* Propagating schema down */
     for (size_t n = 0; n < _root->_numOfNeighbors; n++)
     {
         parentNeighborSchema(
@@ -328,7 +345,7 @@ void TreeDecomposition::neighborSchema(TDNode* node, size_t originID,
 {
     schema |= node->_bag;
     
-    for (size_t c = 0; c < node->_numOfNeighbors; c++)
+    for (size_t c = 0; c < node->_numOfNeighbors; ++c)
     {
         if (node->_neighbors[c] != originID)
         {
@@ -344,7 +361,7 @@ void TreeDecomposition::neighborSchema(TDNode* node, size_t originID,
 void TreeDecomposition::parentNeighborSchema(TDNode* node, size_t originID,
                                              var_bitset schema)
 {
-    for (size_t c = 0; c < node->_numOfNeighbors; c++)
+    for (size_t c = 0; c < node->_numOfNeighbors; ++c)
     {
         if (node->_neighbors[c] == originID)
             node->_neighborSchema[c] = schema;
@@ -353,3 +370,17 @@ void TreeDecomposition::parentNeighborSchema(TDNode* node, size_t originID,
                                  schema | node->_bag);
     }
 }
+
+// This method is used to for adding new Attributes to the TD
+void TreeDecomposition::updateNeighborSchema(TDNode* node, size_t originID,
+                                             size_t newAttrID)
+{
+    for (size_t c = 0; c < node->_numOfNeighbors; ++c)
+    {        
+        if (node->_neighbors[c] == originID)
+            node->_neighborSchema[c].set(newAttrID);
+        else
+            updateNeighborSchema(getRelation(node->_neighbors[c]), node->_id, newAttrID);
+    }
+}
+

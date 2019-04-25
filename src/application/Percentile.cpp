@@ -13,9 +13,6 @@
 
 #include <Launcher.h>
 #include <Percentile.h>
-// #include <CodegenUtils.hpp>
-
-static const std::string FEATURE_CONF = "/features.conf";
 
 static const char COMMENT_CHAR = '#';
 static const char NUMBER_SEPARATOR_CHAR = ',';
@@ -45,8 +42,6 @@ void Percentile::run()
     loadFeatures();
     modelToQueries();
     _compiler->compile();
-
-    generateCode();
 }
 
 
@@ -188,7 +183,7 @@ void Percentile::loadFeatures()
 }
 
 
-void Percentile::generateCode()
+void Percentile::generateCode(const std::string& outputDirectory)
 {
     Query* countQuery = varToQuery[NUM_OF_VARIABLES];
     size_t& countViewID = countQuery->_aggregates[0]->_incoming[0].first;
@@ -205,7 +200,7 @@ void Percentile::generateCode()
         offset(3)+"percentileCounts[i-1] = ceil("+
         to_string(100.0/(numberOfPercentiles*100))+"*i*tupleCount);\n\n";
 
-    std::string printPerc = "";
+    std::string printPerc = "", printPercTensorFlow = "";
     
     // Create a query & Aggregate
     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
@@ -242,6 +237,15 @@ void Percentile::generateCode()
                 "percentiles"+attName+"[p-1])\n"+
                 offset(4)+"std::cout << \",\" << percentiles"+attName+"[p];\n"+
                 offset(2)+"std::cout << \"},// percentiles "+attName+"\"<< std::endl;\n";
+
+            // 
+            printPercTensorFlow += offset(2)+"std::cout << \"\'"+attName+"\': \" << \"[\"<<percentiles"+attName+"[0];\n"+
+                offset(2)+"for (size_t p = 1; p < "+
+                to_string(numberOfPercentiles-1)+"; ++p)\n"+
+                offset(3)+"if (percentiles"+attName+"[p] != "+
+                "percentiles"+attName+"[p-1])\n"+
+                offset(4)+"std::cout << \",\" << percentiles"+attName+"[p];\n"+
+                offset(2)+"std::cout << \"],  ## percentiles "+attName+"\"<< std::endl;\n";
         }
         else
         {
@@ -264,10 +268,11 @@ void Percentile::generateCode()
         offset(2)+"ofs.close();\n\n"+
         offset(2)+"std::cout << \"_thresholds = {\\n\";"+
         printPerc+
+        // printPercTensorFlow+ // uncomment this for the percentiles used for tensorflow
         offset(2)+"std::cout << \"};\\n\";"+
         offset(1)+"}\n";
         
-    std::ofstream ofs("runtime/cpp/ApplicationHandler.h", std::ofstream::out);
+    std::ofstream ofs(outputDirectory+"ApplicationHandler.h", std::ofstream::out);
     ofs << "#ifndef INCLUDE_APPLICATIONHANDLER_HPP_\n"<<
         "#define INCLUDE_APPLICATIONHANDLER_HPP_\n\n"<<
         "#include \"DataHandler.h\"\n\n"<<
@@ -276,7 +281,7 @@ void Percentile::generateCode()
         "}\n\n#endif /* INCLUDE_APPLICATIONHANDLER_HPP_*/\n";    
     ofs.close();
 
-    ofs.open("runtime/cpp/ApplicationHandler.cpp", std::ofstream::out);
+    ofs.open(outputDirectory+"ApplicationHandler.cpp", std::ofstream::out);
     ofs << "#include \"ApplicationHandler.h\"\n"
         << "namespace lmfao\n{\n";
     ofs << runFunction << std::endl;
