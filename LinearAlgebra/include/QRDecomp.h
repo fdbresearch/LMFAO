@@ -44,7 +44,7 @@ namespace LMFAO::LinearAlgebra
     protected :
         Eigen::MatrixXd mSigma;
         // R is  stored column-wise to exploit cache locality. 
-        // C is stored row-wise I don't know why, but it works faster.
+        // C is stored row-wise look at the line 112 -> cache locality in each thread important.
         // They have to be double instead of long double because 
         // code runs 40% faster.  
         //

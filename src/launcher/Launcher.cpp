@@ -122,7 +122,6 @@ int Launcher::launch(const string& model, const string& codeGenerator,
     }
     else if (model.compare("qrdecomp") == 0)
     {
-        _model = CovarianceMatrixModel;
         _application.reset(
             new QRDecompApp(_pathToFiles, shared_from_this()));
         hasApplicationHandler = true;
@@ -192,7 +191,9 @@ int Launcher::launch(const string& model, const string& codeGenerator,
         parallelization_type, hasApplicationHandler, hasDynamicFunctions);
 
     if (hasApplicationHandler)
+    {
         _application->generateCode(outDirectory);
+    }
 
     
     int64_t processingTime = duration_cast<milliseconds>(

@@ -19,7 +19,7 @@
 using namespace std;
 using namespace multifaq::params;
 
-static const std::string FEATURE_CONF = "/features.conf";
+//static const std::string FEATURE_CONF = "/features.conf";
 
 static const char COMMENT_CHAR = '#';
 static const char NUMBER_SEPARATOR_CHAR = ',';
