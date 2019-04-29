@@ -1016,7 +1016,8 @@ std::string RegressionTree::genVarianceComputation()
                     "[0].aggregates["+std::to_string(comp_count)+"];\n"+
                     offset(2)+"for ("+viewString+"_tuple& "+viewString+"tuple : "+
                     viewString+")\n"+offset(2)+"{\n"+
-                    offset(3)+"if("+viewString+"tuple.aggregates[0] == 0)\n"+
+                    offset(3)+"if("+viewString+"tuple.aggregates[0] == 0 || "+
+                    viewString+"tuple.aggregates[0] == compaggs[0])\n"+
                     offset(3)+"{\n"+
                     offset(4)+"variance[categIdx++] = 1.79769e+308;\n"+
                     offset(4)+"continue;\n"+
@@ -1163,14 +1164,15 @@ std::string RegressionTree::genGiniComputation()
     /* This creates the gini computation for continuous variables. */ 
     returnString += offset(2)+"double squaredSum["+numAggs+"] = {};\n"+
         offset(2)+"std::vector<double> prediction (numberOfThresholds*2, 0.0);\n"+
+        offset(2)+"std::vector<double> largestCount (numberOfThresholds*2, 0.0);\n"+
         offset(2)+"for("+viewStr+"_tuple& tuple : "+viewStr+")\n"+offset(2)+"{\n"+
         offset(3)+"for (size_t agg = 1; agg < "+numAggs+"; ++agg)\n"+
         offset(3)+"{\n"+
         offset(4)+"squaredSum[agg] += tuple.aggregates[agg] * tuple.aggregates[agg];\n"+
-        offset(4)+"prediction[agg] = (tuple.aggregates[agg] > prediction[agg] ? "+
-        "tuple."+label+" : prediction[agg]);\n"+
-        offset(3)+"}\n"+
-        offset(2)+"}\n"+
+        offset(4)+"if (tuple.aggregates[agg] > largestCount[agg])\n"+offset(4)+"{\n"+                                                  
+        offset(5)+"largestCount[agg] = tuple.aggregates[agg];\n"+                                                                      
+        offset(5)+"prediction[agg] = tuple."+label+";\n"+                                                                              
+        offset(4)+"}\n"+offset(3)+"}\n"+offset(2)+"}\n"+
         offset(2)+countViewStr+"_tuple& tup = "+countViewStr+"[0];\n"+
         offset(2)+"for (size_t agg = 1, g = 0; agg < "+numAggs+"; agg += 2, ++g)\n"+
         offset(2)+"{\n"+
@@ -1273,13 +1275,15 @@ std::string RegressionTree::genGiniComputation()
                 "tuple.aggregates[0];\n"+
                 offset(4)+"rhs += complementCount * complementCount;\n"+
                 offset(4)+"if (tuple."+var+" != varCountTup."+var+") "+
-                "std::cout << \"ERROR \\n\";\n"+
-                offset(4)+"prediction[categIndex*2] = (tuple.aggregates[0] > "+
-                "prediction[categIndex*2] ? tuple."+label+" : "+
-                "prediction[categIndex*2]);\n"+
-                offset(4)+"prediction[categIndex*2+1] = (complementCount > "+
-                "prediction[categIndex*2+1] ? tuple."+label+" : "+
-                "prediction[categIndex*2+1]);\n"+
+                "std::cout << \"ERROR \\n\";\n"+                
+                offset(4)+"if (tuple.aggregates[0] > largestCount[categIndex*2])\n"+offset(4)+"{\n"+
+                offset(5)+"largestCount[categIndex*2] = tuple.aggregates[0];\n"+
+                offset(5)+"prediction[categIndex*2] = tuple."+label+";\n"+
+                offset(4)+"}\n"+
+                offset(4)+"if (complementCount > largestCount[categIndex*2+1])\n"+offset(4)+"{\n"+
+                offset(5)+"largestCount[categIndex*2+1] = complementCount;\n"+
+                offset(5)+"prediction[categIndex*2+1] = tuple."+label+";\n"+
+                offset(4)+"}\n"+
                 offset(4)+"++idx;\n"+offset(3)+"}\n"+
                 offset(3)+"gini[categIndex] = (1 - lhs/"+
                 "(varCountTup.aggregates[0]*varCountTup.aggregates[0])) "+
@@ -1342,10 +1346,6 @@ std::string RegressionTree::genGiniComputation()
         offset(3)+"if (gini[t] < min_gini)\n"+offset(3)+"{\n"+
         offset(4)+"min_gini = gini[t];\n"+offset(4)+"threshold = t;\n"+
         offset(3)+"}\n"+offset(2)+"}\n"+
-        offset(2)+"double complementCount = "+
-        "thresholdMap[threshold].compAggregates[0];\n"+
-        offset(2)+"if (thresholdMap[threshold].categorical)\n"+
-        offset(3)+"complementCount -= thresholdMap[threshold].aggregates[0];\n\n"+
         offset(2)+"std::cout << \"The minimum gini index is: \" << min_gini <<"+
         "\" for variable \" << thresholdMap[threshold].varID << \" and threshold:"+
         " \" << thresholdMap[threshold].threshold << std::endl;\n"+
@@ -1696,6 +1696,491 @@ void RegressionTree::initializeThresholds()
             {},// percentiles s_country
             {-6,-5},// percentiles s_gmt_offset
             {0,0.01,0.02,0.03,0.05,0.06,0.07,0.08,0.09,0.1,0.11},// percentiles s_tax_percentage
+        };
+    }
+
+    if (DATASET_NAME.compare("home_credit_default") == 0 || DATASET_NAME.compare("normalized_tables") == 0)
+    {
+        _thresholds = {
+        {117814,135626,153441,171253,189066,206880,224692,242504,260317,278129,295942,313755,331568,349381,367193,385005,402818,420630,438443},// percentiles SK_ID_CURR
+        {-1,0,1},// percentiles application_fact_TARGET
+        {1,2},// percentiles application_fact_NAME_CONTRACT_TYPE
+        {1,2},// percentiles application_fact_CODE_GENDER
+        {1,2},// percentiles application_fact_FLAG_OWN_CAR
+        {67500,81000,90000,99000,112500,126000,135000,153000,157500,166500,180000,189000,202500,225000,247500,270000,337500},// percentiles application_fact_AMT_INCOME_TOTAL
+        {135000,180000,225000,252000,270000,299250,343800,408866,450000,500211,540000,585000,675000,725328,797558,900000,1.00692e+06,1.125e+06,1.35e+06},// percentiles application_fact_AMT_CREDIT
+        {9000,11250,13482,14940,16722,18436.5,20250,21937.5,23539.5,25078.5,26509.5,28350,30289.5,32274,34960.5,37800,41692.5,46701,53914.5},// percentiles application_fact_AMT_ANNUITY
+        {135000,171000,202500,225000,234000,270000,306000,360000,450000,454500,495000,594000,675000,774000,900000,1.035e+06,1.305e+06},// percentiles application_fact_AMT_GOODS_PRICE
+        {0.00496,0.006629,0.007305,0.008866,0.010006,0.010643,0.014464,0.016612,0.018634,0.01885,0.019689,0.020713,0.02461,0.025164,0.028663,0.030755,0.031329,0.035792,0.04622},// percentiles application_fact_REGION_POPULATION_RELATIVE
+        {1325687264,32735,33877,0,1065353216,32735,253697,0,500009,0,1325687296,32735,37566,0,32,32735,43682},// percentiles Application_Fact_DAYS_BIRTH
+        {-23204,-22186,-21315,-20472,-19676,-18880,-18031,-17221,-16467,-15755,-15077,-14426,-13794,-13148,-12425,-11708,-11015,-10294,-9418},// percentiles application_fact_DAYS_EMPLOYED
+        {-6740,-4888,-3893,-3250,-2781,-2380,-2012,-1709,-1459,-1224,-1022,-831,-647,-462,-290,-142,0},// percentiles application_fact_DAYS_REGISTRATION
+        {-11420,-9938,-9024,-8232,-7477,-6770,-6101,-5452,-4940,-4502,-4053,-3527,-3011,-2528,-1995,-1481,-1057,-691,-332},// percentiles application_fact_DAYS_ID_PUBLISH
+        {0},// percentiles application_fact_OWN_CAR_AGE
+        {-4972,-4748,-4589,-4451,-4318,-4192,-4059,-3880,-3544,-3252,-2951,-2654,-2365,-2043,-1717,-1376,-1052,-732,-376},// percentiles application_fact_FLAG_WORK_PHONE
+        {0,2,5,8,10,14,19},// percentiles application_fact_OCCUPATION_TYPE
+        {0,1},// percentiles application_fact_WEEKDAY_APPR_PROCESS_START
+        {0,1,2,3,4,5,6,7,10,12},// percentiles application_fact_ORGANIZATION_TYPE
+        {1,2,3,4,5,6,7},// percentiles application_fact_EXT_SOURCE_1
+        {1,3,5,6,8,10,13,15,20,28,36},// percentiles application_fact_EXT_SOURCE_2
+        {0,0.216342,0.308213,0.38778,0.464495,0.54011,0.615442,0.692684,0.775507},// percentiles application_fact_EXT_SOURCE_3
+        {0.126214,0.207421,0.270583,0.330409,0.383092,0.431197,0.471229,0.504474,0.534639,0.559973,0.583065,0.603843,0.623848,0.642621,0.660804,0.679731,0.698922,0.720689,0.746962},// percentiles application_fact_DAYS_LAST_PHONE_CHANGE
+        {0},// percentiles application_fact_DOCUMENT_COUNT
+        {-1289,-588,-221,0,0.172495,0.253963,0.315472,0.367291,0.411849,0.454321,0.495666,0.531686,0.567379,0.600658,0.633032,0.665855,0.697147,0.733815,0.773896},// percentiles application_fact_NEW_DOC_KURT
+        {-2445,-2033,-1787,-1602,-1417,-1179,-976,-794,-655,-532,-413,-294,-148,-1,0,1},// percentiles application_fact_AGE_RANGE
+        {0,1,20},// percentiles application_fact_EXT_SOURCES_PROD
+        {0,1,2,4,20},// percentiles application_fact_EXT_SOURCES_WEIGHTED
+        {0,3,4,20},// percentiles application_fact_EXT_SOURCES_MIN
+        {0,1,2,3,4},// percentiles application_fact_EXT_SOURCES_MAX
+        {0,0.0106414,0.042074,0.0748281,0.110444,0.150159,0.194486,0.250778,0.319516,0.426313,0.572086,0.710376},// percentiles application_fact_EXT_SOURCES_MEAN
+        {0,0.159679,0.315472,0.455152,0.563435,0.651708,0.747156,1.85917,2.43326,2.8429,3.18701,3.52878,3.92602},// percentiles application_fact_EXT_SOURCES_NANMEDIAN
+        {0.101459,0.159571,0.202276,0.243186,0.276672,0.310907,0.344349,0.376776,0.407867,0.438598,0.468021,0.497673,0.526295,0.554947,0.583411,0.612704,0.643459,0.678087,0.722393},// percentiles application_fact_EXT_SOURCES_VAR
+        {0.266789,0.355639,0.41553,0.461799,0.500054,0.532588,0.559806,0.584266,0.606336,0.626304,0.644679,0.66174,0.679217,0.695599,0.712155,0.729567,0.748636,0.771362,0.80384},// percentiles application_fact_CREDIT_TO_ANNUITY_RATIO
+        {0,0.00434483,0.0760325,0.275176,0.340039,0.383314,0.417733,0.447525,0.473667,0.498776,0.522481,0.54604,0.56947,0.592963,0.617826,0.644004,0.673029,0.70927},// percentiles application_fact_CREDIT_TO_GOODS_RATIO
+        {0.0141631,0.129314,0.284536,0.353366,0.401303,0.441566,0.475366,0.507437,0.53707,0.565608,0.593697,0.620703,0.648286,0.67861,0.716101,8.34105,13.8722,19.5854,23.6372},// percentiles application_fact_ANNUITY_TO_INCOME_RATIO
+        {0.000318616,0.00114315,0.00234738,0.00388582,0.0057735,0.00805738,0.0108033,0.0141934,0.0183142,0.0233947,0.029938,0.0389874,0.0530128,0.0990948,1,1.11616,1.198,1.4224,19.5018},// percentiles application_fact_CREDIT_TO_INCOME_RATIO
+        {0.1225,0.176842,0.244533,0.613544,1.1386,8.39049,10.0567,12.6097,14.5773,16.4843,18.4341,19.5848,20,20.6943,23.37,25.2143,27.8396,30.9981,34.0835},// percentiles application_fact_INCOME_TO_EMPLOYED_RATIO
+        {0.173,0.75,1,1.08316,1.1188,1.132,1.1584,1.1716,1.198,1.2376,1.31679,1.396,2.01053,3.17594,5},// percentiles application_fact_INCOME_TO_BIRTH_RATIO
+        {-195.652,-80.597,-26.9092,0,0.0702807,0.0902,0.10608,0.1202,0.133929,0.147059,0.160356,0.175576,0.19265,0.212,0.235368,0.2666,0.316,0.49184,3},// percentiles application_fact_EMPLOYED_TO_BIRTH_RATIO
+        {-55.8833,-15.9198,-10.7239,-7.3984,-4.3279,0.5,1.14815,1.52286,1.87421,2.17391,2.5,2.83,3.1717,3.6,4.0732,4.73829,5.4504,6.4331,8.07467},// percentiles application_fact_ID_TO_BIRTH_RATIO
+        {-522.042,-290.152,-194.974,-143.495,-110.186,-86.3392,-67.6895,-52.9695,-40.7166,-29.5372,-19.3966,-11.6351,-5.84745,0,0.0192694,0.0740458,0.159734},// percentiles application_fact_CAR_TO_BIRTH_RATIO
+        {-21.2851,-17.2051,-14.8156,-13.1391,-11.811,-10.6825,-9.6691,-8.72872,-7.86556,-7.00874,-6.16734,-5.279,-4.20011,-2.24865,0.0235644,0.0859057,0.151112,0.201792,0.285551},// percentiles application_fact_CAR_TO_EMPLOYED_RATIO
+        {0,0.0131948,0.029602,0.0472244,0.0660084,0.0854935,0.106364,0.12999,0.156272,0.18309,0.212033,0.253046,0.304361,0.382926},// percentiles application_fact_PHONE_TO_BIRTH_RATIO
+        {0,0.00327293,0.0418551,0.0756359,0.106751,0.134806,0.160541,0.178616,0.193656,0.208602,0.232525,0.268662,0.29405,0.317525,0.34354},// percentiles application_fact_BUREAU_INCOME_CREDIT_RATIO
+        {0,0.0140099,0.0405046,0.0827753},// percentiles application_fact_BUREAU_ACTIVE_CREDIT_TO_INCOME_RATIO
+        {0,0.4655,1.21998,2.83996},// percentiles application_fact_CURRENT_TO_APPROVED_CREDIT_MIN_RATIO
+        {0,0.000876459,0.0133564,0.0218922,0.0298682,0.0381494,0.0470421,0.0567933,0.067693,0.0790111,0.0912665,0.105197,0.121104,0.14211,0.177631,0.4927,1.34158,2.85714,6.76417},// percentiles application_fact_CURRENT_TO_APPROVED_CREDIT_MAX_RATIO
+        {0,0.0196633,0.0660912,0.126964,0.214135,0.324,0.447725,0.588144,0.747162,0.927911,1.13845,1.39565,1.71702,2.14605,2.75,3.63333,5.19048,8.875},// percentiles application_fact_CURRENT_TO_APPROVED_CREDIT_MEAN_RATIO
+        {0,0.040366,0.10766,0.199338,0.326126,0.5,0.721858,1,1.37255,1.833,2.46862,3.28571,4.42857,6.22222,9.33333,16.6667},// percentiles application_fact_CURRENT_TO_APPROVED_ANNUITY_MAX_RATIO
+        {0,0.0248138,0.0354174,0.0463069,0.0577062,0.0701169,0.0838118,0.0992903,0.117014,0.138453,0.163476,0.193728,0.231875,0.282262,0.348189,0.439556,0.578326,0.822222,1.40275},// percentiles application_fact_CURRENT_TO_APPROVED_ANNUITY_MEAN_RATIO
+        {0,0.0618168,0.0957526,0.130439,0.166642,0.205932,0.251042,0.301975,0.361259,0.430038,0.50942,0.605583,0.723467,0.868432,1.05199,1.30874,1.66474,2.23009,3.4},// percentiles application_fact_PAYMENT_MIN_TO_ANNUITY_RATIO
+        {0,0.0555982,0.084258,0.110744,0.139146,0.16926,0.202385,0.238474,0.278478,0.323791,0.375293,0.434786,0.505662,0.591519,0.701003,0.845495,1.0472,1.37036,2.02738},// percentiles application_fact_PAYMENT_MAX_TO_ANNUITY_RATIO
+        {0,0.00189358,0.0732547,0.147501,0.204401,0.257464,0.311371,0.369808,0.431034,0.501497,0.579085,0.669672,0.777197,0.906522,1.0661,1.27097,1.56006,1.9969,2.86226},// percentiles application_fact_PAYMENT_MEAN_TO_ANNUITY_RATIO
+        {0,0.0703551,0.143585,0.192239,0.237411,0.281584,0.327149,0.376426,0.43016,0.490313,0.558957,0.641096,0.741109,0.865142,1.02846,1.26513,1.65528,2.50747,6.10035},// percentiles application_fact_CTA_CREDIT_TO_ANNUITY_MAX_RATIO
+        {1.35355e-06,9.2688e-05,0.000363757,0.00124575,0.00350816,0.0100304,0.0412612,0.0948617,0.141091,0.187145,0.237906,0.296367,0.365199,0.449464,0.562068,0.720208,0.964963,1.43973,2.86777},// percentiles application_fact_CTA_CREDIT_TO_ANNUITY_MEAN_RATIO
+        {0.060471,0.203871,0.288834,0.369592,0.453155,0.54124,0.640897,0.757459,0.892176,1.03734,1.21769,1.47291,1.82727,2.31589,3.16265,4.65812,7.40865,12.6581,24.3281},// percentiles application_fact_DAYS_DECISION_MEAN_TO_BIRTH
+        {0.0362979,0.147821,0.202308,0.250685,0.294966,0.340326,0.387328,0.435356,0.486701,0.543023,0.605736,0.679117,0.762993,0.863088,0.986298,1.13513,1.36354,1.73088,2.51271},// percentiles application_fact_DAYS_CREDIT_MEAN_TO_BIRTH
+        {0,0.035772,0.061944,0.100449,0.181134,0.270916,0.334685,0.408497,0.470327,0.534568,0.595758,0.673748,0.761789,0.858617,0.971095,1.05954,1.19609,1.44355,1.864},// percentiles application_fact_DAYS_DECISION_MEAN_TO_EMPLOYED
+        {0,0.0242597,0.0444606,0.0635492,0.087165,0.125959,0.201515,0.267824,0.321118,0.37245,0.421156,0.469325,0.520528,0.579482,0.647693,0.727273,0.831939,0.980516,1.22897},// percentiles application_fact_DAYS_CREDIT_MEAN_TO_EMPLOYED
+        {0,0.00761075,0.0185022,0.025065,0.0311823,0.0373175,0.0435969,0.0500663,0.0566719,0.0634399,0.0709302,0.0793122,0.0893128,0.101553,0.117266,0.14055,0.190727,0.443728,1.23964},// percentiles application_DIM_2_IDX
+        {0,1},// percentiles application_DIM_3_IDX
+        {0,1,2,10,23,96,247},// percentiles application_DIM_4_IDX
+        {0,7,12,14,35,158},// percentiles application_DIM_5_IDX
+        {0,2,6,9,10,12,14,21,33,65,136,253,944},// percentiles application_DIM_6_IDX
+        {0,1,7,14,31151,134862,216023},// percentiles application_DIM_7_IDX
+        {0,1,2,9,128,105506},// percentiles application_DIM_8_IDX
+        {0,1,11,76,30692,77358,151711,204976,260204},// percentiles application_DIM_9_IDX
+        {2589,2590},// percentiles AMT_CREDIT_SUM_id
+        {121},// percentiles credit_active_type_id
+        {0},// percentiles bureau_aggregated_norm_sk_bureau_id_count
+        {1541406720},// percentiles bureau_aggregated_norm_DAYS_CREDIT_min
+        {32735},// percentiles bureau_aggregated_norm_DAYS_CREDIT_max
+        {2.122e-314},// percentiles bureau_aggregated_norm_DAYS_CREDIT_avg
+        {117000},// percentiles bureau_aggregated_norm_DAYS_CREDIT_ENDDATE_min
+        {894766},// percentiles bureau_aggregated_norm_DAYS_CREDIT_ENDDATE_max
+        {34951.5},// percentiles bureau_aggregated_norm_AMT_CREDIT_MAX_OVERDUE_max
+        {679500},// percentiles bureau_aggregated_norm_AMT_CREDIT_MAX_OVERDUE_avg
+        {0.006296},// percentiles bureau_aggregated_norm_AMT_CREDIT_SUM_max
+        {-12900},// percentiles bureau_aggregated_norm_AMT_CREDIT_SUM_avg
+        {-103},// percentiles bureau_aggregated_norm_AMT_CREDIT_SUM_sum
+        {4.24399e-314},// percentiles bureau_aggregated_norm_AMT_CREDIT_SUM_DEBT_max
+        {0},// percentiles bureau_aggregated_norm_AMT_CREDIT_SUM_DEBT_avg
+        {2.12199e-314},// percentiles bureau_aggregated_norm_AMT_CREDIT_SUM_DEBT_sum
+        {1.4854e-313},// percentiles bureau_aggregated_norm_AMT_ANNUITY_avg
+        {5},// percentiles bureau_aggregated_norm_DEBT_CREDIT_DIFF_avg
+        {39},// percentiles bureau_aggregated_norm_DEBT_CREDIT_DIFF_SUM
+        {0.0330486},// percentiles bureau_aggregated_norm_MONTHS_BALANCE_AVG_AVG
+        {0.484465},// percentiles bureau_aggregated_norm_MONTHS_BALANCE_COUNT_AVG
+        {2.122e-314},// percentiles bureau_aggregated_norm_MONTHS_BALANCE_COUNT_SUM
+        {0.39622},// percentiles bureau_aggregated_norm_STATUS_0_AVG
+        {4.24399e-314},// percentiles bureau_aggregated_norm_STATUS_1_AVG
+        {0},// percentiles bureau_aggregated_norm_STATUS_12345_AVG
+        {1},// percentiles bureau_aggregated_norm_STATUS_C_AVG
+        {20},// percentiles bureau_aggregated_norm_STATUS_X_AVG
+        {2},// percentiles bureau_aggregated_norm_LL_AMT_CREDIT_SUM_OVERDUE_AVG
+        {0.00634382},// percentiles bureau_aggregated_norm_LL_DEBT_CREDIT_DIFF_AVG
+        {1.73922},// percentiles bureau_aggregated_norm_LL_STATUS_12345_AVG
+        {0.0330486},// percentiles bureau_aggregated_norm_BUREAU_ACTIVE_DAYS_CREDIT_avg
+        {0.484465},// percentiles bureau_aggregated_norm_BUREAU_ACTIVE_DAYS_CREDIT_ENDDATE_min
+        {0.304578},// percentiles bureau_aggregated_norm_BUREAU_ACTIVE_DAYS_CREDIT_ENDDATE_max
+        {0.39622},// percentiles bureau_aggregated_norm_BUREAU_ACTIVE_AMT_CREDIT_MAX_OVERDUE_max
+        {0.0381619},// percentiles bureau_aggregated_norm_BUREAU_ACTIVE_AMT_CREDIT_MAX_OVERDUE_avg
+        {25.6002},// percentiles bureau_aggregated_norm_BUREAU_ACTIVE_AMT_CREDIT_SUM_max
+        {1.3168},// percentiles bureau_aggregated_norm_BUREAU_ACTIVE_AMT_CREDIT_SUM_sum
+        {0.298731},// percentiles bureau_aggregated_norm_BUREAU_ACTIVE_AMT_CREDIT_SUM_DEBT_avg
+        {7.64758},// percentiles bureau_aggregated_norm_BUREAU_ACTIVE_AMT_CREDIT_SUM_DEBT_sum
+        {-1135.92},// percentiles bureau_aggregated_norm_BUREAU_ACTIVE_AMT_CREDIT_SUM_OVERDUE_max
+        {-9.06977},// percentiles bureau_aggregated_norm_BUREAU_ACTIVE_AMT_CREDIT_SUM_OVERDUE_avg
+        {0.0079845},// percentiles bureau_aggregated_norm_BUREAU_ACTIVE_DAYS_CREDIT_UPDATE_min
+        {2012308708},// percentiles bureau_aggregated_norm_BUREAU_ACTIVE_DAYS_CREDIT_UPDATE_avg
+        {0},// percentiles bureau_aggregated_norm_BUREAU_ACTIVE_DEBT_CREDIT_DIFF_avg
+        {0},// percentiles bureau_aggregated_norm_BUREAU_ACTIVE_MONTHS_BALANCE_AVG_AVG
+        {0.116744},// percentiles bureau_aggregated_norm_BUREAU_ACTIVE_MONTHS_BALANCE_COUNT_AVG
+        {0.407038},// percentiles bureau_aggregated_norm_BUREAU_ACTIVE_MONTHS_BALANCE_COUNT_SUM
+        {0},// percentiles bureau_aggregated_norm_BUREAU_CLOSED_DAYS_CREDIT_max
+        {-398398571},// percentiles bureau_aggregated_norm_BUREAU_CLOSED_DAYS_CREDIT_VAR
+        {0.600698},// percentiles bureau_aggregated_norm_BUREAU_CLOSED_DAYS_CREDIT_ENDDATE_max
+        {0.193361},// percentiles bureau_aggregated_norm_BUREAU_CLOSED_AMT_CREDIT_MAX_OVERDUE_max
+        {0.801348},// percentiles bureau_aggregated_norm_BUREAU_CLOSED_AMT_CREDIT_MAX_OVERDUE_avg
+        {0.335534},// percentiles bureau_aggregated_norm_BUREAU_CLOSED_AMT_CREDIT_SUM_OVERDUE_avg
+        {0.087537},// percentiles bureau_aggregated_norm_BUREAU_CLOSED_AMT_CREDIT_SUM_max
+        {9.18785},// percentiles bureau_aggregated_norm_BUREAU_CLOSED_AMT_CREDIT_SUM_sum
+        {0.691886},// percentiles bureau_aggregated_norm_BUREAU_CLOSED_AMT_CREDIT_SUM_avg
+        {0.781243},// percentiles bureau_aggregated_norm_BUREAU_CLOSED_AMT_CREDIT_SUM_DEBT_max
+        {0.49714},// percentiles bureau_aggregated_norm_BUREAU_CLOSED_AMT_CREDIT_SUM_DEBT_sum
+        {0.0755592},// percentiles bureau_aggregated_norm_BUREAU_CLOSED_DAYS_CREDIT_UPDATE_max
+        {0},// percentiles bureau_aggregated_norm_BUREAU_CLOSED_ENDDATE_DIF_avg
+        {1.21166e-311},// percentiles bureau_aggregated_norm_BUREAU_CLOSED_STATUS_12345_AVG
+        {2.97079e-312},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_1_DAYS_CREDIT_max
+        {1},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_1_DAYS_CREDIT_avg
+        {2.18959e-314},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_1_DAYS_CREDIT_ENDDATE_max
+        {2.16499e-314},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_1_AMT_CREDIT_MAX_OVERDUE_max
+        {6.95313e-310},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_1_AMT_CREDIT_MAX_OVERDUE_avg
+        {6.95313e-310},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_1_AMT_CREDIT_SUM_max
+        {2.18942e-314},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_1_AMT_CREDIT_SUM_avg
+        {0},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_1_AMT_CREDIT_SUM_DEBT_avg
+        {4.94066e-324},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_1_AMT_CREDIT_SUM_DEBT_max
+        {2.18956e-314},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_1_DEBT_CREDIT_DIFF_avg
+        {6.95332e-310},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_2_DAYS_CREDIT_max
+        {136800568},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_2_DAYS_CREDIT_avg
+        {2.16499e-314},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_2_DAYS_CREDIT_ENDDATE_max
+        {2.16498e-314},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_2_AMT_CREDIT_MAX_OVERDUE_max
+        {2.18959e-314},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_2_AMT_CREDIT_MAX_OVERDUE_avg
+        {6.95313e-310},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_2_AMT_CREDIT_SUM_max
+        {2.18943e-314},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_2_AMT_CREDIT_SUM_avg
+        {0},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_2_AMT_CREDIT_SUM_DEBT_avg
+        {2.18959e-314},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_2_AMT_CREDIT_SUM_DEBT_max
+        {6.95332e-310},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_2_DEBT_CREDIT_DIFF_avg
+        {2.18956e-314},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_3_DAYS_CREDIT_max
+        {-353783216},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_3_DAYS_CREDIT_avg
+        {2.18943e-314},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_3_DAYS_CREDIT_ENDDATE_max
+        {2.18959e-314},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_3_AMT_CREDIT_MAX_OVERDUE_max
+        {2.16499e-314},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_3_AMT_CREDIT_MAX_OVERDUE_avg
+        {2.16499e-314},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_3_AMT_CREDIT_SUM_max
+        {2.16499e-314},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_3_AMT_CREDIT_SUM_avg
+        {6.95322e-310},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_3_AMT_CREDIT_SUM_DEBT_avg
+        {2.18958e-314},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_3_AMT_CREDIT_SUM_DEBT_max
+        {2.122e-314},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_3_DEBT_CREDIT_DIFF_avg
+        {2.16994e-320},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_4_DAYS_CREDIT_max
+        {-1029401945},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_4_DAYS_CREDIT_avg
+        {2.16498e-314},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_4_DAYS_CREDIT_ENDDATE_max
+        {0},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_4_AMT_CREDIT_MAX_OVERDUE_max
+        {0},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_4_AMT_CREDIT_MAX_OVERDUE_avg
+        {7.48509e-321},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_4_AMT_CREDIT_SUM_max
+        {0},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_4_AMT_CREDIT_SUM_avg
+        {6.95313e-310},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_4_AMT_CREDIT_SUM_DEBT_avg
+        {2.18937e-314},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_4_AMT_CREDIT_SUM_DEBT_max
+        {6.95326e-310},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_4_DEBT_CREDIT_DIFF_avg
+        {4.94066e-323},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_5_DAYS_CREDIT_max
+        {-353782080},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_5_DAYS_CREDIT_avg
+        {6.95322e-310},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_5_DAYS_CREDIT_ENDDATE_max
+        {4.42189e-321},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_5_AMT_CREDIT_MAX_OVERDUE_max
+        {0},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_5_AMT_CREDIT_MAX_OVERDUE_avg
+        {0},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_5_AMT_CREDIT_SUM_max
+        {1.39065e-309},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_5_AMT_CREDIT_SUM_avg
+        {0},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_5_AMT_CREDIT_SUM_DEBT_avg
+        {3.23786e-319},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_5_AMT_CREDIT_SUM_DEBT_max
+        {1.26481e-321},// percentiles bureau_aggregated_norm_BUREAU_CREDIT_TYPE_5_DEBT_CREDIT_DIFF_av
+        {0},// percentiles bureau_agg_amt_credit_sum_dim_AMT_CREDIT_SUM_OVERDUE_max
+        {0},// percentiles bureau_agg_amt_credit_sum_dim_AMT_CREDIT_SUM_OVERDUE_avg
+        {0},// percentiles bureau_agg_amt_credit_sum_dim_AMT_CREDIT_SUM_OVERDUE_sum
+        {0},// percentiles bureau_agg_credit_active_type_dim_CREDIT_ACTIVE_Active_AVG
+        {0.4},// percentiles bureau_agg_credit_active_type_dim_CREDIT_ACTIVE_Closed_AVG
+        {0.533333},// percentiles bureau_agg_credit_active_type_dim_CREDIT_ACTIVE_Sold_AVG
+        {0},// percentiles bureau_agg_credit_active_type_dim_CREDIT_TYPE_1_AVG
+        {0.0666667},// percentiles bureau_agg_credit_active_type_dim_CREDIT_TYPE_2_AVG
+        {0},// percentiles bureau_agg_credit_active_type_dim_CREDIT_TYPE_4_AVG
+        {0.0666667},// percentiles bureau_agg_credit_active_type_dim_CREDIT_TYPE_3_AVG
+        {0.933333},// percentiles bureau_agg_credit_active_type_dim_CREDIT_TYPE_5_AVG
+        {0,2250,2694.24,3198.42,3621.11,4099.95,4500,4940.1,5496.07,6069.33,6750,7405.69,8338.5,9238,10608.1,12235.5,14884.5,20425.6},// percentiles previous_app_fact_PREV_AMT_ANNUITY_MIN
+        {0,4918.05,6648.8,8091.99,9437.04,10885.3,12223.2,13643.6,15338.4,17101.5,19318.7,22018,24246,27157.5,30801.7,35624.7,41278.4,47982.9,59074.3},// percentiles previous_app_fact_PREV_AMT_ANNUITY_MAX
+        {0,4355.19,5493.19,6441.9,7283.01,8115.88,8949.96,9785.02,10680.8,11601.3,12614.6,13723.8,14960.3,16376.3,18025.3,20078.7,22681.2,26371.4,32842.9},// percentiles previous_app_fact_PREV_AMT_ANNUITY_MEAN
+        {0,2250,3595.5,4500,5823,7170.98,9000,10386,12856.5,14985,19093.5,24421.5,40500},// percentiles previous_app_fact_PREV_AMT_DOWN_PAYMENT_MAX
+        {0,1061.44,1852.5,2519.28,3301.48,4170,4941,6075,7407,9000,11533.5,15412.5,23058},// percentiles previous_app_fact_PREV_AMT_DOWN_PAYMENT_MEAN
+        {3.85714,8,9.2,10,10.6,11,11.5,12,12.1818,12.5714,13,13.25,13.6667,14,14.4,15,15.3636,16,17},// percentiles previous_app_fact_PREV_HOUR_APPR_PROCESS_START_MEAN
+        {0,0.0919918,0.100021,0.101826,0.104488,0.108909,0.108936,0.115713,0.162614,0.205603,0.217838,0.283206,0.391384},// percentiles previous_app_fact_PREV_RATE_DOWN_PAYMENT_MAX
+        {0,0.0272348,0.044326,0.0522129,0.0639764,0.0797461,0.0984756,0.102347,0.107802,0.109854,0.140022,0.181515,0.229036},// percentiles previous_app_fact_PREV_RATE_DOWN_PAYMENT_MEAN
+        {-2819,-2712,-2604,-2492,-2359,-2193,-1995,-1785,-1590,-1413,-1210,-1040,-888,-759,-646,-540,-436,-320,-43},// percentiles previous_app_fact_PREV_DAYS_DECISION_MIN
+        {-1060556288,0},// percentiles previous_app_fact_PREV_DAYS_DECISION_MAX
+        {-103,0},// percentiles previous_app_fact_PREV_DAYS_DECISION_MEAN
+        {0,4.24399e-314},// percentiles previous_app_fact_PREV_DAYS_TERMINATION_MAX
+        {0},// percentiles previous_app_fact_PREV_CREDIT_TO_ANNUITY_RATIO_MEAN
+        {0,2.12199e-314},// percentiles previous_app_fact_PREV_CREDIT_TO_ANNUITY_RATIO_MAX
+        {0,1.4854e-313},// percentiles previous_app_fact_PREV_APPLICATION_CREDIT_DIFF_MIN
+        {0,5},// percentiles previous_app_fact_PREV_APPLICATION_CREDIT_DIFF_MAX
+        {0,39},// percentiles previous_app_fact_PREV_APPLICATION_CREDIT_DIFF_MEAN
+        {0,0.0330486},// percentiles previous_app_fact_PREV_APPLICATION_CREDIT_RATIO_MIN
+        {0,0.484465},// percentiles previous_app_fact_PREV_APPLICATION_CREDIT_RATIO_MAX
+        {0,2.122e-314},// percentiles previous_app_fact_PREV_APPLICATION_CREDIT_RATIO_MEAN
+        {0,0.39622},// percentiles previous_app_fact_PREV_APPLICATION_CREDIT_RATIO_VAR
+        {0,4.24399e-314},// percentiles previous_app_fact_PREV_DOWN_PAYMENT_TO_CREDIT_MEAN
+        {0},// percentiles previous_app_fact_PREV_ACTIVE_SIMPLE_INTERESTS_MEAN
+        {0,1},// percentiles previous_app_fact_PREV_ACTIVE_AMT_ANNUITY_MAX
+        {0,20},// percentiles previous_app_fact_PREV_ACTIVE_AMT_ANNUITY_SUM
+        {0,2},// percentiles previous_app_fact_PREV_ACTIVE_AMT_APPLICATION_MAX
+        {0,0.00634382},// percentiles previous_app_fact_PREV_ACTIVE_AMT_APPLICATION_MEAN
+        {0,1.73922},// percentiles previous_app_fact_PREV_ACTIVE_AMT_CREDIT_SUM
+        {0,0.0330486},// percentiles previous_app_fact_PREV_ACTIVE_AMT_DOWN_PAYMENT_MAX
+        {0,0.484465},// percentiles previous_app_fact_PREV_ACTIVE_AMT_DOWN_PAYMENT_MEAN
+        {0,0.304578},// percentiles previous_app_fact_PREV_ACTIVE_DAYS_DECISION_MIN
+        {0,0.39622},// percentiles previous_app_fact_PREV_ACTIVE_DAYS_DECISION_MEAN
+        {0,0.0381619},// percentiles previous_app_fact_PREV_ACTIVE_DAYS_LAST_DUE_1ST_VERSION_MIN
+        {0,25.6002},// percentiles previous_app_fact_PREV_ACTIVE_DAYS_LAST_DUE_1ST_VERSION_MAX
+        {0,1.3168},// percentiles previous_app_fact_PREV_ACTIVE_DAYS_LAST_DUE_1ST_VERSION_MEAN
+        {0,0.298731},// percentiles previous_app_fact_PREV_ACTIVE_AMT_PAYMENT_SUM
+        {0,7.64758},// percentiles previous_app_fact_PREV_ACTIVE_INSTALMENT_PAYMENT_DIFF_MEAN
+        {-1135.92,0},// percentiles previous_app_fact_PREV_ACTIVE_INSTALMENT_PAYMENT_DIFF_MAX
+        {-9.06977,0},// percentiles previous_app_fact_PREV_ACTIVE_REMAINING_DEBT_MAX
+        {0,0.0079845},// percentiles previous_app_fact_PREV_ACTIVE_REMAINING_DEBT_MEAN
+        {0,0.285736},// percentiles previous_app_fact_PREV_ACTIVE_REMAINING_DEBT_SUM
+        {0},// percentiles previous_app_fact_PREV_ACTIVE_REPAYMENT_RATIO_MEAN
+        {0},// percentiles previous_app_fact_TOTAL_REPAYMENT_RATIO
+        {0,0.116744},// percentiles previous_app_fact_APPROVED_AMT_ANNUITY_MIN
+        {0,0.407038},// percentiles previous_app_fact_APPROVED_AMT_ANNUITY_MAX
+        {0},// percentiles previous_app_fact_APPROVED_AMT_ANNUITY_MEAN
+        {0,0.0155856},// percentiles previous_app_fact_APPROVED_AMT_CREDIT_MIN
+        {0,0.600698},// percentiles previous_app_fact_APPROVED_AMT_CREDIT_MAX
+        {0,0.193361},// percentiles previous_app_fact_APPROVED_AMT_CREDIT_MEAN
+        {0,0.801348},// percentiles previous_app_fact_APPROVED_AMT_DOWN_PAYMENT_MAX
+        {0,0.335534},// percentiles previous_app_fact_APPROVED_AMT_GOODS_PRICE_MAX
+        {0,0.087537},// percentiles previous_app_fact_APPROVED_DAYS_DECISION_MIN
+        {0,9.18785},// percentiles previous_app_fact_APPROVED_DAYS_DECISION_MEAN
+        {0,0.691886},// percentiles previous_app_fact_APPROVED_DAYS_TERMINATION_MEAN
+        {0,0.781243},// percentiles previous_app_fact_APPROVED_CREDIT_TO_ANNUITY_RATIO_MEAN
+        {0,0.49714},// percentiles previous_app_fact_APPROVED_CREDIT_TO_ANNUITY_RATIO_MAX
+        {0,0.0755592},// percentiles previous_app_fact_APPROVED_APPLICATION_CREDIT_DIFF_MAX
+        {0},// percentiles previous_app_fact_APPROVED_APPLICATION_CREDIT_RATIO_MIN
+        {0,1.21166e-311},// percentiles previous_app_fact_APPROVED_APPLICATION_CREDIT_RATIO_MAX
+        {0,2.97079e-312},// percentiles previous_app_fact_APPROVED_APPLICATION_CREDIT_RATIO_MEAN
+        {0,4.94066e-324},// percentiles previous_app_fact_APPROVED_DAYS_FIRST_DRAWING_MAX
+        {0,2.18959e-314},// percentiles previous_app_fact_APPROVED_DAYS_FIRST_DRAWING_MEAN
+        {0,2.16499e-314},// percentiles previous_app_fact_APPROVED_DAYS_FIRST_DUE_MIN
+        {0,6.95313e-310},// percentiles previous_app_fact_APPROVED_DAYS_FIRST_DUE_MEAN
+        {0,6.95313e-310},// percentiles previous_app_fact_APPROVED_DAYS_LAST_DUE_1ST_VERSION_MIN
+        {0,2.18942e-314},// percentiles previous_app_fact_APPROVED_DAYS_LAST_DUE_1ST_VERSION_MAX
+        {0},// percentiles previous_app_fact_APPROVED_DAYS_LAST_DUE_1ST_VERSION_MEAN
+        {0,4.94066e-324},// percentiles previous_app_fact_APPROVED_DAYS_LAST_DUE_MAX
+        {0,2.18956e-314},// percentiles previous_app_fact_APPROVED_DAYS_LAST_DUE_MEAN
+        {0,6.95332e-310},// percentiles previous_app_fact_APPROVED_DAYS_LAST_DUE_DIFF_MIN
+        {0,2.18958e-314},// percentiles previous_app_fact_APPROVED_DAYS_LAST_DUE_DIFF_MAX
+        {0,2.16499e-314},// percentiles previous_app_fact_APPROVED_DAYS_LAST_DUE_DIFF_MEAN
+        {0,2.16498e-314},// percentiles previous_app_fact_APPROVED_SIMPLE_INTERESTS_MIN
+        {0,2.18959e-314},// percentiles previous_app_fact_APPROVED_SIMPLE_INTERESTS_MAX
+        {0,6.95313e-310},// percentiles previous_app_fact_APPROVED_SIMPLE_INTERESTS_MEAN
+        {0,2.18943e-314},// percentiles previous_app_fact_REFUSED_AMT_APPLICATION_MAX
+        {0},// percentiles previous_app_fact_REFUSED_AMT_APPLICATION_MEAN
+        {0,2.18959e-314},// percentiles previous_app_fact_REFUSED_AMT_CREDIT_MIN
+        {0,6.95332e-310},// percentiles previous_app_fact_REFUSED_AMT_CREDIT_MAX
+        {0,2.18956e-314},// percentiles previous_app_fact_REFUSED_DAYS_DECISION_MIN
+        {0,6.95313e-310},// percentiles previous_app_fact_REFUSED_DAYS_DECISION_MAX
+        {0,2.18943e-314},// percentiles previous_app_fact_REFUSED_DAYS_DECISION_MEAN
+        {0,2.18959e-314},// percentiles previous_app_fact_REFUSED_APPLICATION_CREDIT_DIFF_MIN
+        {0,2.16499e-314},// percentiles previous_app_fact_REFUSED_APPLICATION_CREDIT_DIFF_MAX
+        {0,2.16499e-314},// percentiles previous_app_fact_REFUSED_APPLICATION_CREDIT_DIFF_MEAN
+        {0,2.16499e-314},// percentiles previous_app_fact_REFUSED_APPLICATION_CREDIT_DIFF_VAR
+        {0,6.95322e-310},// percentiles previous_app_fact_REFUSED_APPLICATION_CREDIT_RATIO_MIN
+        {0,2.18958e-314},// percentiles previous_app_fact_REFUSED_APPLICATION_CREDIT_RATIO_MEAN
+        {0,2.122e-314},// percentiles previous_app_fact_PREV_Consumer_AMT_CREDIT_SUM
+        {0,2.16994e-320},// percentiles previous_app_fact_PREV_Consumer_AMT_ANNUITY_MEAN
+        {0,5.22628e-299},// percentiles previous_app_fact_PREV_Consumer_AMT_ANNUITY_MAX
+        {0,2.16498e-314},// percentiles previous_app_fact_PREV_Consumer_SIMPLE_INTERESTS_MIN
+        {0},// percentiles previous_app_fact_PREV_Consumer_SIMPLE_INTERESTS_MEAN
+        {0},// percentiles previous_app_fact_PREV_Consumer_SIMPLE_INTERESTS_MAX
+        {0,7.48509e-321},// percentiles previous_app_fact_PREV_Consumer_SIMPLE_INTERESTS_VAR
+        {0},// percentiles previous_app_fact_PREV_Consumer_APPLICATION_CREDIT_DIFF_MIN
+        {0,6.95313e-310},// percentiles previous_app_fact_PREV_Consumer_APPLICATION_CREDIT_DIFF_VAR
+        {0,2.18937e-314},// percentiles previous_app_fact_PREV_Consumer_APPLICATION_CREDIT_RATIO_MIN
+        {0,6.95326e-310},// percentiles previous_app_fact_PREV_Consumer_APPLICATION_CREDIT_RATIO_MAX
+        {0,4.94066e-323},// percentiles previous_app_fact_PREV_Consumer_APPLICATION_CREDIT_RATIO_MEAN
+        {0,6.95313e-310},// percentiles previous_app_fact_PREV_Consumer_DAYS_DECISION_MAX
+        {0,6.95322e-310},// percentiles previous_app_fact_PREV_Consumer_DAYS_LAST_DUE_1ST_VERSION_MAX
+        {0,4.42189e-321},// percentiles previous_app_fact_PREV_Consumer_DAYS_LAST_DUE_1ST_VERSION_MEAN
+        {0},// percentiles previous_app_fact_PREV_Consumer_CNT_PAYMENT_MEAN
+        {0},// percentiles previous_app_fact_PREV_Cash_AMT_CREDIT_SUM
+        {0,1.39065e-309},// percentiles previous_app_fact_PREV_Cash_AMT_ANNUITY_MEAN
+        {0},// percentiles previous_app_fact_PREV_Cash_AMT_ANNUITY_MAX
+        {0,3.23786e-319},// percentiles previous_app_fact_PREV_Cash_SIMPLE_INTERESTS_MIN
+        {0,1.26481e-321},// percentiles previous_app_fact_PREV_Cash_SIMPLE_INTERESTS_MEAN
+        {0,3.23786e-319},// percentiles previous_app_fact_PREV_Cash_SIMPLE_INTERESTS_MAX
+        {0},// percentiles previous_app_fact_PREV_Cash_SIMPLE_INTERESTS_VAR
+        {0},// percentiles previous_app_fact_PREV_Cash_APPLICATION_CREDIT_DIFF_MIN
+        {0},// percentiles previous_app_fact_PREV_Cash_APPLICATION_CREDIT_DIFF_VAR
+        {0},// percentiles previous_app_fact_PREV_Cash_APPLICATION_CREDIT_RATIO_MIN
+        {-2.07034e-271,0},// percentiles previous_app_fact_PREV_Cash_APPLICATION_CREDIT_RATIO_MAX
+        {0,2.42897e-319},// percentiles previous_app_fact_PREV_Cash_APPLICATION_CREDIT_RATIO_MEAN
+        {0},// percentiles previous_app_fact_PREV_Cash_DAYS_DECISION_MAX
+        {0},// percentiles previous_app_fact_PREV_Cash_DAYS_LAST_DUE_1ST_VERSION_MAX
+        {-3.17637e-22,0},// percentiles previous_app_fact_PREV_Cash_DAYS_LAST_DUE_1ST_VERSION_MEAN
+        {0,8.10021e-320},// percentiles previous_app_fact_PREV_Cash_CNT_PAYMENT_MEAN
+        {0},// percentiles previous_app_fact_PREV_LAST12M_AMT_CREDIT_SUM
+        {0},// percentiles previous_app_fact_PREV_LAST12M_AMT_ANNUITY_MEAN
+        {0,2.64619e-260},// percentiles previous_app_fact_PREV_LAST12M_AMT_ANNUITY_MAX
+        {0,2.64619e-260},// percentiles previous_app_fact_PREV_LAST12M_SIMPLE_INTERESTS_MEAN
+        {0},// percentiles previous_app_fact_PREV_LAST12M_SIMPLE_INTERESTS_MAX
+        {0},// percentiles previous_app_fact_PREV_LAST12M_DAYS_DECISION_MIN
+        {0},// percentiles previous_app_fact_PREV_LAST12M_DAYS_DECISION_MEAN
+        {0},// percentiles previous_app_fact_PREV_LAST12M_DAYS_LAST_DUE_1ST_VERSION_MIN
+        {0},// percentiles previous_app_fact_PREV_LAST12M_DAYS_LAST_DUE_1ST_VERSION_MAX
+        {0},// percentiles previous_app_fact_PREV_LAST12M_DAYS_LAST_DUE_1ST_VERSION_MEAN
+        {0},// percentiles previous_app_fact_PREV_LAST12M_APPLICATION_CREDIT_DIFF_MIN
+        {0},// percentiles previous_app_fact_PREV_LAST12M_APPLICATION_CREDIT_RATIO_MIN
+        {0},// percentiles previous_app_fact_PREV_LAST12M_APPLICATION_CREDIT_RATIO_MAX
+        {0},// percentiles previous_app_fact_PREV_LAST12M_APPLICATION_CREDIT_RATIO_MEAN
+        {0,3.87479e-122},// percentiles previous_app_fact_PREV_LAST24M_AMT_CREDIT_SUM
+        {0,2.15256e-133},// percentiles previous_app_fact_PREV_LAST24M_AMT_ANNUITY_MEAN
+        {-4.84656e-120,0},// percentiles previous_app_fact_PREV_LAST24M_AMT_ANNUITY_MAX
+        {-7.44225e-15,0},// percentiles previous_app_fact_PREV_LAST24M_SIMPLE_INTERESTS_MEAN
+        {0,1.77996e-294},// percentiles previous_app_fact_PREV_LAST24M_SIMPLE_INTERESTS_MAX
+        {0,3.38978e+50},// percentiles previous_app_fact_PREV_LAST24M_DAYS_DECISION_MIN
+        {-7.60556e-121,0},// percentiles previous_app_fact_PREV_LAST24M_DAYS_DECISION_MEAN
+        {-3.00461e-108,0},// percentiles previous_app_fact_PREV_LAST24M_DAYS_LAST_DUE_1ST_VERSION_MIN
+        {0,4.51519e-39},// percentiles previous_app_fact_PREV_LAST24M_DAYS_LAST_DUE_1ST_VERSION_MAX
+        {0,4.8888e+15},// percentiles previous_app_fact_PREV_LAST24M_DAYS_LAST_DUE_1ST_VERSION_MEAN
+        {-1.07094e-146,0},// percentiles previous_app_fact_PREV_LAST24M_APPLICATION_CREDIT_DIFF_MIN
+        {0,426334},// percentiles previous_app_fact_PREV_LAST24M_APPLICATION_CREDIT_RATIO_MIN
+        {-1.58747e-301,0},// percentiles previous_app_fact_PREV_LAST24M_APPLICATION_CREDIT_RATIO_MAX
+        {-2.26876e+11,0},// percentiles previous_app_fact_PREV_LAST24M_APPLICATION_CREDIT_RATIO_MEAN
+        {-1996489698,338852},// percentiles previous_app_DIM_9_IDX
+        {338852,159697700},// percentiles previous_app_DIM_6_IDX
+        {-1965775054,338852},// percentiles previous_app_DIM_7_IDX
+        {338852,1218367069},// percentiles previous_app_DIM_1_IDX
+        {-995231787,338852},// percentiles previous_app_DIM_8_IDX
+        {-852935439,338852},// percentiles previous_app_DIM_2_IDX
+        {338852,1207802819},// percentiles previous_app_DIM_3_IDX
+        {338852,258168222},// percentiles previous_app_DIM_11_IDX
+        {-215231378,72970},// percentiles previous_app_DIM_4_IDX
+        {-885506901,214996},// percentiles previous_app_DIM_10_IDX
+        {331843,1706551433},// percentiles previous_app_DIM_5_IDX
+        {0,1763621195},// percentiles previous_app_DIM_12_IDX
+        {0,35551},// percentiles previous_app_DIM_13_IDX
+        {-2914,-2883,-2737,-2595,-2461,-2302,-2108,-1883,-1668,-1472,-1268,-1068,-907,-767,-647,-536,-431,-313,-126},// percentiles installments_payments_fact_INS_DAYS_ENTRY_PAYMENT_MIN
+        {-2059.49,-1723.76,-1534.73,-1403.79,-1284.12,-1168.31,-1055.45,-949.893,-853.903,-766.75,-684.821,-605.571,-529.764,-455,-385.333,-316.7,-248.957,-179.615,-78.8},// percentiles installments_payments_fact_INS_DAYS_ENTRY_PAYMENT_MEAN
+        {0.18,10.08,54.855,137.88,833.895,2179.8,2885.09,3473.91,4019.89,4581.31,5199.3,5861.56,6655.01,7580.74,8714.34,10068.3,11856.3,14588.1,20208.1},// percentiles installments_payments_fact_INS_AMT_INSTALMENT_MIN
+        {2436.97,5958.63,8274.19,10418.4,12639.9,15104.9,18015.8,21999,26476.1,32622.3,41273.1,51585.8,67500,89994.5,123423,173165,253975,405000,659320},// percentiles installments_payments_fact_INS_AMT_INSTALMENT_MAX
+        {1741.53,4211.61,5361.03,6335.75,7247.59,8176.29,9086.44,10042.6,11054.8,12164.9,13400.7,14800.5,16456.4,18434.9,20956.2,24233.9,28753.5,35968.3,50141.3},// percentiles installments_payments_fact_INS_AMT_INSTALMENT_MEAN
+        {16253,46487.9,69937.9,93697.2,118369,145060,175976,211579,254847,306144,369156,446588,540667,659936,815604,1.02087e+06,1.31126e+06,1.73863e+06,2.48653e+06},// percentiles installments_payments_fact_INS_AMT_INSTALMENT_SUM
+        {0.045,1.44,3.735,9.765,24.03,51.75,99.675,204.66,522,1738.35,2900.34,3828.24,4710.28,5682.82,6846.16,8324.95,10161.8,12871.3,18186.4},// percentiles installments_payments_fact_INS_AMT_PAYMENT_MIN
+        {2431.39,5970.47,8303.85,10473.2,12715.6,15217.9,18185,22275,26784.8,33157.7,42150.6,52543.8,68330.9,90769.1,126000,176812,258631,411578,675000},// percentiles installments_payments_fact_INS_AMT_PAYMENT_MAX
+        {1623.25,3977.93,5100.61,6050.67,6950.9,7852.49,8777.9,9705.81,10722,11832.3,13080.8,14504.7,16210.2,18271.6,20922.7,24405.8,29298.3,37343.5,53594.1},// percentiles installments_payments_fact_INS_AMT_PAYMENT_MEAN
+        {16076.4,45013.1,67859.7,91107,115155,141029,170863,205300,247379,297484,359035,435879,529916,649565,806621,1.0175e+06,1.31957e+06,1.77473e+06,2.57282e+06},// percentiles installments_payments_fact_INS_AMT_PAYMENT_SUM
+        {0,0.0135135,0.0625,0.120567,0.2,0.306122,0.454545,0.675676,1.02439,1.66667,3.32258},// percentiles installments_payments_fact_INS_DPD_MEAN
+        {0,0.0138889,0.0994152,0.302555,0.672515,1.33333,2.54339,4.97587,10.0833,22.2308,64.2574},// percentiles installments_payments_fact_INS_DPD_VAR
+        {0.333333,3.42857,4.53846,5.41176,6.17526,6.89286,7.6,8.3125,9.02247,9.77273,10.5556,11.4091,12.3704,13.5,14.8033,16.45,18.6667,21.9,27.8095},// percentiles installments_payments_fact_INS_DBD_MEAN
+        {0,6.02941,11.9821,18.5278,25.6,32.9849,40.6667,48.5641,56.9667,66.0966,76.25,87.5412,100.424,116.034,135.099,160.481,199.344,275.256,485.445},// percentiles installments_payments_fact_INS_DBD_VAR
+        {-14778.2,-2787.45,-1.91473e-13,0,9.83238e-14},// percentiles installments_payments_fact_INS_PAYMENT_DIFFERENCE_MEAN
+        {0.571429,0.931818,0.978571,1},// percentiles installments_payments_fact_INS_PAYMENT_RATIO_MEAN
+        {0.00729217,0.321008,0.423254,0.5,0.56294,0.624994,0.683261,0.742835,0.8,0.847343,0.896552,0.935755,0.977528,1,1.13087},// percentiles installments_payments_fact_INS_LATE_PAYMENT_RATIO_MEAN
+        {0,0.03125,0.0952381},// percentiles installments_payments_fact_INS_PAID_OVER_MEAN
+        {-2431,-1425,-1265,-1167,-1092,-1021,-943,-861,-785,-712,-643,-573,-503,-432,-353,-273,-145,0},// percentiles installments_payments_fact_INS_36M_DAYS_ENTRY_PAYMENT_MIN
+        {-1203.15,-959.5,-815.571,-723.593,-655.698,-600.25,-551.116,-506.224,-461.617,-419.5,-377.707,-336.429,-293.833,-250.571,-204.364,-157.571,-89.5,0},// percentiles installments_payments_fact_INS_36M_DAYS_ENTRY_PAYMENT_MEAN
+        {0,1.35,18,67.5,224.1,1570.45,3360.96,4443.12,5367.02,6303.96,7328.74,8478.23,9685.22,11146,12953.4,15417.7,19489.5,27435.5},// percentiles installments_payments_fact_INS_36M_AMT_INSTALMENT_MIN
+        {0,4350.06,7432.56,9924.34,12464.7,15311.5,18852.4,23368.3,28873.2,37081.5,47268.2,62104.1,84348.5,117166,167985,249270,401411,655889},// percentiles installments_payments_fact_INS_36M_AMT_INSTALMENT_MAX
+        {0,2875.25,5034.62,6414.44,7628.88,8824.1,9985.47,11235.9,12597.9,14081.3,15818.5,17854.8,20387.1,23582.1,27723.8,33836,43833.9,64148.7},// percentiles installments_payments_fact_INS_36M_AMT_INSTALMENT_MEAN
+        {0,25275,53822.3,77902.7,102556,128745,158610,193997,239021,294157,363092,449353,556742,698248,888048,1.1553e+06,1.55142e+06,2.23353e+06},// percentiles installments_payments_fact_INS_36M_AMT_INSTALMENT_SUM
+        {0,0.45,3.6,15.21,44.01,94.86,211.275,562.68,1978.56,3656.39,4946.53,6190.88,7562.74,9099.45,10921.5,13287.4,17001,25060.1},// percentiles installments_payments_fact_INS_36M_AMT_PAYMENT_MIN
+        {0,4360.81,7462.89,9975.6,12554.1,15446.4,19070.1,23641.6,29312.7,37951.8,48113.4,63564,86414.3,119669,171380,253776,407618,671933},// percentiles installments_payments_fact_INS_36M_AMT_PAYMENT_MAX
+        {0,2744.86,4855.12,6180.47,7379.32,8576.67,9733.83,10984.4,12347.7,13846.7,15634.3,17740.8,20354.5,23706.5,28112.7,34832.3,45955.6,69627.6},// percentiles installments_payments_fact_INS_36M_AMT_PAYMENT_MEAN
+        {0,24941.9,53021.2,76633.9,100931,126408,155826,190363,234849,289531,357528,444289,553602,697348,893765,1.17482e+06,1.60187e+06,2.34756e+06},// percentiles installments_payments_fact_INS_36M_AMT_PAYMENT_SUM
+        {0,0.0416667,0.1,0.176471,0.290323,0.464286,0.770492,1.5},// percentiles installments_payments_fact_INS_36M_DPD_MEAN
+        {0,0.0512091,0.19866,0.510256,1.09798,2.27273,5.30769,16.368},// percentiles installments_payments_fact_INS_36M_DPD_VAR
+        {0,1.70642,3.38889,4.45652,5.35714,6.2,7,7.85714,8.71154,9.57143,10.5,11.5,12.6364,14,15.7143,18,21.4167,27.5556},// percentiles installments_payments_fact_INS_36M_DBD_MEAN
+        {0,1.06667,5.53788,10.4,16.1111,22.4697,29.3788,36.7625,44.8,53.6964,63.8588,75.8097,90.1667,108.381,132.257,164.119,221.878,386.333},// percentiles installments_payments_fact_INS_36M_DBD_VAR
+        {-18776.2,-3490.15,-1.58173e-13,0,4.0422e-14},// percentiles installments_payments_fact_INS_36M_PAYMENT_DIFFERENCE_MEAN
+        {0,0.732143,0.931818,0.984536,1},// percentiles installments_payments_fact_INS_36M_PAYMENT_RATIO_MEAN
+        {0,0.165694,0.345094,0.449094,0.533333,0.616546,0.700384,0.785114,0.857143,0.916667,0.970588,1,1.22448},// percentiles installments_payments_fact_INS_36M_LATE_PAYMENT_RATIO_MEAN
+        {-2512,-2047,-1904,-1787,-1669,-1538,-1413,-1267,-1115,-993,-872,-764,-669,-577,-489,-399,-301,-157,0},// percentiles installments_payments_fact_INS_60M_DAYS_ENTRY_PAYMENT_MIN
+        {-1515.8,-1320.84,-1167.71,-1036.6,-930.667,-843.125,-766.586,-697.543,-632.531,-570.412,-511.188,-452.1,-396.588,-341.333,-286,-230.767,-173,-96.8571,0},// percentiles installments_payments_fact_INS_60M_DAYS_ENTRY_PAYMENT_MEAN
+        {0,1.125,16.2,67.5,190.395,1350,2801.07,3619.93,4356.94,5071.1,5822.82,6679.89,7633.26,8736.34,9971.28,11497.1,13530.3,16730.2,23583.7},// percentiles installments_payments_fact_INS_60M_AMT_INSTALMENT_MIN
+        {0,3878.1,6906.87,9290.52,11591.4,14085,16974.5,20808,25404.5,31426.9,40059.2,50405.4,66147.3,88904.5,122262,172383,253584,404800,659035},// percentiles installments_payments_fact_INS_60M_AMT_INSTALMENT_MAX
+        {0,2722.98,4715.99,5968.89,7051.38,8109.3,9130.94,10194.1,11311,12542.8,13882.9,15447.4,17262.7,19474.8,22274.1,25893.9,31044.5,39292.3,55771.4},// percentiles installments_payments_fact_INS_60M_AMT_INSTALMENT_MEAN
+        {0,25279.8,52450,76120.8,100266,125965,154712,187311,227767,276927,336636,409667,500961,615834,766407,966259,1.24926e+06,1.66845e+06,2.39475e+06},// percentiles installments_payments_fact_INS_60M_AMT_INSTALMENT_SUM
+        {0,0.27,2.475,7.155,21.195,50.31,102.51,214.56,554.805,1895.09,3280.99,4372.6,5419.4,6605.77,7994.07,9586.31,11635.4,14731.4,21310.2},// percentiles installments_payments_fact_INS_60M_AMT_PAYMENT_MIN
+        {0,3882.42,6923.48,9322.29,11648.9,14179.2,17121.8,21090.9,25721.6,31874.1,40893.4,51318,67500,90000,125032,176078,258172,411364,675000},// percentiles installments_payments_fact_INS_60M_AMT_PAYMENT_MAX
+        {0,2570.01,4508.44,5712.55,6778.02,7810.95,8844.19,9882.35,11007.8,12235,13591.4,15193.4,17057.7,19360.4,22290.3,26132,31703.7,41023.8,60213.2},// percentiles installments_payments_fact_INS_60M_AMT_PAYMENT_MEAN
+        {0,24802.6,51106.8,74305.7,98120.7,123102,150960,182922,222282,270318,328763,401582,493265,608664,761476,966057,1.26229e+06,1.70922e+06,2.49296e+06},// percentiles installments_payments_fact_INS_60M_AMT_PAYMENT_SUM
+        {0,0.05,0.105263,0.181818,0.285714,0.443182,0.684211,1.12766,2.23077},// percentiles installments_payments_fact_INS_60M_DPD_MEAN
+        {0,0.0695122,0.231884,0.5625,1.14347,2.25794,4.75362,11.0712,33.1553},// percentiles installments_payments_fact_INS_60M_DPD_VAR
+        {0,1.83333,3.66667,4.72727,5.61818,6.41667,7.19118,7.96875,8.73529,9.51351,10.3333,11.2,12.1978,13.3333,14.6842,16.375,18.6667,22,28},// percentiles installments_payments_fact_INS_60M_DBD_MEAN
+        {0,1.4,6.26786,11.6667,17.8788,24.7,31.9,39.5338,47.6016,56.3143,65.944,76.9032,89.4646,104.491,123.184,146.964,181.324,248.091,438.564},// percentiles installments_payments_fact_INS_60M_DBD_VAR
+        {-16368.6,-3103.45,-1.86563e-13,0,8.26813e-14},// percentiles installments_payments_fact_INS_60M_PAYMENT_DIFFERENCE_MEAN
+        {0,0.75,0.94,0.983957,1},// percentiles installments_payments_fact_INS_60M_PAYMENT_RATIO_MEAN
+        {0,0.167204,0.352833,0.45293,0.53122,0.604786,0.676186,0.75,0.818182,0.875,0.922,0.965184,1,1.17804},// percentiles installments_payments_fact_INS_60M_LATE_PAYMENT_RATIO_MEAN
+        {-0.0985994,-0.030303,-0.0103873,-0.00262214,0,0.000243092,0.00404858,0.0128458,0.0345649,0.11218},// percentiles installments_payments_fact_120_TREND_DPD
+        {-220.729,-58.287,-18.5552,-3.80251,0,7.08043,30.9609,84.128,225.982},// percentiles installments_payments_fact_120_TREND_PAID_OVER_AMOUNT
+        {-0.13986,-0.0454545,-0.0034965,0,0.0034965,0.0524476,0.192308},// percentiles installments_payments_fact_12_TREND_DPD
+        {-575.488,-171.769,0,180.119,609.251},// percentiles installments_payments_fact_12_TREND_PAID_OVER_AMOUNT
+        {-0.106087,-0.0373626,-0.0134783,-2.86658e-17,0,0.0113043,0.04,0.136087},// percentiles installments_payments_fact_24_TREND_DPD
+        {-354.845,-118.478,-33.9635,0,45.0498,141.617,380.492},// percentiles installments_payments_fact_24_TREND_PAID_OVER_AMOUNT
+        {-0.0979021,-0.0307143,-0.0108641,-0.00291748,0,0.0030564,0.0120968,0.0357044,0.117647},// percentiles installments_payments_fact_60_TREND_DPD
+        {-249.286,-69.0067,-23.7421,-3.97215,0,7.76373,36.5619,95.829,246.862},// percentiles installments_payments_fact_60_TREND_PAID_OVER_AMOUNT
+        {0,0.025,0.125,0.259259,0.47191,0.85,1.83333},// percentiles installments_payments_fact_LAST_LOAN_DPD_mean
+        {0,0.168995,0.447214,0.83205,1.33456,2.15883,4.22116},// percentiles installments_payments_fact_LAST_LOAN_DPD_std
+        {0,1,2,5,9,17,41},// percentiles installments_payments_fact_LAST_LOAN_DPD_sum
+        {0,0.25,0.358025,0.459677,0.55814,0.666667,0.769231,0.846154,0.909091,1},// percentiles installments_payments_fact_LAST_LOAN_LATE_PAYMENT_mean
+        {0,33512.1},// percentiles installments_payments_fact_LAST_LOAN_PAID_OVER_AMOUNT_max
+        {-3025.26,-1341.88,-539.077,-47.0782,0,5483.21},// percentiles installments_payments_fact_LAST_LOAN_PAID_OVER_AMOUNT_mean
+        {-21284.9,-11699,-6797.79,-2925,0},// percentiles installments_payments_fact_LAST_LOAN_PAID_OVER_AMOUNT_min
+        {0,933.754,2319.35,4098.63,7262.45,16800.6},// percentiles installments_payments_fact_LAST_LOAN_PAID_OVER_AMOUNT_std
+        {-50819.5,-22105.7,-10360.5,-2250,0,56683.8},// percentiles installments_payments_fact_LAST_LOAN_PAID_OVER_AMOUNT_sum
+        {0,0.181818},// percentiles installments_payments_fact_LAST_LOAN_PAID_OVER_mean
+        {14,28,56,68,192,241,409,633,1366,2844,5802,10711,20158,36008,61955,101121,158291,234400,332749},// percentiles installments_payments_DIM_1_IDX
+        {25,32,46,68,77,96,126,152,204,292,373,545,828,1108,1505,2084,2737,4610,35767},// percentiles installments_payments_DIM_8_IDX
+        {172,173,198,245,397,676,933,1461,4803,27572,294938,324599},// percentiles installments_payments_DIM_2_IDX
+        {12580,12584,12589,12592,12596,12604,12610,12621,12633,12654,12727,12792,13187,16595,24794,54608,246281,320526},// percentiles installments_payments_DIM_9_IDX
+        {16752,16893,17318,18944,22450,30962,49203,85806,143486,207527,259326,289508,319511,325002},// percentiles installments_payments_DIM_3_IDX
+        {4,8,21,28,29,35,36,54,87,156,529,1190,5621,8439,10764,12911,15898,170429,264124},// percentiles installments_payments_DIM_6_IDX
+        {562,5960,6915,20611,49702,216499,297842,338212},// percentiles installments_payments_DIM_7_IDX
+        {12954,240768,259777,301437,337584},// percentiles installments_payments_DIM_4_IDX
+        {0,396,430,465,469,470,479,482,666,790,912,951,1069,1119,2569,8031,10130,208656},// percentiles installments_payments_DIM_5_IDX
+        {0,6,7,9,11,12,14,16,19,21,24,26,30,34,38,44,51,61,78},// percentiles pos_cash_fact_POS_MONTHS_BALANCE_SIZE
+        {0,112},// percentiles pos_cash_fact_POS_SK_DPD_MAX
+        {0,6.94643e-310},// percentiles pos_cash_fact_POS_SK_DPD_MEAN
+        {0},// percentiles pos_cash_fact_POS_SK_DPD_SUM
+        {0},// percentiles pos_cash_fact_POS_SK_DPD_VAR
+        {0},// percentiles pos_cash_fact_POS_SK_DPD_DEF_MEAN
+        {0},// percentiles pos_cash_fact_POS_LATE_PAYMENT_MEAN
+        {0},// percentiles pos_cash_fact_POS_LOAN_COMPLETED_MEAN
+        {0},// percentiles pos_cash_fact_POS_REMAINING_INSTALMENTS_RATIO
+        {0,337247},// percentiles pos_cash_DIM_4_IDX
+        {0,337247},// percentiles pos_cash_DIM_1_IDX
+        {0,337247},// percentiles pos_cash_DIM_2_IDX
+        {0,337247},// percentiles pos_cash_DIM_3_IDX
+        {0,93132.3,163336,258258},// percentiles credit_card_balance_fact_CC_AMT_BALANCE_MAX
+        {0,31500,90000,139500},// percentiles credit_card_balance_fact_CC_AMT_DRAWINGS_ATM_CURRENT_MAX
+        {0,45000,166500,347400},// percentiles credit_card_balance_fact_CC_AMT_DRAWINGS_ATM_CURRENT_SUM
+        {0,67500,112500,180000},// percentiles credit_card_balance_fact_CC_AMT_DRAWINGS_CURRENT_MAX
+        {0,135000,253568,504604},// percentiles credit_card_balance_fact_CC_AMT_DRAWINGS_CURRENT_SUM
+        {0,8455.5,59535},// percentiles credit_card_balance_fact_CC_AMT_DRAWINGS_POS_CURRENT_MAX
+        {0,12824.7,133064},// percentiles credit_card_balance_fact_CC_AMT_DRAWINGS_POS_CURRENT_SUM
+        {0,4500,8100,12955.2},// percentiles credit_card_balance_fact_CC_AMT_INST_MIN_REGULARITY_MAX
+        {0,1474.85,3464.84,6851.14},// percentiles credit_card_balance_fact_CC_AMT_INST_MIN_REGULARITY_MEAN
+        {0,450,22500,64738.2,157500},// percentiles credit_card_balance_fact_CC_AMT_PAYMENT_TOTAL_CURRENT_MAX
+        {0,45,3655.79,8001.82,17347.3},// percentiles credit_card_balance_fact_CC_AMT_PAYMENT_TOTAL_CURRENT_MEAN
+        {0,837,107463,262479,548463},// percentiles credit_card_balance_fact_CC_AMT_PAYMENT_TOTAL_CURRENT_SUM
+        {0,4719.55,2.90336e+07,1.57222e+08,9.24357e+08},// percentiles credit_card_balance_fact_CC_AMT_PAYMENT_TOTAL_CURRENT_VAR
+        {0,92403.3,162399,255920},// percentiles credit_card_balance_fact_CC_AMT_TOTAL_RECEIVABLE_MAX
+        {0,21681.8,63269.8,136657},// percentiles credit_card_balance_fact_CC_AMT_TOTAL_RECEIVABLE_MEAN
+        {0,0.178947,0.657143,2.32},// percentiles credit_card_balance_fact_CC_CNT_DRAWINGS_CURRENT_MEAN
+        {0,0.0588235,1.5},// percentiles credit_card_balance_fact_CC_CNT_DRAWINGS_POS_CURRENT_MEAN
+        {0,0.0121951},// percentiles credit_card_balance_fact_CC_SK_DPD_MEAN
+        {0,0.908129,1.02545,1.0578},// percentiles credit_card_balance_fact_CC_LIMIT_USE_MAX
+        {0,0.218305,0.448616,0.719411},// percentiles credit_card_balance_fact_CC_LIMIT_USE_MEAN
+        {0,0.297,1.00399},// percentiles credit_card_balance_fact_CC_PAYMENT_DIV_MIN_MIN
+        {0,1.01126,10.3002},// percentiles credit_card_balance_fact_CC_PAYMENT_DIV_MIN_MEAN
+        {0,246.96,174200},// percentiles credit_card_balance_fact_CC_LAST_AMT_BALANCE_MEAN
+        {0,246.96,175487},// percentiles credit_card_balance_fact_CC_LAST_AMT_BALANCE_MAX
+        {0,21883.5,63701,137668},// percentiles credit_card_balance_fact_INS_12M_AMT_BALANCE_MEAN
+        {0,93132.3,163336,258258},// percentiles credit_card_balance_fact_INS_12M_AMT_BALANCE_MAX
+        {0,0.908129,1.02545,1.0578},// percentiles credit_card_balance_fact_INS_12M_LIMIT_USE_MAX
+        {0,0.218305,0.448616,0.719411},// percentiles credit_card_balance_fact_INS_12M_LIMIT_USE_MEAN
+        {0,21883.5,63701,137668},// percentiles credit_card_balance_fact_INS_24M_AMT_BALANCE_MEAN
+        {0,93132.3,163336,258258},// percentiles credit_card_balance_fact_INS_24M_AMT_BALANCE_MAX
+        {0,0.908129,1.02545,1.0578},// percentiles credit_card_balance_fact_INS_24M_LIMIT_USE_MAX
+        {0,0.218305,0.448616,0.719411},// percentiles credit_card_balance_fact_INS_24M_LIMIT_USE_MEAN
+        {0,21883.5,63701,137668},// percentiles credit_card_balance_fact_INS_48M_AMT_BALANCE_MEAN
+        {0,93132.3,163336,258258},// percentiles credit_card_balance_fact_INS_48M_AMT_BALANCE_MAX
+        {0,0.908129,1.02545,1.0578},// percentiles credit_card_balance_fact_INS_48M_LIMIT_USE_MAX
+        {0,0.218305,0.448616,0.719411},// percentiles credit_card_balance_fact_INS_48M_LIMIT_USE_MEAN
         };
     }
 }

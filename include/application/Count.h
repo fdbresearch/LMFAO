@@ -37,6 +37,8 @@ public:
     void generateCode();
 
 private:
+
+    Query* countQuery = nullptr;
     
     //! Physical path to the schema and table files.
     std::string _pathToFiles;

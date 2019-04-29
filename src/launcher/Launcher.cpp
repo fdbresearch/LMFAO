@@ -166,6 +166,7 @@ int Launcher::launch(boost::program_options::variables_map& vm)
     {
         _application.reset(
             new Count(shared_from_this()));
+        hasApplicationHandler = true;
     }
     else if (model.compare("cube") == 0)
     {

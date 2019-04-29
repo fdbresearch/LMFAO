@@ -31,19 +31,43 @@ void Count::run()
 }
 
 void Count::generateCode()
-{}
+{
+    std::string viewID = std::to_string(countQuery->_aggregates[0]->_incoming[0].first);
+
+    std::string runFunction = offset(1)+"void runApplication()\n"+
+        offset(1)+"{\n"+offset(2)+"std::cout << \"The count is: \" << V"+
+        viewID+"[0].aggregates[0] << std::endl;\n"+
+        offset(1)+"}\n";
+
+    std::ofstream ofs(multifaq::dir::OUTPUT_DIRECTORY+"ApplicationHandler.h", std::ofstream::out);
+    ofs << "#ifndef INCLUDE_APPLICATIONHANDLER_HPP_\n"<<
+        "#define INCLUDE_APPLICATIONHANDLER_HPP_\n\n"<<
+        "#include \"DataHandler.h\"\n\n"<<
+        "namespace lmfao\n{\n"<<
+        offset(1)+"void runApplication();\n"<<
+        "}\n\n#endif /* INCLUDE_APPLICATIONHANDLER_HPP_*/\n";    
+    ofs.close();
+
+    ofs.open(multifaq::dir::OUTPUT_DIRECTORY+"ApplicationHandler.cpp",
+             std::ofstream::out);
+    ofs << "#include \"ApplicationHandler.h\"\n"
+        << "namespace lmfao\n{\n";
+    ofs << runFunction << std::endl;
+    ofs << "}\n";
+    ofs.close();
+}
 
 void Count::modelToQueries()
 {
     // Create a query & Aggregate
-    Query* query = new Query();
-    query->_rootID = _td->_root->_id;
+    countQuery = new Query();
+    countQuery->_rootID = _td->_root->_id;
     
     Aggregate* agg = new Aggregate();
 
     prod_bitset product;
     agg->_agg.push_back(product);
     
-    query->_aggregates.push_back(agg);
-    _compiler->addQuery(query);
+    countQuery->_aggregates.push_back(agg);
+    _compiler->addQuery(countQuery);
 }

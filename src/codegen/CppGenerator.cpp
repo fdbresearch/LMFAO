@@ -323,9 +323,10 @@ void CppGenerator::genMakeFile()
         << "multi : lmfao\n\n"
         << ".PHONY : precompilation\n"
         << "precomp : main.o\n"
-        << "precomp : datahandler.o\n"
-        << "precomp : application.o\n\n"
-        << ".PHONY : testing\n"
+        << "precomp : datahandler.o\n";
+    if (_hasApplicationHandler)
+         ofs << "precomp : application.o\n";
+    ofs << "\n.PHONY : testing\n"
         << "test : FLAG = -DTESTING\n"
         << "test : lmfao\n\n"
         << ".PHONY : dump\n"
@@ -5364,8 +5365,9 @@ std::string CppGenerator::genProductString(
                         if (notFound)
                         {
                             ERROR("The loop hasn't been found - THIS IS A MISTAKE\n");
-                            std::cout <<  node._name << std::endl;
+                            std::cout << node._name << std::endl;
                             std::cout << product << std::endl;
+                            std::cout << _td->getAttribute(v)->_name << std::endl;
                             exit(1);
                         }
                     }

@@ -10,6 +10,7 @@
 #include <fstream>
 #include <sstream>
 
+#include <GlobalParams.hpp>
 #include <Logging.hpp>
 #include <TreeDecomposition.h>
 
