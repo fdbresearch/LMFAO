@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.9)
 
-project(lmfao_algebra LANGUAGES CUDA CXX)
+set(LMFAO_GPU false)
+if (LMFAO_GPU)
+  project(lmfao_algebra_gpu LANGUAGES CUDA CXX)
+else()
+  project(lmfao_algebra LANGUAGES CXX)
+endif()
 
 set(CMKAKE_CXX_STANDARD 14)
 set(CMKAKE_CXX_STANDARD REQUIRED )
@@ -16,10 +21,9 @@ set(CMAKE_CXX_FLAGS_BENCHMARK "${CMAKE_CXX_FLAGS_RELEASE} -DBENCH")
 
 # Set to Debug, Benchmark or Release.
 set(CMAKE_BUILD_TYPE Benchmark)
-set(LMFAO_RUN true)
-set(LMFAO_GPU false)
+#set(LMFAO_RUN true)
 set(LMFAO_LIB true)
-#set(LMFAO_TEST true)
+set(LMFAO_TEST true)
 
 if (LMFAO_GPU)
   find_package(CUDA 10.0 REQUIRED)
@@ -31,7 +35,10 @@ set(LMFAO_LA_ROOT .)
 set(LMFAO_LA_TEST ${LMFAO_LA_ROOT}/tests)
 set(LMFAO_LA_INCLUDE ${LMFAO_LA_ROOT}/include)
 
-include_directories(${LMFAO_LA_INCLUDE} ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+include_directories(${LMFAO_LA_INCLUDE})
+if (${LMFAO_GPU})
+  include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+endif()
 file(GLOB SRCFILES src/*.cpp)
 
 #Build library for svd from cuda files only
