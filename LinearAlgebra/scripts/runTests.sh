@@ -120,10 +120,6 @@ function get_str_args()
         EXTENSION="${option#*=}"
         get_build_ops $EXTENSION
         ;;
-        -b=*|--build=*)
-        EXTENSION="${option#*=}"
-        get_build_ops $EXTENSION
-        ;;
         -r=*|--root=*)
         EXTENSION="${option#*=}"
         init_global_paths $EXTENSION
