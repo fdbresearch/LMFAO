@@ -17,6 +17,29 @@ function init_global_paths()
     DFDB_SH_LOG_PATH="${DFDB_SH_LA}/logs"
 }
 
+function init_global_vars()
+{
+    DFDB_TIME="/usr/bin/time -f \"%e %P %I %O\""
+    DFDB_SH_DB="usretailer"
+    if [ -z "$1"]
+    then 
+        DFDB_SH_USERNAME=$(whoami)
+    else
+        DFDB_SH_USERNAME=$1
+    fi
+    echo $DFDB_SH_USERNAME
+    DFDB_SH_FEATURES=()
+    DFDB_SH_FEATURES_CAT=()
+    DFDB_SH_POSITIONAL=()
+    DFDB_SH_JOIN=false
+    DFDB_SH_LMFAO=false
+    DFDB_SH_JOIN=false
+    DFDB_SH_MADLIB=false
+    DFDB_SH_R=false
+    DFDB_SH_SCIPY=false
+    DFDB_SH_NUMPY=false
+}
+
 function get_features() 
 {
     local file_name=$1"/features.conf"
@@ -103,8 +126,11 @@ function get_str_args()
         ;;
         -r=*|--root=*)
         EXTENSION="${option#*=}"
-        DFDB_SH_ROOT=$EXTENSION
         init_global_paths $EXTENSION
+        ;;
+        -u=*|--user=*)
+        EXTENSION="${option#*=}"
+        init_global_vars $EXTENSION
         ;;
         *)    # unknown option
         echo "Wrong  argument" $option
@@ -123,19 +149,7 @@ make -j8
 function main() {
     #TODO: Add passing path to joined result to each of the scripts. 
     init_global_paths
-    DFDB_TIME="/usr/bin/time -f \"%e %P %I %O\""
-    DFDB_SH_DB="usretailer"
-    DFDB_SH_USERNAME="popina"
-    DFDB_SH_FEATURES=()
-    DFDB_SH_FEATURES_CAT=()
-    DFDB_SH_POSITIONAL=()
-    DFDB_SH_JOIN=false
-    DFDB_SH_LMFAO=false
-    DFDB_SH_JOIN=false
-    DFDB_SH_MADLIB=false
-    DFDB_SH_R=false
-    DFDB_SH_SCIPY=false
-    DFDB_SH_NUMPY=false
+    init_global_vars
 
     get_str_args "$@"
     cd $DFDB_SH_ROOT
@@ -180,13 +194,11 @@ function main() {
             (source svd_madlib.sh ${data_set} ${features_cat_out}  &> ${log_madlib})
             echo '*********Madlib test finished**********'
         }
-        : '
         [[ $DFDB_SH_JOIN  == true ]] && {
             echo '*********Join started**********'
             (source generate_join.sh ${data_set}  &> ${log_psql}) 
             echo '*********Join finished**********'
         }
-        '
 
         [[ $DFDB_SH_EIGEN  == true ]] && {
             echo '*********Eigen test started**********'
