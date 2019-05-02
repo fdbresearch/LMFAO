@@ -8,8 +8,6 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 
-JOIN_RES_PATH = "/media/popina/test/dfdb/LMFAO/runtime/sql/joinresult.txt"
-
 
 class DummyEncoder(BaseEstimator, TransformerMixin):
     def transform(self, X):
@@ -24,16 +22,18 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-f", "--features", dest="features", required=True)
     parser.add_argument("-c", "--categorical_features", dest="categorical_features", required=True)
+    parser.add_argument("-d", "--data_path", dest="data_path", required=True)
 
     args = parser.parse_args()
     features = args.features
     cat_featurs = args.categorical_features
+    data_path = args.data_path
     columns = features.split(",")
 
     columns_cat = cat_featurs.split(",")
 
     transformer_a = []
-    data = pd.read_csv(JOIN_RES_PATH, names=columns, delimiter="|", header=None)
+    data = pd.read_csv(data_path, names=columns, delimiter="|", header=None)
     for column in columns_cat:
         transf_name = column + "_onehot"
         transformer_a.append((transf_name, DummyEncoder(), [column]))

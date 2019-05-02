@@ -10,6 +10,7 @@
 #include <Count.h>
 #include <CovarianceMatrix.h>
 #include <QRDecompositionApplication.h>
+#include <SVDecompositionApplication.h>
 #include <CppGenerator.h>
 #include <DataCube.h>
 #include <KMeans.h>
@@ -124,6 +125,12 @@ int Launcher::launch(const string& model, const string& codeGenerator,
     {
         _application.reset(
             new QRDecompApp(_pathToFiles, shared_from_this()));
+        hasApplicationHandler = true;
+    }
+    else if (model.compare("svdecomp") == 0)
+    {
+        _application.reset(
+            new SVDecompApp(_pathToFiles, shared_from_this()));
         hasApplicationHandler = true;
     }
     else if (model.compare("count") == 0)

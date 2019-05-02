@@ -26,7 +26,8 @@ public:
 protected:
     virtual std::string getCodeOfIncludes() override;
     virtual std::string getCodeOfFunDefinitions() override;
-    virtual std::string getCodeOfRunAppFun() override;    
+    virtual std::string getCodeOfRunAppFun() override;  
+    virtual std::string getCodeOfDecomposition(); 
 private:
 	std::string getVectorOfFeatures();
 };

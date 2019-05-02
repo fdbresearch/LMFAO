@@ -4,15 +4,19 @@ library(stringr)
 
 args <- commandArgs(trailingOnly=TRUE) 
 
-dataA <- read.csv('/media/popina/test/dfdb/LMFAO/runtime/sql/joinresult.txt', header=FALSE, sep='|')
-cat_feats <- c("rain")
+data_path = args[1]
+feat_num = as.integer(args[2])
+cat_feat_num = as.integer(args[3])
+feats = args[4:(feat_num+3)]
+cat_feats = args[(feat_num+4):length(args)]
+
+dataA <- read.csv(data_path, header=FALSE, sep='|')
+#cat_feats <- c("rain")
 
 dfA = as.data.frame(dataA)
-
-feat_num = as.integer(args[1])
-cat_feat_num = as.integer(args[2])
-feats = args[3:(feat_num+2)]
-cat_feats = args[(feat_num+3):length(args)]
+#data_path
+#feat_num
+#cat_feat_num
 #feats
 #cat_feats
 
