@@ -21,13 +21,8 @@ function init_global_vars()
 {
     DFDB_TIME="/usr/bin/time -f \"%e %P %I %O\""
     DFDB_SH_DB="usretailer"
-    if [ -z "$1"]
-    then 
-        DFDB_SH_USERNAME=$(whoami)
-    else
-        DFDB_SH_USERNAME=$1
-    fi
-    echo $DFDB_SH_USERNAME
+    DFDB_SH_USERNAME=$(whoami)
+    DFDB_SH_PORT=5432
     DFDB_SH_FEATURES=()
     DFDB_SH_FEATURES_CAT=()
     DFDB_SH_POSITIONAL=()
@@ -78,7 +73,7 @@ function get_build_ops()
     for i in $(seq 1 ${#1}); do
         build_option="${1:i-1:1}"
         case $build_option in 
-            -m)
+            m)
             DFDB_SH_MADLIB=true
             ;;
             j)
@@ -126,8 +121,12 @@ function get_str_args()
         ;;
         -u=*|--user=*)
         EXTENSION="${option#*=}"
-        init_global_vars $EXTENSION
+        DFDB_SH_USERNAME=$EXTENSION
         ;;
+	 -p=*|--port=*)
+	EXTENSION="${option#*=}"
+	DFDB_SH_PORT=$EXTENSION
+	;;
         *)    # unknown option
         echo "Wrong  argument" $option
         ;;
@@ -154,7 +153,8 @@ function main() {
 
     cd $DFDB_SH_LA_SCRIPT
 
-    data_sets=(usretailer_35f_1)
+    data_sets=(usretailer_35f_1000 )
+    #data_sets=(usretailer_35f_1 usretailer_35f_10 usretailer_35f_100 usretailer_35f_1000 usretailer favorita)
     #usretailer_36f_1 usretailer_36f_10 usretailer_36f_100 usretailer_36f_1000 usretailer_36f)
     for data_set in ${data_sets[@]}; do
         DFDB_SH_DB=${data_set}
@@ -163,8 +163,8 @@ function main() {
         get_features $data_path
 
 
-        dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME || \
-        createdb $DFDB_SH_DB -U $DFDB_SH_USERNAME
+        dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT || \
+        createdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT 
 
         features_out=$(printf "%s," ${DFDB_SH_FEATURES[@]})
         features_out=${features_out::-1}
@@ -195,7 +195,6 @@ function main() {
             (source generate_join.sh ${data_set}  &> ${log_psql}) 
             echo '*********Join finished**********'
         }
-
         [[ $DFDB_SH_EIGEN  == true ]] && {
             echo '*********Eigen test started**********'
             (source svd_eigen.sh ${data_set} ${features_cat_out}  &> ${log_eigen})
@@ -230,7 +229,7 @@ function main() {
                               -d "${DFDB_SH_JOIN_RES_PATH}" &> ${log_scipy}
             echo '*********scipy test finished**********'
         }
-        dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME
+        dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
         : '
         aafdfsd
         '

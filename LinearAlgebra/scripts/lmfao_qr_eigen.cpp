@@ -105,7 +105,7 @@ int main(int argc, const char *argv[])
     }
     else if (decomposition.find("svd") != string::npos)
     {
-        Eigen::BDCSVD<Eigen::MatrixXd> svdR(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
+        Eigen::BDCSVD<Eigen::MatrixXd> svdR(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
         std::cout << "SVD";
     }
     
