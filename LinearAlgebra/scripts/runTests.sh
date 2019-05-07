@@ -184,13 +184,13 @@ function run_test() {
 
     [[ $DFDB_SH_MADLIB  == true ]] && {
         echo '*********Madlib test started**********'
-        (source svd_madlib.sh ${data_set} ${features_cat_out}  &> ${log_madlib})
+        (source la_madlib.sh ${data_set} ${features_cat_out}  &> ${log_madlib})
         echo '*********Madlib test finished**********'
     }
 
     [[ $DFDB_SH_EIGEN  == true ]] && {
         echo '*********Eigen test started**********'
-        (source svd_eigen.sh ${data_set} ${data_op} ${features_cat_out}  &> ${log_eigen})
+        (source la_eigen.sh ${data_set} ${data_op} ${features_cat_out}  &> ${log_eigen})
         echo '*********Eigen test finished**********'
     }
 
@@ -202,21 +202,21 @@ function run_test() {
 
     [[ $DFDB_SH_R  == true ]] && {
         echo '*********R test started**********'
-        eval ${DFDB_TIME} Rscript "${DFDB_SH_LA_SCRIPT}/svd.R ${DFDB_SH_JOIN_RES_PATH} \
+        eval ${DFDB_TIME} Rscript "${DFDB_SH_LA_SCRIPT}/la.R ${DFDB_SH_JOIN_RES_PATH} \
                 ${data_op} ${#DFDB_SH_FEATURES[@]} ${#DFDB_SH_FEATURES_CAT[@]}         \
                 ${DFDB_SH_FEATURES[@]} ${DFDB_SH_FEATURES_CAT[@]}" &> ${log_r}
         echo '*********R test finished**********'
     }
     [[ $DFDB_SH_NUMPY  == true ]] && {
         echo '*********numpy test started**********'
-        eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/svd_numpy.py" \
+        eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/la_numpy.py" \
                           -f ${features_out} -c ${features_cat_out}   \
                           -d "${DFDB_SH_JOIN_RES_PATH}" -o "$data_op" &> ${log_numpy}
         echo '*********numpy test finished**********'
     }
     [[ $DFDB_SH_SCIPY  == true ]] && {
         echo '*********scipy test started**********'
-        eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/svd_scipy.py" \
+        eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/la_scipy.py" \
                           -f ${features_out} -c ${features_cat_out}    \
                           -d "${DFDB_SH_JOIN_RES_PATH}" -o "$data_op" &> ${log_scipy}
         echo '*********scipy test finished**********'
