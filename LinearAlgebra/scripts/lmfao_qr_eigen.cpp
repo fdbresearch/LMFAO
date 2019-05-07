@@ -10,7 +10,7 @@
 using namespace std;
 using namespace boost::program_options;
 
-int main(int argc, const char *argv[]) 
+int main(int argc, const char *argv[])
 {
     string path;
     string decomposition;
@@ -46,7 +46,7 @@ int main(int argc, const char *argv[])
     }
 
     std::ifstream input(path);
-    
+
     if (!input) {
         exit(1);
     }
@@ -58,9 +58,9 @@ int main(int argc, const char *argv[])
     std::string cell;
     unsigned int cntLines = 0;
     unsigned int cntFeat = 0;
-    /* Scan through the tuples in the current table. */
     getline(input, line);
     lineStream << line;
+    /* In order to get number of features. */
     while (std::getline(lineStream, cell, '|'))
     {
         cntFeat++;
@@ -68,7 +68,8 @@ int main(int argc, const char *argv[])
     lineStream.clear();
     input.clear();
     input.seekg(0, ios::beg);
-    
+
+    /* Scan through the tuples in the current table. */
     while (getline(input, line))
     {
         cntLines ++;
@@ -77,7 +78,7 @@ int main(int argc, const char *argv[])
     input.seekg(0, ios::beg);
 
     std::cout  << "Vals" << cntLines << " " << cntFeat << std::endl;
-    
+
     Eigen::MatrixXd A = Eigen::MatrixXd::Zero(cntLines, cntFeat);
     cntLines = 0;
     while (getline(input, line))
@@ -91,7 +92,7 @@ int main(int argc, const char *argv[])
             cntFeat ++;
         }
 
-        lineStream.clear();   
+        lineStream.clear();
         cntLines ++;
     }
     input.close();
@@ -108,7 +109,7 @@ int main(int argc, const char *argv[])
         Eigen::BDCSVD<Eigen::MatrixXd> svdR(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
         std::cout << "SVD";
     }
-    
+
     auto end_timer = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed_time = end_timer - begin_timer;
     double time_spent = elapsed_time.count();

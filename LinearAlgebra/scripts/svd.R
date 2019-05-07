@@ -2,19 +2,21 @@ library(ade4)
 library(data.table)
 library(stringr)
 
-args <- commandArgs(trailingOnly=TRUE) 
+args <- commandArgs(trailingOnly=TRUE)
 
 data_path = args[1]
-feat_num = as.integer(args[2])
-cat_feat_num = as.integer(args[3])
-feats = args[4:(feat_num+3)]
-cat_feats = args[(feat_num+4):length(args)]
+data_operation = args[2]
+feat_num = as.integer(args[3])
+cat_feat_num = as.integer(args[4])
+feats = args[5:(feat_num+4)]
+cat_feats = args[(feat_num+5):length(args)]
 
 dataA <- read.csv(data_path, header=FALSE, sep='|')
 #cat_feats <- c("rain")
 
 dfA = as.data.frame(dataA)
 #data_path
+#data_operation
 #feat_num
 #cat_feat_num
 #feats
@@ -48,9 +50,17 @@ for (feat in cat_feats)
 print(ncol(dfA))
 #dfA[1, 1:ncol(dfA)]
 
-start_time <- Sys.time()
-dfA.svd <- svd(dfA)
-end_time <- Sys.time()
-end_time - start_time
-dfA.svd$d
+x <- c("what","is","truth")
 
+if(data_operation == "svd") {
+   dfA.svd <- svd(dfA)
+   dfA.svd$d
+} else if (data_operation == "qr") {
+    QR <- qr(dfA)
+    Q <- qr.Q(QR)
+    R <- qr.R(QR)
+    nrow(R)
+    ncol(R)
+} else {
+   print("No truth found");
+}

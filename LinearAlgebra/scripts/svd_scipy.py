@@ -23,11 +23,13 @@ if __name__ == "__main__":
     parser.add_argument("-f", "--features", dest="features", required=True)
     parser.add_argument("-c", "--categorical_features", dest="categorical_features", required=True)
     parser.add_argument("-d", "--data_path", dest="data_path", required=True)
+    parser.add_argument("-o", "--operation", dest="operation", required=True)
 
     args = parser.parse_args()
     features = args.features
     cat_featurs = args.categorical_features
     data_path = args.data_path
+    operation = args.operation
     columns = features.split(",")
 
     columns_cat = cat_featurs.split(",")
@@ -40,6 +42,10 @@ if __name__ == "__main__":
 
     preprocessor = ColumnTransformer(transformers=transformer_a, remainder='passthrough')
     one_hot_a = preprocessor.fit_transform(data)
-    u, s, vh = linalg.svd(one_hot_a, full_matrices=False)
+    if operation == 'svd':
+        _, s, vh = linalg.svd(one_hot_a, full_matrices=False)
+        print(s)
+    elif operation == 'qr':
+        r = linalg.qr(one_hot_a, mode='r')
+        #print(r)
     #u, s, vh = linalg.svds(one_hot_a, k=len(columns))
-    print(s)

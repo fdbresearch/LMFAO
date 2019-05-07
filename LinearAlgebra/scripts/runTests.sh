@@ -23,6 +23,8 @@ function init_global_vars()
     DFDB_SH_DB="usretailer"
     DFDB_SH_USERNAME=$(whoami)
     DFDB_SH_PORT=5432
+    DFDB_SH_DATA_SETS=(usretailer_35f_1 usretailer_35f_10 usretailer_35f_100 usretailer_35f_1000 usretailer favorita)
+    DFDB_SH_OPS=("svd" "qr")
     DFDB_SH_FEATURES=()
     DFDB_SH_FEATURES_CAT=()
     DFDB_SH_POSITIONAL=()
@@ -35,11 +37,97 @@ function init_global_vars()
     DFDB_SH_NUMPY=false
 }
 
-function get_features() 
+function get_build_opts()
+{
+#TODO: Add iterate over values split by comma
+    for i in $(seq 1 ${#1}); do
+        build_option="${1:i-1:1}"
+        case $build_option in
+            m)
+            DFDB_SH_MADLIB=true
+            ;;
+            j)
+            DFDB_SH_JOIN=true
+            ;;
+            l)
+            DFDB_SH_LMFAO=true
+            ;;
+            s)
+            DFDB_SH_JOIN=true
+            DFDB_SH_SCIPY=true;
+            ;;
+            e)
+            DFDB_SH_JOIN=true
+            DFDB_SH_EIGEN=true;
+            ;;
+            n)
+            DFDB_SH_JOIN=true
+            DFDB_SH_NUMPY=true;
+            ;;
+            r)
+            DFDB_SH_JOIN=true
+            DFDB_SH_R=true;
+            ;;
+            *)    # unknown option
+            echo "Wrong build argument" $build_option
+            ;;
+        esac
+    done
+}
+
+function get_data_sets()
+{
+    IFS=', ' read -r -a DFDB_SH_DATA_SETS <<< "$1"
+}
+
+function get_data_operations()
+{
+    IFS=', ' read -r -a DFDB_SH_OPS <<< "$1"
+}
+
+function get_str_args()
+{
+    local EXTENSION=""
+    for option in "$@"
+    do
+    case $option in
+        -b=*|--build=*)
+        EXTENSION="${option#*=}"
+        get_build_opts $EXTENSION
+        ;;
+        -r=*|--root=*)
+        EXTENSION="${option#*=}"
+        init_global_paths $EXTENSION
+        ;;
+        -u=*|--user=*)
+        EXTENSION="${option#*=}"
+        DFDB_SH_USERNAME=$EXTENSION
+        ;;
+        -p=*|--port=*)
+        EXTENSION="${option#*=}"
+        DFDB_SH_PORT=$EXTENSION
+        ;;
+        -o=*|--operation=*)
+        EXTENSION="${option#*=}"
+        get_data_operations $EXTENSION
+        ;;
+        -d=*|--data_sets=*)
+        EXTENSION="${option#*=}"
+        get_data_sets $EXTENSION
+        ;;
+        *)    # unknown option
+        echo "Wrong  argument" $option
+        ;;
+    esac
+    done
+}
+
+
+function get_features()
 {
     local file_name=$1"/features.conf"
     echo $file_name
-    
+
     local regex_num="^([0-9]+)(, ?)?([0-9]+)(, ?)?([0-9]+)(, ?)?$"
     local regex_features="^([a-zA-Z_]+):[0-9]+:[a-zA-Z_]+$"
     local regex_cat_features="^([a-zA-Z_]+):([1-9][0-9]*):[a-zA-Z_]+$"
@@ -67,73 +155,6 @@ function get_features()
     DFDB_SH_FEATURES_CAT=(${features_cat[@]})
 }
 
-function get_build_ops()
-{
-#TODO: Add iterate over values split by comma
-    for i in $(seq 1 ${#1}); do
-        build_option="${1:i-1:1}"
-        case $build_option in 
-            m)
-            DFDB_SH_MADLIB=true
-            ;;
-            j)
-            DFDB_SH_JOIN=true
-            ;;
-            l)
-            DFDB_SH_LMFAO=true
-            ;;
-            s)
-            DFDB_SH_JOIN=true
-            DFDB_SH_SCIPY=true;
-            ;; 
-            e)
-            DFDB_SH_JOIN=true
-            DFDB_SH_EIGEN=true;
-            ;; 
-            n)
-            DFDB_SH_JOIN=true
-            DFDB_SH_NUMPY=true;
-            ;;
-            r)
-            DFDB_SH_JOIN=true
-            DFDB_SH_R=true;
-            ;;
-            *)    # unknown option
-            echo "Wrong build argument" $build_option
-            ;;
-        esac
-    done
-}
-
-function get_str_args()
-{
-    local EXTENSION=""
-    for option in "$@"
-    do
-    case $option in
-        -b=*|--build=*)
-        EXTENSION="${option#*=}"
-        get_build_ops $EXTENSION
-        ;;
-        -r=*|--root=*)
-        EXTENSION="${option#*=}"
-        init_global_paths $EXTENSION
-        ;;
-        -u=*|--user=*)
-        EXTENSION="${option#*=}"
-        DFDB_SH_USERNAME=$EXTENSION
-        ;;
-	 -p=*|--port=*)
-	EXTENSION="${option#*=}"
-	DFDB_SH_PORT=$EXTENSION
-	;;
-        *)    # unknown option
-        echo "Wrong  argument" $option
-        ;;
-    esac
-    done
-}
-
 : '
 cd $DFDB_SH_LA
 echo $DFDB_SH_LA
@@ -141,8 +162,70 @@ cmake .
 make -j8
 '
 
+function run_test() {
+    data_set=$1
+    data_op=$2
+    local features_out=$(printf "%s," ${DFDB_SH_FEATURES[@]})
+    features_out=${features_out::-1}
+    echo 'Features: ' ${features_out}
+    echo 'Number of categorical feats: '${#DFDB_SH_FEATURES[@]}
+
+    local features_cat_out=$(printf "%s," ${DFDB_SH_FEATURES_CAT[@]})
+    local features_cat_out=${features_cat_out::-1}
+    echo 'Categorical features: ' ${features_cat_out}
+    echo 'Number of categorical feats: '${#DFDB_SH_FEATURES_CAT[@]}
+
+    local log_madlib=${DFDB_SH_LOG_PATH}/madlib/log"${data_set}${data_op}".txt
+    local log_eigen=${DFDB_SH_LOG_PATH}/eigen/log"${data_set}${data_op}".txt
+    local log_lmfao=${DFDB_SH_LOG_PATH}/lmfao/log"${data_set}${data_op}".txt
+    local log_r=${DFDB_SH_LOG_PATH}/r/log"${data_set}${data_op}".txt
+    local log_numpy=${DFDB_SH_LOG_PATH}/numpy/log"${data_set}${data_op}".txt
+    local log_scipy=${DFDB_SH_LOG_PATH}/scipy/log"${data_set}${data_op}".txt
+
+    [[ $DFDB_SH_MADLIB  == true ]] && {
+        echo '*********Madlib test started**********'
+        (source svd_madlib.sh ${data_set} ${features_cat_out}  &> ${log_madlib})
+        echo '*********Madlib test finished**********'
+    }
+
+    [[ $DFDB_SH_EIGEN  == true ]] && {
+        echo '*********Eigen test started**********'
+        (source svd_eigen.sh ${data_set} ${data_op} ${features_cat_out}  &> ${log_eigen})
+        echo '*********Eigen test finished**********'
+    }
+
+    [[ $DFDB_SH_LMFAO  == true ]] && {
+        echo '*********LMFAO test started**********'
+        (source test_lmfaola.sh ${data_set} ${data_op} &> ${log_lmfao})
+        echo '*********LMFAO test finished**********'
+    }
+
+    [[ $DFDB_SH_R  == true ]] && {
+        echo '*********R test started**********'
+        eval ${DFDB_TIME} Rscript "${DFDB_SH_LA_SCRIPT}/svd.R ${DFDB_SH_JOIN_RES_PATH} \
+                ${data_op} ${#DFDB_SH_FEATURES[@]} ${#DFDB_SH_FEATURES_CAT[@]}         \
+                ${DFDB_SH_FEATURES[@]} ${DFDB_SH_FEATURES_CAT[@]}" &> ${log_r}
+        echo '*********R test finished**********'
+    }
+    [[ $DFDB_SH_NUMPY  == true ]] && {
+        echo '*********numpy test started**********'
+        eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/svd_numpy.py" \
+                          -f ${features_out} -c ${features_cat_out}   \
+                          -d "${DFDB_SH_JOIN_RES_PATH}" -o "$data_op" &> ${log_numpy}
+        echo '*********numpy test finished**********'
+    }
+    [[ $DFDB_SH_SCIPY  == true ]] && {
+        echo '*********scipy test started**********'
+        eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/svd_scipy.py" \
+                          -f ${features_out} -c ${features_cat_out}    \
+                          -d "${DFDB_SH_JOIN_RES_PATH}" -o "$data_op" &> ${log_scipy}
+        echo '*********scipy test finished**********'
+    }
+}
+
+#TODO: Add qr for eigen, madlib.
+
 function main() {
-    #TODO: Add passing path to joined result to each of the scripts. 
     init_global_paths
     init_global_vars
 
@@ -153,87 +236,29 @@ function main() {
 
     cd $DFDB_SH_LA_SCRIPT
 
-    data_sets=(usretailer_35f_1000 )
-    #data_sets=(usretailer_35f_1 usretailer_35f_10 usretailer_35f_100 usretailer_35f_1000 usretailer favorita)
-    #usretailer_36f_1 usretailer_36f_10 usretailer_36f_100 usretailer_36f_1000 usretailer_36f)
-    for data_set in ${data_sets[@]}; do
+    for data_set in ${DFDB_SH_DATA_SETS[@]}; do
         DFDB_SH_DB=${data_set}
-        echo tests for data set: "$data_set" are starting; 
+        echo tests for data set "$data_set" are starting;
         data_path=$DFDB_SH_DATA"/"$data_set
         get_features $data_path
 
-
         dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT || \
-        createdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT 
-
-        features_out=$(printf "%s," ${DFDB_SH_FEATURES[@]})
-        features_out=${features_out::-1}
-        echo 'Features: ' ${features_out}
-        echo 'Number of categorical feats: '${#DFDB_SH_FEATURES[@]}
-
-        features_cat_out=$(printf "%s," ${DFDB_SH_FEATURES_CAT[@]})
-        features_cat_out=${features_cat_out::-1}
-        echo 'Categorical features: ' ${features_cat_out}
-        echo 'Number of categorical feats: '${#DFDB_SH_FEATURES_CAT[@]}
-
-        log_psql=${DFDB_SH_LOG_PATH}/psql/log"${data_set}".txt
-
-        log_madlib=${DFDB_SH_LOG_PATH}/madlib/log"${data_set}".txt
-        log_eigen=${DFDB_SH_LOG_PATH}/eigen/log"${data_set}".txt
-        log_lmfao=${DFDB_SH_LOG_PATH}/lmfao/log"${data_set}".txt
-        log_r=${DFDB_SH_LOG_PATH}/r/log"${data_set}".txt
-        log_numpy=${DFDB_SH_LOG_PATH}/numpy/log"${data_set}".txt
-        log_scipy=${DFDB_SH_LOG_PATH}/scipy/log"${data_set}".txt
-
-        [[ $DFDB_SH_MADLIB  == true ]] && {
-            echo '*********Madlib test started**********'
-            (source svd_madlib.sh ${data_set} ${features_cat_out}  &> ${log_madlib})
-            echo '*********Madlib test finished**********'
-        }
+        createdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
+        local log_psql=${DFDB_SH_LOG_PATH}/psql/log"${data_set}".txt
         [[ $DFDB_SH_JOIN  == true ]] && {
             echo '*********Join started**********'
-            (source generate_join.sh ${data_set}  &> ${log_psql}) 
+            #(source generate_join.sh ${data_set}  &> ${log_psql})
             echo '*********Join finished**********'
         }
-        [[ $DFDB_SH_EIGEN  == true ]] && {
-            echo '*********Eigen test started**********'
-            (source svd_eigen.sh ${data_set} ${features_cat_out}  &> ${log_eigen})
-            echo '*********Eigen test finished**********'
-        }
-        
-        
-        [[ $DFDB_SH_LMFAO  == true ]] && {
-            echo '*********LMFAO test started**********'
-            (source test_lmfaola.sh ${data_set} &> ${log_lmfao})
-            echo '*********LMFAO test finished**********'
-        }
 
-        [[ $DFDB_SH_R  == true ]] && {
-            echo '*********R test started**********'
-            eval ${DFDB_TIME} Rscript "${DFDB_SH_LA_SCRIPT}/svd.R ${DFDB_SH_JOIN_RES_PATH} \
-                    ${#DFDB_SH_FEATURES[@]} ${#DFDB_SH_FEATURES_CAT[@]}                    \
-                    ${DFDB_SH_FEATURES[@]} ${DFDB_SH_FEATURES_CAT[@]}" &> ${log_r}
-            echo '*********R test finished**********'
-        }
-        [[ $DFDB_SH_NUMPY  == true ]] && {
-            echo '*********numpy test started**********'
-            eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/svd_numpy.py" \
-                              -f ${features_out} -c ${features_cat_out}   \
-                              -d "${DFDB_SH_JOIN_RES_PATH}" &> ${log_numpy}
-            echo '*********numpy test finished**********'
-        }
-        [[ $DFDB_SH_SCIPY  == true ]] && {
-            echo '*********scipy test started**********'
-            eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/svd_scipy.py" \
-                              -f ${features_out} -c ${features_cat_out}    \
-                              -d "${DFDB_SH_JOIN_RES_PATH}" &> ${log_scipy}
-            echo '*********scipy test finished**********'
-        }
+        for data_op in ${DFDB_SH_OPS[@]}; do
+            echo "*********${data_op} decomposition**********"
+            run_test $data_set $data_op
+            echo "*********${data_op} decomposition**********"
+        done
+
         dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
-        : '
-        aafdfsd
-        '
     done
 }
-
+# Example:  ./runTests.sh --build=n -o=svd -d=usretailer_35f_1
 main $@
