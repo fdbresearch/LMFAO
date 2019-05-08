@@ -22,9 +22,11 @@ namespace multifaq
 /* Runtime variable: can be used across different compilation units; must be
  * defined in a source file. */
 #else
-        const size_t NUM_OF_FUNCTIONS = 1500;
+        const size_t NUM_OF_FUNCTIONS = 100000;
 #endif
 
+
+        // TODO: REMOVE THIS! 
 /* Compile time constant: can be used directly to enable loop unrolling and
  * other compiler optimisations. */
 #ifdef VARIABLES
@@ -32,7 +34,17 @@ namespace multifaq
 /* Runtime variable: can be used across different compilation units; must be
  * defined in a source file. */
 #else
-        const size_t NUM_OF_VARIABLES = 100;
+        const size_t NUM_OF_VARIABLES = 750;
+#endif
+        
+/* Compile time constant: can be used directly to enable loop unrolling and
+ * other compiler optimisations. */
+#ifdef ATTRIBUTES
+        const size_t NUM_OF_ATTRIBUTES = ATTRIBUTES;
+/* Runtime variable: can be used across different compilation units; must be
+ * defined in a source file. */
+#else
+        const size_t NUM_OF_ATTRIBUTES = 750;
 #endif
 
 /* Compile time constant: can be used directly to enable loop unrolling and
@@ -53,6 +65,8 @@ namespace multifaq
         extern std::string TREEDECOMP_CONF;
 
         extern std::string SCHEMA_CONF;
+
+        extern std::string CATALOG_CONF;
     }
 
     namespace dir
@@ -95,10 +109,8 @@ namespace multifaq
     namespace application
     {
         extern const size_t K;
-
         extern const size_t DEGREE;
     }
-    
     
 }
 

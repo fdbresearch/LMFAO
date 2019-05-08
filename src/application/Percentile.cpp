@@ -205,14 +205,11 @@ void Percentile::generateCode()
     std::string printPerc = "", printPercTensorFlow = "";
     
     // Create a query & Aggregate
-    for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+    for (size_t var = 0; var < _td->numberOfAttributes(); ++var)
     {
-        if (!_isFeature[var])
-            continue; 
-
         std::string& attName =  _td->getAttribute(var)->_name;
 
-        if (!_isCategoricalFeature[var])
+        if (_isFeature[var] && !_isCategoricalFeature[var])
         {
             Query* query = varToQuery[var];
             const size_t& viewID = query->_aggregates[0]->_incoming[0].first;
@@ -241,13 +238,15 @@ void Percentile::generateCode()
                 offset(2)+"std::cout << \"},// percentiles "+attName+"\"<< std::endl;\n";
 
             // 
-            printPercTensorFlow += offset(2)+"std::cout << \"\'"+attName+"\': \" << \"[\"<<percentiles"+attName+"[0];\n"+
+            printPercTensorFlow += offset(2)+"std::cout << \"\'"+
+                attName+"\': \" << \"[\"<<percentiles"+attName+"[0];\n"+
                 offset(2)+"for (size_t p = 1; p < "+
                 to_string(numberOfPercentiles-1)+"; ++p)\n"+
                 offset(3)+"if (percentiles"+attName+"[p] != "+
                 "percentiles"+attName+"[p-1])\n"+
                 offset(4)+"std::cout << \",\" << percentiles"+attName+"[p];\n"+
-                offset(2)+"std::cout << \"],  ## percentiles "+attName+"\"<< std::endl;\n";
+                offset(2)+"std::cout << \"],  ## percentiles "+attName+
+                "\"<< std::endl;\n";
         }
         else
         {
@@ -255,7 +254,6 @@ void Percentile::generateCode()
                 "\"<<std::endl;\n";
         }
     }
-    // percentileComp += printPerc+offset(1)+"}\n\n";
     
     std::string runFunction = offset(1)+"void runApplication()\n"+offset(1)+"{\n"+
         offset(2)+"int64_t startProcess = duration_cast<milliseconds>("+
@@ -274,7 +272,8 @@ void Percentile::generateCode()
         offset(2)+"std::cout << \"};\\n\";"+
         offset(1)+"}\n";
         
-    std::ofstream ofs(multifaq::dir::OUTPUT_DIRECTORY+"ApplicationHandler.h", std::ofstream::out);
+    std::ofstream ofs(
+        multifaq::dir::OUTPUT_DIRECTORY+"ApplicationHandler.h", std::ofstream::out);
     ofs << "#ifndef INCLUDE_APPLICATIONHANDLER_HPP_\n"<<
         "#define INCLUDE_APPLICATIONHANDLER_HPP_\n\n"<<
         "#include \"DataHandler.h\"\n\n"<<
@@ -283,7 +282,8 @@ void Percentile::generateCode()
         "}\n\n#endif /* INCLUDE_APPLICATIONHANDLER_HPP_*/\n";    
     ofs.close();
 
-    ofs.open(multifaq::dir::OUTPUT_DIRECTORY+"ApplicationHandler.cpp", std::ofstream::out);
+    ofs.open(
+        multifaq::dir::OUTPUT_DIRECTORY+"ApplicationHandler.cpp", std::ofstream::out);
     ofs << "#include \"ApplicationHandler.h\"\n"
         << "namespace lmfao\n{\n";
     ofs << runFunction << std::endl;
@@ -291,24 +291,3 @@ void Percentile::generateCode()
     ofs.close();
     
 }
-
-
-// inline std::string Percentile::offset(size_t off)
-// {
-//     return std::string(off*3, ' ');
-// }
-
-// std::string Percentile::typeToStr(Type t)
-// {
-//     switch(t)
-//     {
-//     case Type::Integer : return "int";
-//     case Type::Double : return "double";            
-//     case Type::Short : return "short";
-//     case Type::U_Integer : return "size_t";
-//     default :
-//         ERROR("This type does not exist \n");
-//         exit(1);
-//     }
-// }
-

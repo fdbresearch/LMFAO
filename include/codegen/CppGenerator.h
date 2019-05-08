@@ -18,30 +18,26 @@
 #include <QueryCompiler.h>
 #include <TreeDecomposition.h>
 
-// #define PREVIOUS
-
-const size_t LOOPIFY_THRESHOLD = 2;
-
-namespace std
-{
-/**
- * Custom hash function for vector of pairs.
- */
-    template<> struct hash<vector<pair<size_t,size_t>>>
-    {
-        HOT inline size_t operator()(const vector<pair<size_t,size_t>>& p) const
-	{
-            size_t seed = 0;
-            hash<size_t> h;
-            for (const pair<size_t,size_t>& d : p)
-            {
-                seed ^= h(d.first) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-                seed ^= h(d.second) + 0x9e3779b9 + (seed << 6) + (seed >> 2);    
-            }
-            return seed;
-	}
-    };
-}
+// namespace std
+// {
+// /**
+//  * Custom hash function for vector of pairs.
+//  */
+//     template<> struct hash<vector<pair<size_t,size_t>>>
+//     {
+//         HOT inline size_t operator()(const vector<pair<size_t,size_t>>& p) const
+// 	{
+//             size_t seed = 0;
+//             hash<size_t> h;
+//             for (const pair<size_t,size_t>& d : p)
+//             {
+//                 seed ^= h(d.first) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+//                 seed ^= h(d.second) + 0x9e3779b9 + (seed << 6) + (seed >> 2);    
+//             }
+//             return seed;
+// 	}
+//     };
+// }
 
 
 struct ProductAggregate
@@ -308,11 +304,11 @@ public:
     }
     
 private:
-    std::string _pathToData;
+    // std::string _pathToData;
+    // std::string _outputDirectory;
+    // std::string _datasetName;
 
-    std::string _outputDirectory;
-
-    std::string _datasetName;
+    std::shared_ptr<Database> _db;
 
     std::shared_ptr<TreeDecomposition> _td;
 
@@ -323,7 +319,7 @@ private:
     std::vector<var_bitset> variableOrderBitset;
 
     //TODO: this could be part of the view
-    std::vector<size_t>* incomingViews = nullptr;
+    // std::vector<size_t>* incomingViews = nullptr;
     
     // keeps track of where we can output tuples to the view
     size_t* viewLevelRegister;
@@ -519,6 +515,9 @@ private:
     std::string genGroupGenericJoinCode(size_t group_id, const TDNode& node,
                                         size_t depth);
 
+    std::string genGroupLinearJoinCode(size_t group_id, const TDNode& node,
+                                        size_t depth);
+ 
     // One Generic Case for Seek Value 
     std::string seekValueCase(size_t depth, const std::string& rel_name,
                               const std::string& attr_name, bool parallel);
@@ -649,42 +648,41 @@ private:
         const size_t numOfOutViewLoops, std::string& resetString);
 
 #ifdef OLD
-    // TODO: RENAME 
-    std::vector<size_t>* viewsPerVarInfo = nullptr;
+    // std::vector<size_t>* viewsPerVarInfo = nullptr;
 
-    // For topological order 
-    std::vector<size_t>* viewsPerNode = nullptr;
+    // // For topological order 
+    // std::vector<size_t>* viewsPerNode = nullptr;
 
-    template<typename T>
-    std::string resetRegisterArray(
-        const size_t& depth, std::vector<std::vector<T>>& registerList,
-        std::string registerName);
+    // template<typename T>
+    // std::string resetRegisterArray(
+    //     const size_t& depth, std::vector<std::vector<T>>& registerList,
+    //     std::string registerName);
 
         
-    std::string genComputeViewFunction(size_t view_id);
+    // std::string genComputeViewFunction(size_t view_id);
     
 
-    std::string genRelationOrdering(const std::string& rel_name,
-                                    const size_t& depth,
-                                    const size_t& view_id);
+    // std::string genRelationOrdering(const std::string& rel_name,
+    //                                 const size_t& depth,
+    //                                 const size_t& view_id);
 
-    std::string genAggregateString(
-        const std::vector<std::string>& aggRegister,
-        const std::vector<boost::dynamic_bitset<>>& loopReg,
-        boost::dynamic_bitset<> consideredLoops,
-        boost::dynamic_bitset<>& addedAggs, size_t depth);
+    // std::string genAggregateString(
+    //     const std::vector<std::string>& aggRegister,
+    //     const std::vector<boost::dynamic_bitset<>>& loopReg,
+    //     boost::dynamic_bitset<> consideredLoops,
+    //     boost::dynamic_bitset<>& addedAggs, size_t depth);
 
-    std::string genFinalAggregateString(
-        const std::vector<std::string>& aggRegister,
-        const std::vector<boost::dynamic_bitset<>>& loopReg,
-        boost::dynamic_bitset<> consideredLoops,
-        boost::dynamic_bitset<>& addedAggs, size_t depth,
-        std::vector<size_t>& includableViews,
-        boost::dynamic_bitset<>& addedViews,size_t offDepth);
+    // std::string genFinalAggregateString(
+    //     const std::vector<std::string>& aggRegister,
+    //     const std::vector<boost::dynamic_bitset<>>& loopReg,
+    //     boost::dynamic_bitset<> consideredLoops,
+    //     boost::dynamic_bitset<>& addedAggs, size_t depth,
+    //     std::vector<size_t>& includableViews,
+    //     boost::dynamic_bitset<>& addedViews,size_t offDepth);
 
-    std::string genLeapfrogJoinCode(size_t view_id, size_t depth);
+    // std::string genLeapfrogJoinCode(size_t view_id, size_t depth);
 
-    void createVariableOrder();
+    // void createVariableOrder();
 
 #endif
 };

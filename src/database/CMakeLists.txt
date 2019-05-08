@@ -1,1 +1,1 @@
-add_library (database DataHandlerCSV.cpp)
+add_library (database Database.cpp)

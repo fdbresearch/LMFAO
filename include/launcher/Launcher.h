@@ -59,9 +59,9 @@ public:
     std::shared_ptr<Application> getApplication();
 
     /**
-     * Returns a model identifier.
+     * Returns a pointer to database.
      */
-    // Model getModel();
+    std::shared_ptr<Database> getDatabase();
 
     /**
      * Returns a pointer to the Query Compiler.
@@ -74,6 +74,9 @@ public:
     std::shared_ptr<CodeGenerator> getCodeGenerator();
 
 private:
+
+    //! Database which stores the schema and calalog.
+    std::shared_ptr<Database> _database;
 
     //! Query Compiler that turns queries into views. 
     std::shared_ptr<QueryCompiler> _compiler;

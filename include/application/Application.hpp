@@ -16,7 +16,7 @@
 #include <GlobalParams.hpp>
 #include <Logging.hpp>
 #include <QueryCompiler.h>
-#include <TDNode.hpp>
+// #include <TDNode.hpp>
 #include <TreeDecomposition.h>
 
 struct Feature

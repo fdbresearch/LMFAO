@@ -10,6 +10,7 @@
 #include <Count.h>
 #include <CovarianceMatrix.h>
 #include <CppGenerator.h>
+#include <Database.h>
 #include <DataCube.h>
 #include <KMeans.h>
 #include <Launcher.h>
@@ -25,6 +26,7 @@
 std::string multifaq::config::FEATURE_CONF = "";
 std::string multifaq::config::TREEDECOMP_CONF = "";
 std::string multifaq::config::SCHEMA_CONF = "";
+std::string multifaq::config::CATALOG_CONF = "";
 
 bool multifaq::cppgen::MULTI_OUTPUT;
 bool multifaq::cppgen::RESORT_RELATIONS;
@@ -33,7 +35,6 @@ bool multifaq::cppgen::COMPRESS_AGGREGATES;
 bool multifaq::cppgen::BENCH_INDIVIDUAL;
 
 multifaq::cppgen::PARALLELIZATION_TYPE multifaq::cppgen::PARALLEL_TYPE;
-
 
 using namespace multifaq::params;
 using namespace multifaq::config;
@@ -51,6 +52,11 @@ Launcher::~Launcher()
 shared_ptr<QueryCompiler> Launcher::getCompiler()
 {
     return _compiler;
+}
+
+shared_ptr<Database> Launcher::getDatabase()
+{
+    return _database;
 }
 
 shared_ptr<TreeDecomposition> Launcher::getTreeDecomposition()
@@ -86,6 +92,12 @@ int Launcher::launch(boost::program_options::variables_map& vm)
 
     /* Define the TreeDecomposition Conf File */
     TREEDECOMP_CONF = multifaq::dir::PATH_TO_FILES+"/"+vm["td"].as<std::string>();
+
+    /* Define the Schema Conf File */
+    SCHEMA_CONF = multifaq::dir::PATH_TO_FILES+"/"+vm["schema"].as<std::string>();
+
+    /* Define the Catalog Conf File */
+    CATALOG_CONF = multifaq::dir::PATH_TO_FILES+"/"+"catalog.conf";
 
     const string model = vm["model"].as<std::string>();
     
@@ -123,15 +135,20 @@ int Launcher::launch(boost::program_options::variables_map& vm)
     if (vm["degree"].as<int>() > 1)
         ERROR("A degree > 1 is currenlty not supported.\n");
 
+    /* Build database. */
+    _database.reset(new Database());
+    
+    // TODO: TODO: construct model first!! --> we can call model to query later!  
+    
     /* Build tree decompostion. */
-    _treeDecomposition.reset(new TreeDecomposition());
+    _treeDecomposition.reset(new TreeDecomposition(_database));
 
-    DINFO("INFO: Built the TreeDecomposition.\n");
+    DINFO("Built the TreeDecomposition.\n");
     
     int64_t start = duration_cast<milliseconds>(
         system_clock::now().time_since_epoch()).count();
 
-    _compiler.reset(new QueryCompiler(_treeDecomposition));
+    _compiler.reset(new QueryCompiler(_database, _treeDecomposition));
     
     bool hasApplicationHandler = false;
     bool hasDynamicFunctions = false;
@@ -210,6 +227,8 @@ int Launcher::launch(boost::program_options::variables_map& vm)
         ERROR("The code generator "+codeGenerator+" is not supported. \n");
         exit(1);
     }
+
+    // hasApplicationHandler = false;
     
     _codeGenerator->generateCode(hasApplicationHandler, hasDynamicFunctions);
 

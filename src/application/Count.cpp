@@ -35,8 +35,8 @@ void Count::generateCode()
     std::string viewID = std::to_string(countQuery->_aggregates[0]->_incoming[0].first);
 
     std::string runFunction = offset(1)+"void runApplication()\n"+
-        offset(1)+"{\n"+offset(2)+"std::cout << \"The count is: \" << V"+
-        viewID+"[0].aggregates[0] << std::endl;\n"+
+        offset(1)+"{\n"+offset(2)+"std::cout << std::fixed << \"The count is: \" << "+
+        "long(V"+viewID+"[0].aggregates[0]) << std::endl;\n"+
         offset(1)+"}\n";
 
     std::ofstream ofs(multifaq::dir::OUTPUT_DIRECTORY+"ApplicationHandler.h", std::ofstream::out);
