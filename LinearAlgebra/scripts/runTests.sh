@@ -247,7 +247,7 @@ function main() {
         local log_psql=${DFDB_SH_LOG_PATH}/psql/log"${data_set}".txt
         [[ $DFDB_SH_JOIN  == true ]] && {
             echo '*********Join started**********'
-            #(source generate_join.sh ${data_set}  &> ${log_psql})
+            (source generate_join.sh ${data_set}  &> ${log_psql})
             echo '*********Join finished**********'
         }
 
@@ -260,5 +260,5 @@ function main() {
         dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
     done
 }
-# Example:  ./runTests.sh --build=n -o=svd -d=usretailer_35f_1
+# Example:  ./runTests.sh --build=n -o=svd -d=usretailer_35f_1 -r=/home/max/LMFAO
 main $@
