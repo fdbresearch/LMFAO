@@ -1225,16 +1225,18 @@ std::string KMeans::genClusterInitialization(const std::string& gridName)
         
         return offset(2)+"// Initialize the means\n\n"+
             offset(2)+"std::srand (time(NULL));\n\n"+
-            offset(2)+"means[0] += "+gridName+"[rand() % grid_size];\n"+
-            offset(2)+"double distribution["+gridName+".size()], dist_sum;\n"+
-            offset(2)+"for (size_t i = 1; i < k; ++i)"+offset(2)+"{\n"+
+            offset(2)+"means[0] += "+gridName+"[rand() % grid_size];\n\n"+
+            offset(2)+"std::vector<double> distribution(grid_size,0.0);\n"+
+            offset(2)+"for (size_t i = 1; i < k; ++i)\n"+offset(2)+"{\n"+
             offset(3)+"computeMeanDistance(&distance_to_mean[0], &means[0]);\n"+
+            offset(3)+"double dist_sum = 0.0;\n"+
             offset(3)+"for (size_t tup = 0; tup < grid_size; ++tup)\n"+
-            offset(3)+"{"+
+            offset(3)+"{\n"+
             offset(4)+"min_dist = std::numeric_limits<double>::max();\n"+
             offset(4)+"for (size_t cluster = 0; cluster < i; ++cluster)\n"+
             offset(4)+"{\n"+
-            offset(5)+"distance(dist, "+gridName+"[tup], means[cluster], cluster, &distance_to_mean[0]);\n"+
+            offset(5)+"distance(dist, "+gridName+
+            "[tup], means[cluster], cluster, &distance_to_mean[0]);\n"+
             offset(5)+"min_dist = std::min(dist, min_dist);\n"+
             offset(4)+"}\n"+
             offset(4)+"distribution[tup] = min_dist;\n"+
