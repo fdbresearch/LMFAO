@@ -186,8 +186,13 @@ int Launcher::launch(boost::program_options::variables_map& vm)
     }
     else if (model.compare("kmeans") == 0)
     {
+            
+        size_t kappa = vm["clusters"].as<size_t>();
+        if (vm.count("kappa"))
+            kappa = vm["kappa"].as<size_t>();
+
         _application.reset(
-            new KMeans(shared_from_this(), vm["clusters"].as<int>()));
+            new KMeans(shared_from_this(), vm["clusters"].as<int>(), kappa));
         hasApplicationHandler = true;
     }
     else

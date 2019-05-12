@@ -42,14 +42,14 @@ const bool INCLUDE_EVALUATION = true;
 
 std::unordered_map<size_t, size_t> clusterToVariableMap;
 
-KMeans::KMeans(shared_ptr<Launcher> launcher, const int k) :
-     _launcher(launcher), _k(k)
+KMeans::KMeans(std::shared_ptr<Launcher> launcher, const size_t k, const size_t kappa) :
+    _launcher(launcher), _k(k), _dimensionK(kappa)
 {
     _compiler = launcher->getCompiler();
     _td = launcher->getTreeDecomposition();
 
-    // TODO: this should be modified in case you want to a different k for each dimension
-    _dimensionK = _k;
+    // This should be modified in case you want to a different k for each dimension
+    // _dimensionK = _k;
     
     loadFeatures();
 
@@ -1221,6 +1221,38 @@ std::string KMeans::genClusterInitialization(const std::string& gridName)
     if (!input)
     {
         std::cout << "INFO: no cluster initialization file provided. \n";
+        std::cout << "INFO: We will use Kmeans++ Initialization instead. \n";
+        
+        return offset(2)+"// Initialize the means\n\n"+
+            offset(2)+"std::srand (time(NULL));\n\n"+
+            offset(2)+"means[0] += "+gridName+"[rand() % grid_size];\n"+
+            offset(2)+"double distribution["+gridName+".size()], dist_sum;\n"+
+            offset(2)+"for (size_t i = 1; i < k; ++i)"+offset(2)+"{\n"+
+            offset(3)+"computeMeanDistance(&distance_to_mean[0], &means[0]);\n"+
+            offset(3)+"for (size_t tup = 0; tup < grid_size; ++tup)\n"+
+            offset(3)+"{"+
+            offset(4)+"min_dist = std::numeric_limits<double>::max();\n"+
+            offset(4)+"for (size_t cluster = 0; cluster < i; ++cluster)\n"+
+            offset(4)+"{\n"+
+            offset(5)+"distance(dist, "+gridName+"[tup], means[cluster], cluster, &distance_to_mean[0]);\n"+
+            offset(5)+"min_dist = std::min(dist, min_dist);\n"+
+            offset(4)+"}\n"+
+            offset(4)+"distribution[tup] = min_dist;\n"+
+            offset(4)+"dist_sum += min_dist;\n"+
+            offset(3)+"}\n"+
+            offset(3)+"distribution[0] /= dist_sum;\n"+
+            offset(3)+"for (size_t tup = 1; tup < grid_size; ++tup)\n"+
+            offset(3)+"{\n"+
+            offset(4)+"distribution[tup] /= dist_sum;\n"+
+            offset(4)+"distribution[tup] += distribution[tup-1];\n"+
+            offset(3)+"}\n\n"+
+            offset(3)+"// Sample a point...\n"+
+            offset(3)+"const double sampleValue = ((double) rand() / (RAND_MAX));\n"+
+            offset(3)+"size_t pos = 0;\n"+
+            offset(3)+"while (distribution[pos] < sampleValue)\n"+
+            offset(4)+"pos++;\n"+
+            offset(3)+"means[i] += "+gridName+"[pos];\n"+
+            offset(2)+"}\n";
     }
     else
     {

@@ -76,8 +76,10 @@ int main(int argc, char *argv[])
        ("microbench", "enables micro benchmarking.")
        /* Option to turn off mutlti output operator. */
        ("bench_individual", "enables benchmarking for each group individually.")
-       ("clusters,k", boost::program_options::value<int>()->default_value(3),
+       ("clusters,k", boost::program_options::value<size_t>()->default_value(3),
         "k for k-means algorithm. (Default = 3).")
+       ("kappa", boost::program_options::value<size_t>(),
+        "kappa for k-means algorithm. (Default = k).")
        /* Option for parallellization. */
        ("degree", boost::program_options::value<int>()->default_value(1),
         "Degree of interactions for regression models and FMs. (Default = 1).");

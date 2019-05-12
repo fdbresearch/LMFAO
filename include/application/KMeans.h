@@ -29,7 +29,7 @@ class KMeans: public Application
 public:
 
     KMeans(std::shared_ptr<Launcher> launcher,
-           const int k);
+           const size_t k, const size_t kappa);
 
     ~KMeans();
 
@@ -49,7 +49,7 @@ private:
     std::shared_ptr<TreeDecomposition> _td;
 
     const size_t _k;
-    size_t _dimensionK;
+    const size_t _dimensionK;
 
     size_t numberOfOriginalVariables;
     
