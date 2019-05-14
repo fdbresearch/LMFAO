@@ -17,7 +17,7 @@
 #include <QueryCompiler.h>
 #include <TreeDecomposition.h>
 
-// enum Model 
+// enum Model
 // {
 //     LinearRegressionModel,
 //     RegressionTreeModel,
@@ -48,13 +48,14 @@ public:
                const std::string& parallel, const std::string& featureFile,
                const std::string& tdFile, const std::string& outDirectory,
                const bool mo, const bool resort, const bool microbench,
-               const bool compress, const int k);
+               const bool compress, const int k, const bool useLinearDependencyCheck,
+               const bool outputDecomp);
 
     /**
      * Returns a pointer to the tree decomposition.
      */
     std::shared_ptr<TreeDecomposition> getTreeDecomposition();
-    
+
     /**
      * Returns a pointer to the application.
      */
@@ -77,7 +78,7 @@ public:
 
 private:
 
-    //! Query Compiler that turns queries into views. 
+    //! Query Compiler that turns queries into views.
     std::shared_ptr<QueryCompiler> _compiler;
 
     //! Model to be computed of the database.
@@ -88,7 +89,7 @@ private:
 
     //! Engine module of the database.
     std::shared_ptr<CodeGenerator> _codeGenerator;
-    
+
     //! Path to the files used by the database.
     std::string _pathToFiles;
 
