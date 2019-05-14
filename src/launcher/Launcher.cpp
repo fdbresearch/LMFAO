@@ -72,7 +72,8 @@ int Launcher::launch(const string& model, const string& codeGenerator,
                      const string& tdFile, const string& outDirectory,
                      const bool multioutput_flag, const bool resort_flag,
                      const bool microbench_flag, const bool compression_flag,
-                     const int k
+                     const int k, const bool useLinearDependencyCheck,
+                     const bool outputDecomp
     )
 {
     /* Define the Feature Conf File */
@@ -85,16 +86,16 @@ int Launcher::launch(const string& model, const string& codeGenerator,
     _treeDecomposition.reset(new TreeDecomposition(_pathToFiles + TREEDECOMP_CONF));
 
     DINFO("INFO: Built the TreeDecomposition.\n");
-    
+
     int64_t start = duration_cast<milliseconds>(
         system_clock::now().time_since_epoch()).count();
 
     _compiler.reset(new QueryCompiler(_treeDecomposition));
-    
+
 
     bool hasApplicationHandler = false;
     bool hasDynamicFunctions = false;
-    
+
     if (model.compare("reg") == 0)
     {
         _application.reset(
@@ -124,13 +125,15 @@ int Launcher::launch(const string& model, const string& codeGenerator,
     else if (model.compare("qrdecomp") == 0)
     {
         _application.reset(
-            new QRDecompApp(_pathToFiles, shared_from_this()));
+            new QRDecompApp(_pathToFiles, shared_from_this(),
+                            useLinearDependencyCheck, outputDecomp));
         hasApplicationHandler = true;
     }
     else if (model.compare("svdecomp") == 0)
     {
         _application.reset(
-            new SVDecompApp(_pathToFiles, shared_from_this()));
+            new SVDecompApp(_pathToFiles, shared_from_this(),
+                            useLinearDependencyCheck, outputDecomp));
         hasApplicationHandler = true;
     }
     else if (model.compare("count") == 0)
@@ -165,7 +168,7 @@ int Launcher::launch(const string& model, const string& codeGenerator,
         ERROR("The model "+model+" is not supported. \n");
         exit(1);
     }
-    
+
     _application->run();
 
     ParallelizationType parallelization_type = NO_PARALLELIZATION;
@@ -178,7 +181,7 @@ int Launcher::launch(const string& model, const string& codeGenerator,
     else if (parallel.compare("none") != 0)
         ERROR("ERROR - We only support task and/or domain parallelism. "<<
               "We continue single threaded.\n\n");
-    
+
     if (codeGenerator.compare("cpp") == 0)
         _codeGenerator.reset(
             new CppGenerator(
@@ -193,7 +196,7 @@ int Launcher::launch(const string& model, const string& codeGenerator,
         ERROR("The code generator "+codeGenerator+" is not supported. \n");
         exit(1);
     }
-    
+
     _codeGenerator->generateCode(
         parallelization_type, hasApplicationHandler, hasDynamicFunctions);
 
@@ -202,11 +205,11 @@ int Launcher::launch(const string& model, const string& codeGenerator,
         _application->generateCode(outDirectory);
     }
 
-    
+
     int64_t processingTime = duration_cast<milliseconds>(
         system_clock::now().time_since_epoch()).count() - start;
 
-    size_t numOfViews = _compiler->numberOfViews();    
+    size_t numOfViews = _compiler->numberOfViews();
     size_t numOfQueries = _compiler->numberOfQueries();
     size_t numOfGroups = _codeGenerator->numberOfGroups();
 
@@ -215,18 +218,18 @@ int Launcher::launch(const string& model, const string& codeGenerator,
     for (size_t v = 0; v < numOfViews; ++v)
     {
         View* view = _compiler->getView(v);
-        
+
         if (view->_origin == view->_destination)
             finalNumberOfAggregates += view->_aggregates.size();
-        
+
         totalNumberOfAggregates += view->_aggregates.size();
     }
-    
+
     /* Write loading times times to times file */
     ofstream ofs("compiler-data.out", std::ofstream::out);// | std::ofstream::app);
-    
+
     if (ofs.is_open())
-    {   
+    {
         ofs << "aggs\tfinAgg\tqueries\tviews\tgroups\ttime" << std::endl;
         ofs << totalNumberOfAggregates << "\t"
             << finalNumberOfAggregates << "\t"
@@ -236,11 +239,11 @@ int Launcher::launch(const string& model, const string& codeGenerator,
     }
     else
         cout << "Unable to open compiler-data.out \n";
-    
+
     ofs.close();
-    
+
     BINFO(
 	"Time for Compiler: " + to_string(processingTime) + "ms.\n");
-    
+
     return EXIT_SUCCESS;
 }

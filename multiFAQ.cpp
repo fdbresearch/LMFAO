@@ -71,8 +71,11 @@ int main(int argc, char *argv[])
         "k for k-means algorithm. (Default = 3).")
        /* Option for parallellization. */
        ("degree", boost::program_options::value<int>()->default_value(1),
-        "Degree of interactions for regression models and FMs. (Default = 1).");
-
+        "Degree of interactions for regression models and FMs. (Default = 1).")
+        /* Option to turn on linear dependency check. */
+       ("useLinDep", "turn linear dependency check on (default)/off")
+        /* Option to turn off outputting a result of decomposition. */
+       ("outputDecomp", "turn outputing a result of decomposition on (default)/off");
 
    /* Register previous options and do command line parsing. */
    boost::program_options::variables_map vm;
@@ -173,7 +176,6 @@ int main(int argc, char *argv[])
    int64_t start = std::chrono::duration_cast<std::chrono::milliseconds>(
        std::chrono::system_clock::now().time_since_epoch()).count();
 #endif
-
    /* Launch program. */
    int result = launcher->launch(vm["model"].as<std::string>(),
                                  vm["codegen"].as<std::string>(),
@@ -185,8 +187,9 @@ int main(int argc, char *argv[])
                                  vm.count("resort"),
                                  vm.count("microbench"),
                                  vm["compress"].as<bool>(),
-                                 vm["k"].as<int>()
-       );
+                                 vm["k"].as<int>(),
+                                 vm.count("useLinDep"),
+                                 vm.count("outputDecomp"));
 
 #ifdef BENCH
    int64_t end = std::chrono::duration_cast<std::chrono::milliseconds>(

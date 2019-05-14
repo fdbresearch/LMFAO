@@ -35,6 +35,7 @@ function init_global_vars()
     DFDB_SH_R=false
     DFDB_SH_SCIPY=false
     DFDB_SH_NUMPY=false
+    DFDB_SH_PRECISION=false
 }
 
 function get_build_opts()
@@ -58,15 +59,21 @@ function get_build_opts()
             ;;
             e)
             DFDB_SH_JOIN=true
-            DFDB_SH_EIGEN=true;
+            DFDB_SH_EIGEN=true
             ;;
             n)
             DFDB_SH_JOIN=true
-            DFDB_SH_NUMPY=true;
+            DFDB_SH_NUMPY=true
             ;;
             r)
             DFDB_SH_JOIN=true
-            DFDB_SH_R=true;
+            DFDB_SH_R=true
+            ;;
+            p)
+            DFDB_SH_JOIN=true
+            DFDB_SH_LMFAO=true
+            DFDB_SH_NUMPY=true
+            DFDB_SH_PRECISION=true
             ;;
             *)    # unknown option
             echo "Wrong build argument" $build_option
@@ -181,6 +188,7 @@ function run_test() {
     local log_r=${DFDB_SH_LOG_PATH}/r/log"${data_set}${data_op}".txt
     local log_numpy=${DFDB_SH_LOG_PATH}/numpy/log"${data_set}${data_op}".txt
     local log_scipy=${DFDB_SH_LOG_PATH}/scipy/log"${data_set}${data_op}".txt
+    local path_comp=${DFDB_SH_LOG_PATH}/comp/comp"${data_set}${data_op}".xlsx
 
     [[ $DFDB_SH_MADLIB  == true ]] && {
         echo '*********Madlib test started**********'
@@ -190,7 +198,7 @@ function run_test() {
 
     [[ $DFDB_SH_EIGEN  == true ]] && {
         echo '*********Eigen test started**********'
-        (source la_eigen.sh ${data_set} ${data_op} ${features_cat_out}  &> ${log_eigen})
+        (source la_eigen.sh ${data_set} ${data_op} ${features_out} ${features_cat_out} &> ${log_eigen})
         echo '*********Eigen test finished**********'
     }
 
@@ -213,6 +221,12 @@ function run_test() {
                           -f ${features_out} -c ${features_cat_out}   \
                           -d "${DFDB_SH_JOIN_RES_PATH}" -o "$data_op" &> ${log_numpy}
         echo '*********numpy test finished**********'
+    }
+    [[ $DFDB_SH_PRECISION  == true ]] && {
+      echo '*********comparison test started**********'
+      python3 "${DFDB_SH_LA_SCRIPT}/precision_comparison.py" \
+              -lp "${DFDB_SH_RUNTIME_CPP}/QR.txt" -cp "${DFDB_SH_LA_SCRIPT}/QR.txt" -pr 1e-10 -op "${path_comp}"
+      echo '*********comparison test started**********'
     }
     [[ $DFDB_SH_SCIPY  == true ]] && {
         echo '*********scipy test started**********'

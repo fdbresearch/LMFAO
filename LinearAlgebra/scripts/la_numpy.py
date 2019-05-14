@@ -6,6 +6,7 @@ from scipy import linalg
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
+import sys
 
 
 class DummyEncoder(BaseEstimator, TransformerMixin):
@@ -17,6 +18,19 @@ class DummyEncoder(BaseEstimator, TransformerMixin):
         return self
 
 
+class IdentityTransformer(BaseEstimator, TransformerMixin):
+    def transform(self, input_array):
+        return input_array*1
+
+    def fit(self, X, y=None, **fit_params):
+        return self
+
+
+def move_cat_at_the_end(columns, columns_cat):
+    for col_cat in columns_cat:
+        columns.remove(col_cat)
+        columns.append(col_cat)
+
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-f", "--features", dest="features", required=True)
@@ -24,6 +38,8 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--data_path", dest="data_path", required=True)
     parser.add_argument("-o", "--operation", dest="operation", required=True)
 
+    np.set_printoptions(threshold=sys.maxsize, precision=20)
+    pd.set_option('display.max_columns', 500)
     args = parser.parse_args()
     features = args.features
     cat_featurs = args.categorical_features
@@ -34,16 +50,49 @@ if __name__ == "__main__":
     columns_cat = cat_featurs.split(",")
 
     transformer_a = []
+    #print(data_path)
     data = pd.read_csv(data_path, names=columns, delimiter="|", header=None)
-    for column in columns_cat:
-        transf_name = column + "_onehot"
-        transformer_a.append((transf_name, DummyEncoder(), [column]))
+    move_cat_at_the_end(columns, columns_cat)
+    #print(data.head())
+    data = data[columns]
+    #print(data.head())
+    #print(data)
+    for column in columns:
+        if column in columns_cat:
+            transf_name = column + "_onehot"
+            transformer_a.append((transf_name, DummyEncoder(), [column]))
+        else:
+            transf_name = column + "_identity"
+            transformer_a.append((transf_name, IdentityTransformer(), [column]))
 
-    preprocessor = ColumnTransformer(transformers=transformer_a, remainder='passthrough')
+    preprocessor = ColumnTransformer(transformers=transformer_a)
     one_hot_a = preprocessor.fit_transform(data)
     if operation == 'svd':
         _, s, vh = np.linalg.svd(one_hot_a, full_matrices=False)
         print(s)
     elif operation == 'qr':
-        _, r = np.linalg.qr(one_hot_a)
+
+        #If A is invertible, then the factorization is unique if we require the diagonal elements of R to be positive.
+        # If A is of full rank n and we require that the diagonal elements of R1 are positive then R1 and Q1 are unique.
+        # Make elements on diagonal postive by multiplying diagonal R by a diagonal  matrix
+        #  whose diagonal is sign of diagonal of R
+        r = np.linalg.qr(one_hot_a, mode='r')
+        diag_sgn_r = np.sign(r.diagonal())
+        matr_sgn_r = np.diag(diag_sgn_r)
+        #print(matr_sgn_r)
+        r_positive = np.dot(matr_sgn_r, r)
+        #print(diag_sgn_r)
+        #print(matr_sgn_r)
         #print(r)
+        #print(one_hot_a)
+
+        with open("QR.txt", "w") as file:
+            print(r_positive.shape[0], r_positive.shape[1])
+            file.write("{} {}\n".format(r_positive.shape[0], r_positive.shape[1]))
+            row_num = r_positive.shape[0]
+            col_num = r_positive.shape[1]
+            for row in range(0, row_num):
+                for col in range(0, col_num):
+                    file.write("{} ".format(r_positive[row, col]))
+                file.write("\n")
+        #print(np.sign(r_positive.diagonal()))

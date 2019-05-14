@@ -1,5 +1,7 @@
 #include <fstream>
 #include <iostream>
+#include <iomanip>
+#include <limits>
 #include "QRDecomp.h"
 
 namespace LMFAO::LinearAlgebra
@@ -14,7 +16,7 @@ namespace LMFAO::LinearAlgebra
         f >> mNumFeats;
         f >> mNumFeatsCont;
         /*
-        std::cout << mNumFeatsExp << " " << mNumFeats << 
+        std::cout << mNumFeatsExp << " " << mNumFeats <<
                 " " << mNumFeatsCont << std::endl;
         */
         std::vector<bool> vIsCat(mNumFeatsExp, false);
@@ -74,6 +76,9 @@ namespace LMFAO::LinearAlgebra
 
     void QRDecomposition::rearrangeMatrix(const std::vector<bool>& vIsCat)
     {
+        // Number of categorical columns up to that column, excluding it.
+        // In a range [0, idx)
+        //
         std::vector<unsigned int> cntCat(mNumFeatsExp, 0);
         std::vector<unsigned int> cntCont(mNumFeatsExp, 0);
         for (unsigned int idx = 1; idx < mNumFeatsExp; idx++)
@@ -149,5 +154,26 @@ namespace LMFAO::LinearAlgebra
                 rEigen(row, col) = mR[col * N + row];
             }
         }
+    }
+
+    std::ostream& operator<<(std::ostream& out, const QRDecomposition& qrDecomp)
+    {
+        unsigned int N = qrDecomp.mNumFeatsExp;
+        out << N << " " << N << std::fixed << std::setprecision(2) << std::endl;
+        out << std::fixed << std::setprecision(std::numeric_limits<double>::digits10 + 1);
+
+        for (unsigned int row = 0; row < N; row++)
+        {
+            for (unsigned int col = 0; col < row; col++)
+            {
+                out << "0 ";
+            }
+            for (unsigned int col = row; col < N; col++)
+            {
+                out << qrDecomp.mR[col * N + row] << " ";
+            }
+            out << std::endl;
+        }
+        return out;
     }
 }

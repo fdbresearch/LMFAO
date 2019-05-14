@@ -6,9 +6,10 @@
 #include <map>
 #include <mutex>
 #include <boost/thread/barrier.hpp>
+#include <iostream>
 
 namespace LMFAO::LinearAlgebra
-{   
+{
     template <typename T>
     T inline expIdx(T row, T col, T numCols)
     {
@@ -43,10 +44,10 @@ namespace LMFAO::LinearAlgebra
         void rearrangeMatrix(const std::vector<bool> &vIsCat);
     protected :
         Eigen::MatrixXd mSigma;
-        // R is  stored column-wise to exploit cache locality. 
+        // R is  stored column-wise to exploit cache locality.
         // C is stored row-wise look at the line 112 -> cache locality in each thread important.
-        // They have to be double instead of long double because 
-        // code runs 40% faster.  
+        // They have to be double instead of long double because
+        // code runs 40% faster.
         //
         std::vector <double> mC;
         std::vector <double> mR;
@@ -67,7 +68,7 @@ namespace LMFAO::LinearAlgebra
         //
         unsigned int mNumFeatsCat;
         // Controls whether linearly independent columns are allowed.
-        // When they are allowed this can lead to numerical instability. 
+        // When they are allowed this can lead to numerical instability.
         // Use it with caution!!!
         //
         const bool mIsLinDepAllowed = false;
@@ -84,23 +85,25 @@ namespace LMFAO::LinearAlgebra
         }
         QRDecomposition(const MapMatrixAggregate& mMatrix, unsigned int numFeatsExp,
                         unsigned int numFeats, unsigned int numFeatsCont,
-                        const std::vector<bool>& vIsCat)
+                        const std::vector<bool>& vIsCat, const bool isLinDepAllowed=false):
+        mIsLinDepAllowed(isLinDepAllowed)
         {
             formMatrix(mMatrix, numFeatsExp, numFeats, numFeatsCont, vIsCat);
         }
         virtual ~QRDecomposition() {}
         void getR(Eigen::MatrixXd &rEigen);
+        friend std::ostream& operator<<(std::ostream& os, const QRDecomposition& qrDecomp);
     };
 
     class QRDecompositionNaive: public QRDecomposition
     {
     public:
-        QRDecompositionNaive(const std::string &path, const bool isLinDepAllowed=false) : 
+        QRDecompositionNaive(const std::string &path, const bool isLinDepAllowed=false) :
             QRDecomposition(path, isLinDepAllowed) {}
         QRDecompositionNaive(const MapMatrixAggregate &mMatrix, unsigned int numFeatsExp,
                             unsigned int numFeats, unsigned int numFeatsCont,
-                            const std::vector<bool>& vIsCat) :
-            QRDecomposition(mMatrix, numFeatsExp, numFeats, numFeatsCont, vIsCat) {}
+                            const std::vector<bool>& vIsCat, const bool isLinDepAllowed=false) :
+            QRDecomposition(mMatrix, numFeatsExp, numFeats, numFeatsCont, vIsCat, isLinDepAllowed) {}
         ~QRDecompositionNaive() {}
         virtual void decompose(void) override;
         void calculateCR(void);
@@ -115,12 +118,12 @@ namespace LMFAO::LinearAlgebra
     std::vector<std::vector<Pair>> mCofactorPerFeature;
 
     public:
-        QRDecompositionSingleThreaded(const std::string &path, const bool isLinDepAllowed=false) 
+        QRDecompositionSingleThreaded(const std::string &path, const bool isLinDepAllowed=false)
         : QRDecomposition(path, isLinDepAllowed) {}
         QRDecompositionSingleThreaded(const MapMatrixAggregate &mMatrix, unsigned int numFeatsExp,
                             unsigned int numFeats, unsigned int numFeatsCont,
-                            const std::vector<bool>& vIsCat) :
-         QRDecomposition(mMatrix, numFeatsExp, numFeats, numFeatsCont, vIsCat) {}
+                            const std::vector<bool>& vIsCat, const bool isLinDepAllowed=false) :
+         QRDecomposition(mMatrix, numFeatsExp, numFeats, numFeatsCont, vIsCat, isLinDepAllowed) {}
 
         ~QRDecompositionSingleThreaded() {}
         virtual void decompose(void) override;
@@ -140,18 +143,18 @@ namespace LMFAO::LinearAlgebra
     boost::barrier mBarrier{mNumThreads};
     std::mutex mMutex;
     public:
-        QRDecompositionMultiThreaded(const std::string &path, const bool isLinDepAllowed=false) : 
+        QRDecompositionMultiThreaded(const std::string &path, const bool isLinDepAllowed=false) :
         QRDecomposition(path, isLinDepAllowed) {}
         QRDecompositionMultiThreaded(const MapMatrixAggregate &mMatrix, unsigned int numFeatsExp,
                             unsigned int numFeats, unsigned int numFeatsCont,
-                            const std::vector<bool>& vIsCat) : 
-        QRDecomposition(mMatrix, numFeatsExp, numFeats, numFeatsCont, vIsCat) {}
+                            const std::vector<bool>& vIsCat, const bool isLinDepAllowed=false) :
+        QRDecomposition(mMatrix, numFeatsExp, numFeats, numFeatsCont, vIsCat, isLinDepAllowed) {}
 
         ~QRDecompositionMultiThreaded() {}
         virtual void decompose(void) override;
         void processCofactors(void);
         void calculateCR(unsigned int threadId);
     };
-
 }
+
 #endif

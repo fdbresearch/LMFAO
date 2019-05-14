@@ -20,14 +20,20 @@ class QRDecompApp: public CovarianceMatrix
 {
 public:
     QRDecompApp(const std::string& pathToFiles,
-                     std::shared_ptr<Launcher> launcher) : 
-    CovarianceMatrix(pathToFiles, launcher){}
+        std::shared_ptr<Launcher> launcher,
+        bool useLinearDependencyCheck,
+        bool outputDecomp) :
+            CovarianceMatrix(pathToFiles, launcher),
+            mUseLinearDependencyCheck(useLinearDependencyCheck),
+            mOutputDecomp(outputDecomp)            {}
     virtual ~QRDecompApp() override {}
 protected:
     virtual std::string getCodeOfIncludes() override;
     virtual std::string getCodeOfFunDefinitions() override;
-    virtual std::string getCodeOfRunAppFun() override;  
-    virtual std::string getCodeOfDecomposition(); 
+    virtual std::string getCodeOfRunAppFun() override;
+    virtual std::string getCodeOfDecomposition();
+    bool mUseLinearDependencyCheck;
+    bool mOutputDecomp;
 private:
 	std::string getVectorOfFeatures();
 };

@@ -16,7 +16,7 @@ case $DFDB_SH_DATA_OP in
     ;;
     qr)
     cd $DFDB_SH_ROOT
-    ./multifaq --path "data/${DFDB_SH_DATA_SET}/" --model qrdecomp --parallel both
+    ./multifaq --path "data/${DFDB_SH_DATA_SET}/" --model qrdecomp --parallel both --outputDecomp
     cd $DFDB_SH_RUNTIME_OUTPUT
     rm *
     cd $DFDB_SH_RUNTIME_CPP

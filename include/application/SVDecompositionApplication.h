@@ -20,10 +20,12 @@ class SVDecompApp: public QRDecompApp
 {
 public:
     SVDecompApp(const std::string& pathToFiles,
-                     std::shared_ptr<Launcher> launcher) : 
-    QRDecompApp(pathToFiles, launcher){}
+        std::shared_ptr<Launcher> launcher,
+        bool useLinearDependencyCheck,
+        bool outputDecomp) :
+    QRDecompApp(pathToFiles, launcher, useLinearDependencyCheck, outputDecomp){}
     virtual ~SVDecompApp() override {}
 protected:
-    virtual std::string getCodeOfDecomposition() override; 
+    virtual std::string getCodeOfDecomposition() override;
 };
 #endif /* INCLUDE_APP_SVDECOMP_H_ */
