@@ -15,6 +15,7 @@ function init_global_paths()
     DFDB_SH_RUNTIME_OUTPUT="$DFDB_SH_RUNTIME_CPP/output"
     DFDB_SH_JOIN_RES_PATH="${DFDB_SH_RUNTIME_SQL}/joinresult.txt"
     DFDB_SH_LOG_PATH="${DFDB_SH_LA}/logs"
+    DFDB_SH_COMP_PATH="${DFDB_SH_LA}/comparisons"
 }
 
 function init_global_vars()
@@ -36,6 +37,7 @@ function init_global_vars()
     DFDB_SH_SCIPY=false
     DFDB_SH_NUMPY=false
     DFDB_SH_PRECISION=false
+    DFDB_SH_FULL_EXP=false
 }
 
 function get_build_opts()
@@ -122,6 +124,9 @@ function get_str_args()
         EXTENSION="${option#*=}"
         get_data_sets $EXTENSION
         ;;
+        -f|--full_exps)
+        DFDB_SH_FULL_EXP=true
+        ;;
         *)    # unknown option
         echo "Wrong  argument" $option
         ;;
@@ -147,19 +152,36 @@ function get_features()
             DUMB_1=${BASH_REMATCH[3]}
             DUMB_2=${BASH_REMATCH[5]}
         fi
+        # Order features so last ones are categorical.
         if [[ $line =~ $regex_features ]]; then
             feature_name=${BASH_REMATCH[1]}
-            features+=(${feature_name})
-
             if [[ $line =~ $regex_cat_features ]]; then
                 feature_name=${BASH_REMATCH[1]}
                 features_cat+=(${feature_name})
+            else
+                features+=(${feature_name})
             fi
         fi
     done < $file_name
 
+    features+=("${features_cat[@]}")
     DFDB_SH_FEATURES=(${features[@]})
     DFDB_SH_FEATURES_CAT=(${features_cat[@]})
+}
+
+# Template style organization of execution of classes.
+function run_test()
+{
+    local clean_up_fun="$2"
+    local run_test_impl="$1"
+    [[ $DFDB_SH_FULL_EXP == true ]] && num_it=5 || num_it=1
+    for i in $(seq 1 $num_it); do
+        echo "Iteration number $i / $num_it"
+        if [[ $i > 1 ]]; then
+            "$clean_up_fun"
+        fi
+        "$run_test_impl"
+    done
 }
 
 : '
@@ -169,7 +191,7 @@ cmake .
 make -j8
 '
 
-function run_test() {
+function build_and_run_tests() {
     data_set=$1
     data_op=$2
     local features_out=$(printf "%s," ${DFDB_SH_FEATURES[@]})
@@ -178,7 +200,7 @@ function run_test() {
     echo 'Number of categorical feats: '${#DFDB_SH_FEATURES[@]}
 
     local features_cat_out=$(printf "%s," ${DFDB_SH_FEATURES_CAT[@]})
-    local features_cat_out=${features_cat_out::-1}
+    features_cat_out=${features_cat_out::-1}
     echo 'Categorical features: ' ${features_cat_out}
     echo 'Number of categorical feats: '${#DFDB_SH_FEATURES_CAT[@]}
 
@@ -188,7 +210,7 @@ function run_test() {
     local log_r=${DFDB_SH_LOG_PATH}/r/log"${data_set}${data_op}".txt
     local log_numpy=${DFDB_SH_LOG_PATH}/numpy/log"${data_set}${data_op}".txt
     local log_scipy=${DFDB_SH_LOG_PATH}/scipy/log"${data_set}${data_op}".txt
-    local path_comp=${DFDB_SH_LOG_PATH}/comp/comp"${data_set}${data_op}".xlsx
+    local path_comp=${DFDB_SH_COMP_PATH}/comp"${data_set}${data_op}"
 
     [[ $DFDB_SH_MADLIB  == true ]] && {
         echo '*********Madlib test started**********'
@@ -204,7 +226,8 @@ function run_test() {
 
     [[ $DFDB_SH_LMFAO  == true ]] && {
         echo '*********LMFAO test started**********'
-        (source test_lmfaola.sh ${data_set} ${data_op} &> ${log_lmfao})
+        (source test_lmfaola.sh ${data_set} ${data_op} ${DFDB_SH_PRECISION} \
+                &> ${log_lmfao})
         echo '*********LMFAO test finished**********'
     }
 
@@ -215,25 +238,33 @@ function run_test() {
                 ${DFDB_SH_FEATURES[@]} ${DFDB_SH_FEATURES_CAT[@]}" &> ${log_r}
         echo '*********R test finished**********'
     }
+
     [[ $DFDB_SH_NUMPY  == true ]] && {
+        local dump=False
+        [[ $DFDB_SH_PRECISION == true ]] && dump=True
         echo '*********numpy test started**********'
         eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/la_numpy.py" \
-                          -f ${features_out} -c ${features_cat_out}   \
-                          -d "${DFDB_SH_JOIN_RES_PATH}" -o "$data_op" &> ${log_numpy}
+                          -f ${features_out} -c ${features_cat_out}  \
+                          -d "${DFDB_SH_JOIN_RES_PATH}" -o "$data_op"\
+                          --dump "$dump" &> ${log_numpy}
         echo '*********numpy test finished**********'
     }
-    [[ $DFDB_SH_PRECISION  == true ]] && {
-      echo '*********comparison test started**********'
-      python3 "${DFDB_SH_LA_SCRIPT}/precision_comparison.py" \
-              -lp "${DFDB_SH_RUNTIME_CPP}/QR.txt" -cp "${DFDB_SH_LA_SCRIPT}/QR.txt" -pr 1e-10 -op "${path_comp}"
-      echo '*********comparison test started**********'
-    }
+
     [[ $DFDB_SH_SCIPY  == true ]] && {
         echo '*********scipy test started**********'
         eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/la_scipy.py" \
                           -f ${features_out} -c ${features_cat_out}    \
                           -d "${DFDB_SH_JOIN_RES_PATH}" -o "$data_op" &> ${log_scipy}
         echo '*********scipy test finished**********'
+    }
+
+    [[ $DFDB_SH_PRECISION  == true ]] && {
+      echo '*********comparison test started**********'
+      comp_file="$path_comp"
+      python3 "${DFDB_SH_LA_SCRIPT}/precision_comparison.py" \
+              -lp "${DFDB_SH_RUNTIME_CPP}/QR.txt" -cp "${DFDB_SH_LA_SCRIPT}/QR.txt" \
+              -pr 1e-10 -op "${comp_file}"
+      echo '*********comparison test started**********'
     }
 }
 
@@ -261,18 +292,18 @@ function main() {
         local log_psql=${DFDB_SH_LOG_PATH}/psql/log"${data_set}".txt
         [[ $DFDB_SH_JOIN  == true ]] && {
             echo '*********Join started**********'
-            (source generate_join.sh ${data_set}  &> ${log_psql})
+            #(source generate_join.sh ${data_set}  &> ${log_psql})
             echo '*********Join finished**********'
         }
 
         for data_op in ${DFDB_SH_OPS[@]}; do
             echo "*********${data_op} decomposition**********"
-            run_test $data_set $data_op
+            build_and_run_tests $data_set $data_op
             echo "*********${data_op} decomposition**********"
         done
 
         dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
     done
 }
-# Example:  ./runTests.sh --build=n -o=svd -d=usretailer_35f_1 -r=/home/max/LMFAO
+# Example:  ./runTests.sh --build=n -o=svd -d=usretailer_35f_1 -r=/home/max/LMFAO -f
 main $@

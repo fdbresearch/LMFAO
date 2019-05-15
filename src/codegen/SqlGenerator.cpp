@@ -33,14 +33,14 @@ using namespace boost::spirit;
 
 SqlGenerator::SqlGenerator(const std::string path, const std::string outDirectory,
                            std::shared_ptr<Launcher> launcher) :
-    _pathToData(path), _outputDirectory(outDirectory) 
+    _pathToData(path), _outputDirectory(outDirectory)
 {
      DINFO("Constructing SQL - Generator \n");
-   
+
     _td = launcher->getTreeDecomposition();
     _qc = launcher->getCompiler();
     _app = launcher->getApplication();
-    
+
     if (_pathToData.back() == '/')
         _pathToData.pop_back();
     loadFeatures();
@@ -68,7 +68,7 @@ void SqlGenerator::loadFeatures()
 
     int numOfFeatures = 0;
     int degreeOfInteractions = 0;
-    
+
     /* Ignore comment and empty lines at the top */
     while (getline(input, line))
     {
@@ -77,10 +77,10 @@ void SqlGenerator::loadFeatures()
 
         break;
     }
-    
-    /* 
-     * Extract number of labels, features and interactions from the config. 
-     * Parse the line with the three numbers; ignore spaces. 
+
+    /*
+     * Extract number of labels, features and interactions from the config.
+     * Parse the line with the three numbers; ignore spaces.
      */
     bool parsingSuccess =
         qi::phrase_parse(line.begin(), line.end(),
@@ -94,7 +94,7 @@ void SqlGenerator::loadFeatures()
                          ascii::space);
 
     assert(parsingSuccess && "The parsing of the features file has failed.");
-    
+
     /* Read in the features. */
     for (int featureNo = 0; featureNo < numOfFeatures; ++featureNo)
     {
@@ -106,7 +106,7 @@ void SqlGenerator::loadFeatures()
         }
 
         ssLine << line;
- 
+
         string attrName;
         /* Extract the name of the attribute in the current line. */
         getline(ssLine, attrName, ATTRIBUTE_NAME_CHAR);
@@ -120,7 +120,7 @@ void SqlGenerator::loadFeatures()
         getline(ssLine, rootName, ATTRIBUTE_NAME_CHAR);
 
         int attributeID = _td->getAttributeIndex(attrName);
-        int categorical = stoi(typeOfFeature); 
+        int categorical = stoi(typeOfFeature);
         int rootID = _td->getRelationIndex(rootName);
 
         if (attributeID == -1)
@@ -140,7 +140,10 @@ void SqlGenerator::loadFeatures()
             ERROR("The label needs to be continuous! ");
             exit(1);
         }
-
+        if (categorical)
+        {
+            _categoricalFeatures.set(attributeID);
+        }
         _features.set(attributeID);
 
         /* Clear string stream. */
@@ -159,7 +162,7 @@ void SqlGenerator::generateCode(const ParallelizationType parallelization_type,
 
     hasApplicationHandler = true;
     hasDynamicFunctions = true;
-    
+
     generateLoadQuery();
     generateJoinQueries();
     generateLmfaoQuery();
@@ -171,7 +174,7 @@ void SqlGenerator::generateCode(const ParallelizationType parallelization_type,
 void SqlGenerator::generateLmfaoQuery()
 {
     string returnString = "";
-    
+
     for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
     {
         View* v = _qc->getView(viewID);
@@ -180,14 +183,14 @@ void SqlGenerator::generateLmfaoQuery()
         size_t numberIncomingViews =
             (v->_origin == v->_destination ? node->_numOfNeighbors :
              node->_numOfNeighbors - 1);
-        
+
         vector<bool> viewBitset(_qc->numberOfViews());
 
-        string fvars = ""; 
+        string fvars = "";
         for (size_t i = 0; i < NUM_OF_VARIABLES; ++i)
             if (v->_fVars.test(i))
                 fvars +=  _td->getAttribute(i)->_name + ",";
-       
+
         string aggregateString = "";
         for (size_t aggNo = 0; aggNo < v->_aggregates.size(); ++aggNo)
         {
@@ -200,19 +203,19 @@ void SqlGenerator::generateLmfaoQuery()
                 string localAgg = "";
                 const prod_bitset& product = aggregate->_agg[i];
                 for (size_t f = 0; f < NUM_OF_FUNCTIONS; ++f)
-                {  
+                {
                     if (product.test(f))
                         localAgg += getFunctionString(f)+"*";
                 }
 
                 agg += localAgg;
-                
+
                 string viewAgg = "";
                 for (size_t n = 0; n < numberIncomingViews; ++n)
                 {
                     std::pair<size_t,size_t> viewAggID =
                         aggregate->_incoming[incomingCounter];
-                    
+
                     viewAgg += "agg_"+to_string(viewAggID.first)+"_"+
                         to_string(viewAggID.second)+"*";
                     viewBitset[viewAggID.first] = 1;
@@ -225,7 +228,7 @@ void SqlGenerator::generateLmfaoQuery()
                 {
                     agg.pop_back();
                     agg += "+";
-                }              
+                }
             }
 
             if (agg.empty())
@@ -239,7 +242,7 @@ void SqlGenerator::generateLmfaoQuery()
 
         aggregateString.pop_back();
 
-        
+
         returnString += "CREATE TABLE view_"+to_string(viewID)+" AS\nSELECT "+fvars+
             aggregateString+"\nFROM "+_td->getRelation(v->_origin)->_name+" ";
         for (size_t id = 0; id < _qc->numberOfViews(); ++id)
@@ -251,14 +254,14 @@ void SqlGenerator::generateLmfaoQuery()
             fvars.pop_back();
             returnString += "\nGROUP BY "+fvars;
         }
-        
+
         returnString += ";\n\n";
     }
 
     std::ofstream ofs("runtime/sql/lmfao.sql", std::ofstream::out);
     ofs << returnString;
     ofs.close();
-    // DINFO(returnString);   
+    // DINFO(returnString);
 }
 
 void SqlGenerator::generateExportJoinQuery()
@@ -271,9 +274,9 @@ void SqlGenerator::generateExportJoinQuery()
 void SqlGenerator::generateFullJoinQuery()
 {
     string joinString = "", attributeString  = "";
-    
+
     for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
-    {    
+    {
         joinString += _td->getRelation(rel)->_name;
         if (rel + 1 < _td->numberOfRelations())
             joinString += " NATURAL JOIN ";
@@ -294,9 +297,9 @@ void SqlGenerator::generateFullJoinQuery()
 void SqlGenerator::generateFeatureOnlyJoinQuery()
 {
     string joinString = "", attributeString  = "";
-    
+
     for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
-    {    
+    {
         joinString += _td->getRelation(rel)->_name;
         if (rel + 1 < _td->numberOfRelations())
             joinString += " NATURAL JOIN ";
@@ -304,13 +307,22 @@ void SqlGenerator::generateFeatureOnlyJoinQuery()
 
     for (size_t var = 0; var < NUM_OF_VARIABLES; var ++)
     {
-        if (_features[var])
+        if (_features[var] && !_categoricalFeatures[var])
         {
             std::string featureName = _td->getAttribute(var)->_name;
             attributeString += featureName + ",";
 
         }
-    }   
+    }
+    for (size_t var = 0; var < NUM_OF_VARIABLES; var ++)
+    {
+        if (_categoricalFeatures[var])
+        {
+            std::string featureName = _td->getAttribute(var)->_name;
+            attributeString += featureName + ",";
+
+        }
+    }
     attributeString.pop_back();
     /*
     for (size_t var = 0; var < _td->numberOfAttributes(); ++var)
@@ -335,7 +347,7 @@ void SqlGenerator::generateJoinQueries()
 //     string joinString = "", aggregateString = "", fVarString = "",
 //         attributeString  = "";
 //     for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
-//     {    
+//     {
 //         joinString += _td->getRelation(rel)->_name;
 //         if (rel + 1 < _td->numberOfRelations())
 //             joinString += " NATURAL JOIN ";
@@ -406,7 +418,7 @@ void SqlGenerator::generateJoinQueries()
 //         aggregateString.pop_back();
 //         if (aggregateString.empty())
 //             aggregateString = "1";
-        
+
 //         ofs << "SELECT "+fVarString+"SUM("+aggregateString+")\nFROM "+joinString;
 //         if (!fVarString.empty())
 //         {
@@ -414,7 +426,7 @@ void SqlGenerator::generateJoinQueries()
 //             ofs << "\nGROUP BY "+fVarString;
 //         }
 //         ofs << ";\n";
-        
+
 //         //   DINFO("SELECT "+fVarString+aggregateString+"\nFROM "+joinString+";\n");
 //     }
 //     ofs.close();
@@ -426,19 +438,19 @@ void SqlGenerator::generateJoinQueries()
 void SqlGenerator::generateAggregateQueries()
 {
     string joinString = "", attributeString  = "";
-    
+
     for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
-    {    
+    {
         joinString += _td->getRelation(rel)->_name;
         if (rel + 1 < _td->numberOfRelations())
             joinString += " NATURAL JOIN ";
     }
-    
+
     // for (size_t var = 0; var < _td->numberOfAttributes(); ++var)
     //     attributeString += _td->getAttribute(var)->_name + ",";
     // attributeString.pop_back();
-    
-    //********** TODO: TODO: ********** 
+
+    //********** TODO: TODO: **********
     // technically we need to join in the parameters
     // for now we just fix the params
     //********** TODO: TODO: **********
@@ -452,7 +464,7 @@ void SqlGenerator::generateAggregateQueries()
     //     const var_bitset categoricalFeatures =
     //         static_pointer_cast<LinearRegression>(_app)->
     //         getCategoricalFeatures();
-        
+
     //     std::string catParams = "", contParams = "";
     //     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
     //     {
@@ -466,23 +478,23 @@ void SqlGenerator::generateAggregateQueries()
     //                 contParams += ","+attr->_name+"_param";
     //         }
     //     }
-        
+
     //     joinString += catParams + contParams;
     // }
 
     unordered_map<var_bitset,string> fVarAggregateMap;
 
     size_t aggNum = 0;
-    
+
     for (size_t queryID = 0; queryID < _qc->numberOfQueries(); ++queryID)
     {
         Query* query = _qc->getQuery(queryID);
-        
+
         std::string aggregateString = "";
         for (size_t agg = 0; agg < query->_aggregates.size(); ++agg)
         {
             Aggregate* aggregate = query->_aggregates[agg];
-            
+
             size_t aggIdx = 0;
 
             string sumString = "";
@@ -503,7 +515,7 @@ void SqlGenerator::generateAggregateQueries()
                     prodString.pop_back();
                 else
                     prodString += "1";
-                
+
                 sumString += prodString+"+";
                 ++aggIdx;
             }
@@ -512,7 +524,7 @@ void SqlGenerator::generateAggregateQueries()
         }
 
         auto it_pair = fVarAggregateMap.insert({query->_fVars,""});
-        it_pair.first->second += aggregateString;        
+        it_pair.first->second += aggregateString;
     }
 
     ofstream ofs("runtime/sql/aggregates_merged.sql", std::ofstream::out);
@@ -521,7 +533,7 @@ void SqlGenerator::generateAggregateQueries()
     for (auto& fvarAggPair : fVarAggregateMap)
     {
         string fVarString = "";
-        
+
         for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
         {
             if (fvarAggPair.first[var])
@@ -529,8 +541,8 @@ void SqlGenerator::generateAggregateQueries()
         }
 
         fvarAggPair.second.pop_back();
-        
-        ofs << "CREATE TABLE agg_"+to_string(aggID++)+" AS (\n" 
+
+        ofs << "CREATE TABLE agg_"+to_string(aggID++)+" AS (\n"
             "SELECT "+fVarString+fvarAggPair.second+"\nFROM "+joinString;
         if (!fVarString.empty())
         {
@@ -560,7 +572,7 @@ void SqlGenerator::generateAggregateQueries()
         for (size_t agg = 0; agg < query->_aggregates.size(); ++agg)
         {
             Aggregate* aggregate = query->_aggregates[agg];
-            
+
             size_t aggIdx = 0;
 
             string sumString = "";
@@ -582,7 +594,7 @@ void SqlGenerator::generateAggregateQueries()
                     prodString.pop_back();
                 else
                     prodString += "1";
-                
+
                 sumString += prodString+"+";
                 ++aggIdx;
             }
@@ -591,7 +603,7 @@ void SqlGenerator::generateAggregateQueries()
             aggregateString +="SUM("+sumString+") AS agg_"+to_string(agg)+",";
         }
         aggregateString.pop_back();
-        
+
         std::string groupByString = "";
         if (!fVarString.empty())
         {
@@ -599,7 +611,7 @@ void SqlGenerator::generateAggregateQueries()
             fVarString.pop_back();
             groupByString += "\nGROUP BY "+fVarString;
         }
-        
+
         ofs << "CREATE TABLE agg_"+to_string(aggID_unmerged++)+" AS (\nSELECT "+
             aggregateString+"\nFROM "+joinString+groupByString+");\n\n";
     }
@@ -622,15 +634,19 @@ void SqlGenerator::generateAggregateQueries()
 
 void SqlGenerator::generateLoadQuery()
 {
+
     string load = "", drop = "DROP TABLE IF EXISTS joinres;\n";
-    
+    std::ofstream ofs("runtime/sql/join_cleanup.sql", std::ofstream::out);
+    ofs << drop + load;
+    ofs.close();
+
     for (size_t relID = 0; relID < _td->numberOfRelations(); ++relID)
     {
         TDNode* rel = _td->getRelation(relID);
         const std::string& relName = rel->_name;
 
         drop += "DROP TABLE IF EXISTS "+relName+";\n";
-        
+
         load += "CREATE TABLE "+relName+ "(";
         for (size_t var = 0; var < NUM_OF_VARIABLES; var++)
         {
@@ -647,7 +663,7 @@ void SqlGenerator::generateLoadQuery()
                 "DELIMITER \'|\' CSV;\n";
     }
 
-    std::ofstream ofs("runtime/sql/load_data.sql", std::ofstream::out);
+    ofs.open("runtime/sql/load_data.sql", std::ofstream::out);
     ofs << drop + load;
     ofs.close();
     // DINFO(drop + load);
@@ -660,7 +676,7 @@ void SqlGenerator::generateLoadQuery()
     ofs.open("runtime/sql/lmfao_cleanup.sql", std::ofstream::out);
     ofs << drop_views;
     ofs.close();
-    
+
     ofs.open("runtime/sql/drop_data.sql", std::ofstream::out);
     ofs << drop + drop_views;
     ofs.close();
@@ -670,7 +686,7 @@ void SqlGenerator::generateLoadQuery()
 void SqlGenerator::generateOutputQueries()
 {
     ofstream ofs("runtime/sql/output.sql");
-    
+
     for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
     {
         View* view = _qc->getView(viewID);
@@ -695,7 +711,7 @@ void SqlGenerator::generateOutputQueries()
                 " AS decimal(53,2)),";
 
         fields.pop_back();
-        
+
         ofs << "\\COPY (SELECT "+fields+" FROM view_"+to_string(viewID)+orderby+
             ") TO PROGRAM \'cat - >> test.out\' CSV DELIMITER \'|\';\n\n";
     }
@@ -708,7 +724,7 @@ inline string SqlGenerator::typeToStr(Type type)
     switch (type)
     {
     case Type::Integer : return "int";
-    case Type::Double : return "numeric";            
+    case Type::Double : return "numeric";
     case Type::Short : return "int";
     case Type::U_Integer : return "int";
     default :
@@ -735,7 +751,7 @@ inline string SqlGenerator::getFunctionString(size_t fid)
     case Operation::count :
         return "f_"+to_string(fid);
     case Operation::sum :
-        return fvars;  
+        return fvars;
     case Operation::linear_sum :
         return fvars;
     case Operation::quadratic_sum :

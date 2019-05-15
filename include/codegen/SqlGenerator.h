@@ -23,7 +23,6 @@ public:
 
     SqlGenerator(const std::string path, const std::string outputDirectory,
                  std::shared_ptr<Launcher> launcher);
-    
     ~SqlGenerator();
 
     void generateCode(const ParallelizationType parallelization_type,
@@ -34,14 +33,14 @@ public:
     {
         return 0;
     }
-    
+
 
 private:
 
     std::string _pathToData;
 
     std::string _outputDirectory;
-    
+
     std::shared_ptr<TreeDecomposition> _td;
 
     std::shared_ptr<QueryCompiler> _qc;
@@ -51,9 +50,11 @@ private:
     //Model _model;
     var_bitset _features;
 
+    var_bitset _categoricalFeatures;
+
     void loadFeatures();
     // Model _model;
-    
+
     void generateLoadQuery();
 
     void generateJoinQueries();
@@ -67,9 +68,9 @@ private:
     void generateLmfaoQuery();
 
     void generateOutputQueries();
-    
+
     void generateAggregateQueries();
-    
+
     inline std::string getFunctionString(size_t fid);
 
     inline std::string typeToStr(Type type);

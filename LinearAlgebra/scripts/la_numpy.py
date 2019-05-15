@@ -2,7 +2,6 @@ from argparse import ArgumentParser
 
 import numpy as np
 import pandas as pd
-from scipy import linalg
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
@@ -26,10 +25,21 @@ class IdentityTransformer(BaseEstimator, TransformerMixin):
         return self
 
 
-def move_cat_at_the_end(columns, columns_cat):
-    for col_cat in columns_cat:
-        columns.remove(col_cat)
-        columns.append(col_cat)
+def dump_qr(r):
+    diag_sgn_r = np.sign(r.diagonal())
+    matr_sgn_r = np.diag(diag_sgn_r)
+    r_positive = np.dot(matr_sgn_r, r)
+
+    with open("QR.txt", "w") as file:
+        print(r_positive.shape[0], r_positive.shape[1])
+        file.write("{} {}\n".format(r_positive.shape[0], r_positive.shape[1]))
+        row_num = r_positive.shape[0]
+        col_num = r_positive.shape[1]
+        for row in range(0, row_num):
+            for col in range(0, col_num):
+                file.write("{} ".format(r_positive[row, col]))
+            file.write("\n")
+
 
 if __name__ == "__main__":
     parser = ArgumentParser()
@@ -37,6 +47,7 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--categorical_features", dest="categorical_features", required=True)
     parser.add_argument("-d", "--data_path", dest="data_path", required=True)
     parser.add_argument("-o", "--operation", dest="operation", required=True)
+    parser.add_argument("--dump", dest="dump", required=True)
 
     np.set_printoptions(threshold=sys.maxsize, precision=20)
     pd.set_option('display.max_columns', 500)
@@ -45,18 +56,13 @@ if __name__ == "__main__":
     cat_featurs = args.categorical_features
     data_path = args.data_path
     operation = args.operation
+    dump = args.dump
     columns = features.split(",")
 
     columns_cat = cat_featurs.split(",")
 
     transformer_a = []
-    #print(data_path)
     data = pd.read_csv(data_path, names=columns, delimiter="|", header=None)
-    move_cat_at_the_end(columns, columns_cat)
-    #print(data.head())
-    data = data[columns]
-    #print(data.head())
-    #print(data)
     for column in columns:
         if column in columns_cat:
             transf_name = column + "_onehot"
@@ -77,22 +83,5 @@ if __name__ == "__main__":
         # Make elements on diagonal postive by multiplying diagonal R by a diagonal  matrix
         #  whose diagonal is sign of diagonal of R
         r = np.linalg.qr(one_hot_a, mode='r')
-        diag_sgn_r = np.sign(r.diagonal())
-        matr_sgn_r = np.diag(diag_sgn_r)
-        #print(matr_sgn_r)
-        r_positive = np.dot(matr_sgn_r, r)
-        #print(diag_sgn_r)
-        #print(matr_sgn_r)
-        #print(r)
-        #print(one_hot_a)
-
-        with open("QR.txt", "w") as file:
-            print(r_positive.shape[0], r_positive.shape[1])
-            file.write("{} {}\n".format(r_positive.shape[0], r_positive.shape[1]))
-            row_num = r_positive.shape[0]
-            col_num = r_positive.shape[1]
-            for row in range(0, row_num):
-                for col in range(0, col_num):
-                    file.write("{} ".format(r_positive[row, col]))
-                file.write("\n")
-        #print(np.sign(r_positive.diagonal()))
+        if dump:
+            dump_qr(r)

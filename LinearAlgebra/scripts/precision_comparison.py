@@ -43,7 +43,10 @@ if __name__ == "__main__":
     comparison_path = args.comparison_qr_path
     output_path = args.output_path
     precision = Decimal(args.precision)
-    comp_wb = PrecisionWorkbook(output_path=output_path, precision=precision)
+
+    abs_err = Decimal(0)
+    abs_err_comp = Decimal(0)
+    comp_wb = PrecisionWorkbook(output_path=output_path+".xlsx", precision=precision)
     with open(lmfao_path, 'r') as lmfao_file:
         with open(comparison_path, 'r') as comp_file:
             feats_lmfao = lmfao_file.readline().strip().split(" ")
@@ -54,10 +57,22 @@ if __name__ == "__main__":
                 lmfao_row_line_val = lmfao_file.readline().strip().split(" ")
                 comp_row_line_val = comp_file.readline().strip().split(" ")
                 for col in range (0, col_lmfao):
-                    comp_wb.save_entry(row + 1, col + 1, Decimal(lmfao_row_line_val[col]),
-                                                 Decimal(comp_row_line_val[col]))
+                    lmfao_val_dec = Decimal(lmfao_row_line_val[col])
+                    comp_val_dec = Decimal(comp_row_line_val[col])
+                    diff = lmfao_val_dec - comp_val_dec
+                    abs_err += diff * diff
+                    print(abs_err)
+                    abs_err_comp += comp_val_dec * comp_val_dec
+                    print(abs_err_comp)
+                    comp_wb.save_entry(row + 1, col + 1, lmfao_val_dec, comp_val_dec)
 
     comp_wb.save()
+    with open(output_path +".txt", 'w') as file_prec:
+        file_prec.write("Absolute error is: {}\n".format(abs_err.sqrt()))
+        file_prec.write("Frobenius norm of comp is: {}\n".format(abs_err_comp.sqrt()))
+        file_prec.write("Relative error is: {}\n".format((abs_err).sqrt() / abs_err_comp.sqrt()))
+
+
 
 
 
