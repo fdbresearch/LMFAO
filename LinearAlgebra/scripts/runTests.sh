@@ -258,6 +258,7 @@ function build_and_run_tests() {
         echo '*********scipy test finished**********'
     }
 
+    # This one has to be always the last
     [[ $DFDB_SH_PRECISION  == true ]] && {
       echo '*********comparison test started**********'
       comp_file="$path_comp"

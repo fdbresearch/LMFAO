@@ -5,8 +5,6 @@ DFDB_SH_DATA_OP=$2
 DFDB_SH_DUMP=$3
 #"usretailer_1"
 
-echo "TO JE" $DFDB_SH_DUMP
-
 [[ $DFDB_SH_DUMP == true ]] && dump="--outputDecomp" || dump=""
 cd $DFDB_SH_ROOT
 case $DFDB_SH_DATA_OP in

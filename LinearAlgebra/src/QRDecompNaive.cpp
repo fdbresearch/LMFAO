@@ -1,5 +1,5 @@
 //#include <fstream>
-//#include <iostream>
+#include <iostream>
 #include "QRDecomp.h"
 
 namespace LMFAO::LinearAlgebra
@@ -10,8 +10,8 @@ namespace LMFAO::LinearAlgebra
         unsigned int N = mNumFeatsExp;
         expandSigma(sigmaExpanded, true /*isNaive*/);
         mR[0] = sigmaExpanded[0];
-        
-        // We skip k=0 since the ineer loops don't iterate over it. 
+
+        // We skip k=0 since the ineer loops don't iterate over it.
         for (unsigned int k = 1; k < N; k++)
         {
             unsigned int idxRCol = N * k;
@@ -70,12 +70,20 @@ namespace LMFAO::LinearAlgebra
             {
                 norm = sqrt(mR[expIdx(row, row, N)]);;
             }
+            /*
+            for (unsigned int col = 0; col < row; col++)
+            {
+                std::cout << "0.0 ";
+            }
+            */
 
             for (unsigned int col = row; col < N; col++)
             {
                 //std::cout << row << " " << col << " " << mR[col * N + row] << std::endl;
                 mR[col * N + row] /= norm;
+                //std::cout << mR[col * N + row] << " ";
             }
+            //std::cout << std::endl;
         }
     }
 }

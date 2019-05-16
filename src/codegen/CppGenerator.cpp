@@ -20,7 +20,7 @@
 #define OPTIMIZED
 
 /* Turn this flag on to output times for each Group individually. */
-//#define BENCH_INDIVIDUAL 
+//#define BENCH_INDIVIDUAL
 
 //#define USE_MULTIOUTPUT_OPERATOR
 //#define ENABLE_RESORT_RELATIONS
@@ -62,8 +62,8 @@ CppGenerator::CppGenerator(const std::string path, const std::string outDirector
 
     GROUP_VIEWS = multioutput_flag;
     MICRO_BENCH = microbench_flag;
-    COMPRESS_AGGREGATES = compression_flag;    
-    
+    COMPRESS_AGGREGATES = compression_flag;
+
     if (resort_flag)
     {
         GROUP_VIEWS = false;
@@ -88,23 +88,23 @@ void CppGenerator::generateCode(const ParallelizationType parallelization_type,
 
     _hasApplicationHandler = hasApplicationHandler;
     _hasDynamicFunctions = hasDynamicFunctions;
-    
+
     sortOrders = new size_t*[_td->numberOfRelations() + _qc->numberOfViews()];
     viewName = new std::string[_qc->numberOfViews()];
     viewLevelRegister  = new size_t[_qc->numberOfViews()];
-    
+
     for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
         sortOrders[rel] = new size_t[_td->getRelation(rel)->_bag.count()]();
-    
+
     for (size_t view = 0; view < _qc->numberOfViews(); ++view)
-    {   
+    {
         sortOrders[view + _td->numberOfRelations()] =
             new size_t[_qc->getView(view)->_fVars.count()]();
         viewName[view] = "V"+std::to_string(view);
     }
-    
+
     variableDependency.resize(NUM_OF_VARIABLES);
-    
+
     // Find all the dependencies amongst the variables
     for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
     {
@@ -116,7 +116,7 @@ void CppGenerator::generateCode(const ParallelizationType parallelization_type,
                 variableDependency[var] |= nodeBag;
         }
     }
-    
+
     // FIRST WE CREATE THE VARIABLE ORDER FOR EACH RELATION
     size_t orderIdx = 0;
     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
@@ -127,22 +127,22 @@ void CppGenerator::generateCode(const ParallelizationType parallelization_type,
             ++orderIdx;
         }
     }
-    
+
     createRelationSortingOrder(_td->_root, _td->_root->_id);
-    
+
     createGroupVariableOrder();
 
     bool domainParallelism = parallelization_type == DOMAIN_PARALLELIZATION ||
         parallelization_type == BOTH_PARALLELIZATION;
 
     computeParallelizeGroup(domainParallelism);
-    
+
 // #ifdef OLD
 //     createVariableOrder();
 // #endif
 
     genDataHandler();
-    
+
 #ifdef OPTIMIZED
     for (size_t group = 0; group < viewGroups.size(); ++group)
         genComputeGroupFiles(group);
@@ -152,10 +152,10 @@ void CppGenerator::generateCode(const ParallelizationType parallelization_type,
         parallelization_type == BOTH_PARALLELIZATION;
 
     genMainFunction(taskParallelism);
-    
+
     genMakeFile();
 #endif
-    
+
 }
 
 void CppGenerator::genDataHandler()
@@ -197,7 +197,7 @@ void CppGenerator::genDataHandler()
         header += std::string("#define PRINT_MICRO_BENCH(timer) std::cout << ")+
             "#timer << \": \" << std::to_string(global_time_##timer) << std::endl;\n\n";
     }
-    
+
     header += "using namespace std::chrono;\n\nnamespace lmfao\n{\n"+
         offset(1)+"const std::string PATH_TO_DATA = \""+_pathToData+"\";\n\n";
 
@@ -207,8 +207,8 @@ void CppGenerator::genDataHandler()
 
     for (size_t relID = 0; relID < _td->numberOfRelations(); ++relID)
         ofs << offset(1)+"extern void sort"+_td->getRelation(relID)->_name+"();\n";
-    
-    ofs <<  "}\n\n#endif /* INCLUDE_DATAHANDLER_HPP_*/\n";    
+
+    ofs <<  "}\n\n#endif /* INCLUDE_DATAHANDLER_HPP_*/\n";
     ofs.close();
 
     ofs.open(_outputDirectory+"DataHandler.cpp", std::ofstream::out);
@@ -245,23 +245,23 @@ void CppGenerator::genComputeGroupFiles(size_t group)
     }
     else
     {
-        ofs << offset(1)+"void computeGroup"+std::to_string(group)+"();\n"; 
+        ofs << offset(1)+"void computeGroup"+std::to_string(group)+"();\n";
     }
-    
+
     ofs << "}\n\n#endif /* INCLUDE_COMPUTEGROUP"+std::to_string(group)+"_HPP_*/\n";
     ofs.close();
-        
+
     ofs.open(_outputDirectory+"ComputeGroup"+std::to_string(group)+".cpp",
              std::ofstream::out);
 
     // TODO:TODO:TODO: We should avoid including DynamicFunctions.h if it is not
     // needed.
-    
+
     ofs << "#include \"ComputeGroup"+std::to_string(group)+".h\"\n";
 
     if (_hasDynamicFunctions)
         ofs << "#include \"DynamicFunctions.h\"\n";
-    
+
     ofs << "namespace lmfao\n{\n";
     ofs << genComputeGroupFunction(group) << std::endl;
     ofs << "}\n";
@@ -274,7 +274,7 @@ void CppGenerator::genMainFunction(bool parallelize)
     std::ofstream ofs(_outputDirectory+"main.cpp",std::ofstream::out);
 
     ofs << "#if defined(TESTING) || defined(DUMP_OUTPUT) \n"+offset(1)+"#include <iomanip>\n"+"#endif\n";
-    
+
     ofs << "#include \"DataHandler.h\"\n";
     for (size_t group = 0; group < viewGroups.size(); ++group)
         ofs << "#include \"ComputeGroup"+std::to_string(group)+".h\"\n";
@@ -291,21 +291,21 @@ void CppGenerator::genMainFunction(bool parallelize)
             const std::string &relName = _td->getRelation(relID)->_name;
             ofs << offset(1) + "std::vector<" + relName + "_tuple> " + relName + ";" << std::endl;
     }
-    
+
     for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
     {
         ofs << offset(1)+"std::vector<"+viewName[viewID]+"_tuple> "+
             viewName[viewID]+";" << std::endl;
     }
-    
+
     ofs << genLoadRelationFunction() << std::endl;
 
     for (size_t relID = 0; relID < _td->numberOfRelations(); ++relID)
         ofs << genSortFunction(relID) << std::endl;
-    
+
     ofs << genRunFunction(parallelize) << std::endl;
     ofs << genTestFunction() << genDumpFunction() << "}\n\n";
- 
+
     ofs << "int main(int argc, char *argv[])\n{\n"+// #ifndef MULTITHREAD\n"+
         offset(1)+"std::cout << \"run lmfao\" << std::endl;\n"+
         offset(1)+"lmfao::run();\n"+//"#else\n"+
@@ -325,7 +325,7 @@ void CppGenerator::genMakeFile()
         objectList += "application.o ";
     if (_hasDynamicFunctions)
         objectList += "dynamic.o ";
-    
+
     std::string objectConstruct = "";
     for (size_t group = 0; group < viewGroups.size(); ++group)
     {
@@ -335,7 +335,7 @@ void CppGenerator::genMakeFile()
             groupString+".cpp\n\t$(CXX) $(FLAG) $(CXXFLAG) -c ComputeGroup"+
             groupString+".cpp -o computegroup"+groupString+".o\n\n";
     }
-    
+
     std::ofstream ofs(_outputDirectory+"Makefile",std::ofstream::out);
 
     ofs << "## You can set costum flags by adding: FLAG=-D... \n\n";
@@ -348,9 +348,9 @@ void CppGenerator::genMakeFile()
     ofs << "\n# -pthread -O2 -mtune=native -fassociative-math -freciprocal-math "
         << "-fno-signed-zeros -v -ftime-report -fno-stack-protector\n\n";
 
-    ofs << "lmfao : " + objectList + "\n\t$(CXX) $(CXXFLAG) " + 
-          objectList + " ../../LinearAlgebra/liblmfaolalib.a " 
-          + "../../libs/libboost_thread.a " 
+    ofs << "lmfao : " + objectList + "\n\t$(CXX) $(CXXFLAG) " +
+          objectList + " ../../LinearAlgebra/liblmfaolalib.a "
+          + "../../libs/libboost_thread.a "
           +  "../../libs/libboost_system.a "
           + "-o lmfao\n\n";
 
@@ -388,7 +388,7 @@ void CppGenerator::genMakeFile()
 #if defined(__GNUC__) && defined(NDEBUG) && !defined(__clang__)
     ofs << " -fopenmp";
 #endif
-    
+
     ofs << "\ndebug : lmfao\n\n"
         << ".PHONY : clean\n"
         << "clean :\n"
@@ -408,7 +408,7 @@ std::string CppGenerator::genSortFunction(const size_t& rel_id)
 #else
     std::string sortAlgo = "std::sort(";
 #endif
-    
+
     std::string returnString = offset(1)+"void sort"+relName+"()\n"+offset(1)+"{\n";
 
 #ifdef BENCH_INDIVIDUAL
@@ -428,7 +428,7 @@ std::string CppGenerator::genSortFunction(const size_t& rel_id)
     //         const std::string& attrName = _td->getAttribute(var)->_name;
     //         returnString += offset(3)+"if(lhs."+attrName+" != rhs."+attrName+")\n"+
     //             offset(4)+"return lhs."+attrName+" < rhs."+attrName+";\n";
-    //         // Reset the relSortOrder array for future calls 
+    //         // Reset the relSortOrder array for future calls
     //         sortOrders[view->_origin][orderIdx] = var;
     //         ++orderIdx;
     //     }
@@ -446,13 +446,13 @@ std::string CppGenerator::genSortFunction(const size_t& rel_id)
     returnString += "\n"+offset(2)+"int64_t endProcess = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count()-startProcess;\n"+
         offset(2)+"std::cout << \"Sort Relation "+relName+": \"+"+
-        "std::to_string(endProcess)+\"ms.\\n\";\n\n";    
+        "std::to_string(endProcess)+\"ms.\\n\";\n\n";
         // offset(2)+"std::ofstream ofs(\"times.txt\",std::ofstream::out | " +
         // "std::ofstream::app);\n"+
         // offset(2)+"ofs << \"\\t\" << endProcess;\n"+
         // offset(2)+"ofs.close();\n";
 #endif
-    
+
     return returnString+offset(1)+"}\n";
 }
 
@@ -464,16 +464,16 @@ void CppGenerator::computeViewOrdering()
 
     std::vector<std::vector<size_t>> viewsPerNode(
         _td->numberOfRelations(), std::vector<size_t>());
-    
+
     for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
     {
         View* view = _qc->getView(viewID);
         TDNode* baseRelation = _td->getRelation(view->_origin);
-        
+
         size_t numberIncomingViews =
             (view->_origin == view->_destination ? baseRelation->_numOfNeighbors :
              baseRelation->_numOfNeighbors - 1);
-        
+
         std::vector<bool> incViewBitset(_qc->numberOfViews());
         for (size_t aggNo = 0; aggNo < view->_aggregates.size(); ++aggNo)
         {
@@ -486,31 +486,31 @@ void CppGenerator::computeViewOrdering()
                 for (size_t j = 0; j < numberIncomingViews; ++j)
                 {
                     const size_t& incViewID = aggregate->_incoming[incOffset].first;
-               
+
                     // Indicate that this view contributes to some aggregate
                     incViewBitset[incViewID] = 1;
                     ++incOffset;
                 }
             }
-        }        
+        }
         // For each incoming view, check if it contains any vars from the
         // variable order and then add it to the corresponding info
         for (size_t incViewID=0; incViewID < _qc->numberOfViews(); ++incViewID)
             if (incViewBitset[incViewID])
                 incomingViews[viewID].push_back(incViewID);
 
-        // Keep track of the views that origin from this node 
+        // Keep track of the views that origin from this node
         viewsPerNode[view->_origin].push_back(viewID);
     }
-    
+
     /* Next compute the topological order of the views */
     dyn_bitset processedViews(_qc->numberOfViews());
     dyn_bitset queuedViews(_qc->numberOfViews());
-    
+
     // create orderedViewList -> which is empty
     std::vector<size_t> orderedViewList;
     std::queue<size_t> nodesToProcess;
-    
+
     // Find all views that originate from leaf nodes
     for (const size_t& nodeID : _td->_leafNodes)
     {
@@ -523,7 +523,7 @@ void CppGenerator::computeViewOrdering()
             }
         }
     }
-    
+
     while (!nodesToProcess.empty()) // there is a node in the set
     {
         size_t viewID = nodesToProcess.front();
@@ -534,7 +534,7 @@ void CppGenerator::computeViewOrdering()
 
         const size_t& destination = _qc->getView(viewID)->_destination;
 
-        // For each view that has the same destination 
+        // For each view that has the same destination
         for (const size_t& destView : viewsPerNode[destination])
         {
             // check if this has not been processed (case for root nodes)
@@ -542,14 +542,14 @@ void CppGenerator::computeViewOrdering()
             {
                 bool candidate = true;
                 for (const size_t& incView : incomingViews[destView])
-                {    
+                {
                     if (!processedViews[incView] && !queuedViews[incView])
                     {
                         candidate = false;
                         break;
                     }
                 }
-                
+
                 if (candidate && !queuedViews[destView])
                 {
                     queuedViews.set(destView);
@@ -563,7 +563,7 @@ void CppGenerator::computeViewOrdering()
     size_t prevOrigin = _qc->getView(orderedViewList[0])->_origin;
     viewGroups.push_back({orderedViewList[0]});
 
-    viewToGroupMapping[orderedViewList[0]] = 0;    
+    viewToGroupMapping[orderedViewList[0]] = 0;
     size_t currentGroup = 0;
     for (size_t viewID = 1; viewID < orderedViewList.size(); ++viewID)
     {
@@ -607,18 +607,18 @@ void CppGenerator::computeViewOrdering()
 void CppGenerator::createGroupVariableOrder()
 {
     computeViewOrdering();
-    
+
     groupVariableOrder = new std::vector<size_t>[viewGroups.size()]();
     groupIncomingViews = new std::vector<size_t>[viewGroups.size()]();
     groupViewsPerVarInfo = new std::vector<size_t>[viewGroups.size()];
 
     groupVariableOrderBitset.resize(viewGroups.size());
-    
+
     for (size_t group = 0; group < viewGroups.size(); ++group)
     {
         var_bitset joinVars;
         std::vector<bool> incViewBitset(_qc->numberOfViews());
-        
+
         TDNode* baseRelation = _td->getRelation(
             _qc->getView(viewGroups[group][0])->_origin);
 
@@ -662,7 +662,7 @@ void CppGenerator::createGroupVariableOrder()
                             // TODO: TODO: TODO: MAKE SURE THAT YOU ALSO
                             // CONSIDER INTERSECTION OF FREE VARS THAT ARE
                             // SHARED B/W TWO VIEWS BUT NOT IN BAG
-                            
+
                             // Add the intersection of the view and the base
                             // relation to joinVars
                             joinVars |= (_qc->getView(incViewID)->_fVars &
@@ -670,7 +670,7 @@ void CppGenerator::createGroupVariableOrder()
                             // Indicate that this view contributes to some aggregate
                             incViewBitset[incViewID] = 1;
                             ++incOffset;
-                        }                        
+                        }
                     }
                 }
             }
@@ -681,7 +681,7 @@ void CppGenerator::createGroupVariableOrder()
                 groupVariableOrder[group].push_back(var);
 
         groupVariableOrderBitset[group] |= joinVars;
-        
+
         groupViewsPerVarInfo[group].resize(groupVariableOrder[group].size() *
                                        (_qc->numberOfViews() + 2), 0);
 
@@ -705,7 +705,7 @@ void CppGenerator::createGroupVariableOrder()
             {
                 groupIncomingViews[group].push_back(incViewID);
                 const var_bitset& viewFVars = _qc->getView(incViewID)->_fVars;
-                    
+
                 for (size_t var=0; var < groupVariableOrder[group].size(); ++var)
                 {
                     if (viewFVars[groupVariableOrder[group][var]])
@@ -717,7 +717,7 @@ void CppGenerator::createGroupVariableOrder()
                     }
                 }
             }
-        }      
+        }
     }
 
     _requireHashing = new bool[_qc->numberOfViews()]();
@@ -727,9 +727,9 @@ void CppGenerator::createGroupVariableOrder()
         View* view = _qc->getView(viewID);
         bool hash = false;
         size_t orderIdx = 0;
-        
+
         var_bitset intersection = view->_fVars & _td->getRelation(view->_origin)->_bag;
-        
+
         for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
         {
             if (intersection[var])
@@ -760,7 +760,7 @@ std::string CppGenerator::typeToStr(Type t)
     switch(t)
     {
     case Type::Integer : return "int";
-    case Type::Double : return "double";            
+    case Type::Double : return "double";
     case Type::Short : return "short";
     case Type::U_Integer : return "size_t";
     default :
@@ -770,7 +770,7 @@ std::string CppGenerator::typeToStr(Type t)
 }
 
 std::string CppGenerator::genHeader()
-{   
+{
     std::string s = "DATAHANDLER";
     std::string header = "#ifndef INCLUDE_"+s+"_HPP_\n"+
         "#define INCLUDE_"+s+"_HPP_\n\n"+
@@ -786,7 +786,7 @@ std::string CppGenerator::genHeader()
 #if defined(__GNUC__) && defined(NDEBUG) && !defined(__clang__)
    header += "#include <parallel/algorithm>\n";
 #endif
-    
+
    header += "using namespace std::chrono;\n\nnamespace lmfao\n{\n"+
         offset(1)+"//const std::string PATH_TO_DATA = \"/Users/Maximilian/Documents/"+
         "Oxford/LMFAO/"+_pathToData+"\";\n"+
@@ -816,7 +816,7 @@ std::string CppGenerator::genTupleStructs()
                 Attribute* att = _td->getAttribute(var);
                 tupleStruct += typeToStr(att->_type)+" "+att->_name;
 
-                // Check if this attribute is a constant. 
+                // Check if this attribute is a constant.
                 if (att->_constant.first)
                     tupleStruct += " = ("+typeToStr(att->_type)+") "+
                         std::to_string(att->_constant.second)+";\n"+offset(2);
@@ -833,7 +833,7 @@ std::string CppGenerator::genTupleStructs()
         View* view = _qc->getView(viewID);
 
         attrConstruct = "";
-        
+
         tupleStruct += offset(1)+"struct "+viewName[viewID]+"_tuple\n"+
             offset(1)+"{\n";
 
@@ -849,7 +849,7 @@ std::string CppGenerator::genTupleStructs()
 
         tupleStruct += offset(2)+"double aggregates["+
             std::to_string(view->_aggregates.size())+"] = {};\n";
-        
+
         if (!attrConstruct.empty())
         {
             attrConstruct.pop_back();
@@ -875,9 +875,9 @@ std::string CppGenerator::genTupleStructConstructors()
         "namespace qi = boost::spirit::qi;\n"+
         "namespace phoenix = boost::phoenix;\n\n"+
         "namespace lmfao\n{\n";
-    
+
     std::string attrConstruct = "", attrAssign = "";
-    
+
     for (size_t relID = 0; relID < _td->numberOfRelations(); ++relID)
     {
         TDNode* rel = _td->getRelation(relID);
@@ -892,7 +892,7 @@ std::string CppGenerator::genTupleStructConstructors()
             {
                 Attribute* att = _td->getAttribute(var);
 
-                if (!att->_constant.first) 
+                if (!att->_constant.first)
                     attrConstruct += "\n"+offset(3)+"qi::"+typeToStr(att->_type)+
                         "_[phoenix::ref("+att->_name+") = qi::_1]>>";
             }
@@ -921,12 +921,12 @@ std::string CppGenerator::genTupleStructConstructors()
                 attrConstruct += "const "+typeToStr(att->_type)+"& "+att->_name+",";
                 attrAssign += att->_name+"("+att->_name+"),";
             }
-        }        
+        }
         if (!attrConstruct.empty())
         {
             attrAssign.pop_back();
             attrConstruct.pop_back();
-            
+
             tupleStruct +=  offset(1)+viewName[viewID]+"_tuple::"+
                 viewName[viewID]+"_tuple("+attrConstruct+") : "+
                 attrAssign+"{}\n\n";
@@ -938,7 +938,7 @@ std::string CppGenerator::genTupleStructConstructors()
     return tupleStruct+"}\n";
 }
 
-    
+
 std::string CppGenerator::genCaseIdentifiers()
 {
     std::string returnString = offset(1)+"enum ID {";
@@ -959,11 +959,11 @@ std::string CppGenerator::genLoadRelationFunction()
 {
     std::string returnString = offset(1)+"void loadRelations()\n"+offset(1)+"{\n"+
         offset(2)+"std::ifstream input;\n"+offset(2)+"std::string line;\n";
-    
+
     for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
     {
         std::string rel_name = _td->getRelation(rel)->_name;
-        
+
         returnString += "\n"+offset(2)+rel_name+".clear();\n";
 
         returnString += offset(2)+"input.open(PATH_TO_DATA + \"/"+rel_name+".tbl\");\n"+
@@ -973,7 +973,7 @@ std::string CppGenerator::genLoadRelationFunction()
             offset(3)+"exit(1);\n"+offset(2)+"}\n"+
             offset(2)+"while(getline(input, line))\n"+
             offset(3)+rel_name+".push_back("+rel_name+"_tuple(line));\n"+
-            offset(2)+"input.close();\n";            
+            offset(2)+"input.close();\n";
     }
 
     // Reserving space for the views to speed up push tuples to them.
@@ -995,17 +995,17 @@ void CppGenerator::computeParallelizeGroup(bool paralleize_groups)
 
     if (!paralleize_groups)
         return;
-    
+
     for (size_t gid = 0; gid < viewGroups.size(); ++gid)
     {
         TDNode* node = _td->getRelation(_qc->getView(viewGroups[gid][0])->_origin);
 
         if (node->_threads > 1)
         {
-            _parallelizeGroup[gid] = true;            
+            _parallelizeGroup[gid] = true;
             _threadsPerGroup[gid] =
                 std::min(node->_threads, (size_t)std::thread::hardware_concurrency());
-        }        
+        }
     }
 }
 
@@ -1028,7 +1028,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
     std::string hashFunct = "";
 
     std::string groupString = "Group"+std::to_string(group_id);
-    
+
     for (const size_t& viewID : viewGroups[group_id])
     {
         if (_requireHashing[viewID])
@@ -1040,14 +1040,14 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
             std::string equalString = "";
             std::string initList = "";
 
-            // Creates a struct which is used for hashing the key of the views 
+            // Creates a struct which is used for hashing the key of the views
             hashStruct += offset(1)+"struct "+viewName[viewID]+"_key\n"+
                 offset(1)+"{\n"+offset(2);
 
             hashFunct += offset(1)+"struct "+viewName[viewID]+"_keyhash\n"+
                 offset(1)+"{\n"+offset(2)+"size_t operator()(const "+viewName[viewID]+
                 "_key &key ) const\n"+offset(2)+"{\n"+offset(3)+"size_t h = 0;\n";
-            
+
             for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
             {
                 if (view->_fVars[var])
@@ -1062,7 +1062,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                     initList += att->_name+"("+att->_name+"),";
                     hashFunct += offset(3)+"h ^= std::hash<"+type+">()(key."+
                         att->_name+")+ 0x9e3779b9 + (h<<6) + (h>>2);\n";
-                    // hashFunct += offset(3)+"hash_combine(h, key."+att->_name+");\n"; 
+                    // hashFunct += offset(3)+"hash_combine(h, key."+att->_name+");\n";
                     equalString += " this->"+ att->_name + " == other."+att->_name+" &&";
                 }
             }
@@ -1084,12 +1084,12 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
 
             hashFunct += offset(3)+"return h;\n"+offset(2)+"}\n"+offset(1)+"};\n\n";
 
-            
+
         }
     }
-    
+
     std::string headerString = hashStruct+hashFunct;
-    
+
     if (!_parallelizeGroup[group_id])
     {
         headerString += offset(1)+"void computeGroup"+std::to_string(group_id)+"()\n"+
@@ -1133,7 +1133,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
     else
     {
         std::string numThreads = std::to_string(_threadsPerGroup[group_id]);
-        
+
         for (const size_t& viewID : viewGroups[group_id])
         {
             if (!_requireHashing[viewID])
@@ -1148,7 +1148,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                     "local_"+viewName[viewID]+"_map["+numThreads+"];\n";
             }
         }
-        
+
         headerString += "\n"+offset(1)+"void computeGroup"+std::to_string(group_id)+
             "Parallelized(const size_t thread, const size_t lowerptr, "+
             "const size_t upperptr)\n"+offset(1)+"{\n";
@@ -1172,13 +1172,13 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
         // }
         //  headerString += "const size_t lowerptr, const size_t upperptr)\n"+
         // offset(1)+"{\n";
-        
+
         // THIS IS FROM A PREVIOUS VERION FOR OUTPUTTING TO THE VIEWS
         // for (const size_t& viewID : viewGroups[group_id])
         // {
         //     if (_requireHashing[viewID])
         //     {
-        //         headerString += 
+        //         headerString +=
         //             offset(2)+"std::unordered_map<"+viewName[viewID]+"_key,"  +
         //             "size_t,"+viewName[viewID]+"_keyhash>::iterator "+
         //             viewName[viewID]+"_iterator;\n"+
@@ -1223,10 +1223,10 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
 
         ERROR("WE NEED TO FIX THE VARIBALE ORDER - fVARS need to come first \n");
         exit(1);
-    
-        /* 
+
+        /*
          * Compares viewSortOrder with the varOrder required - if orders are
-         * different we resort 
+         * different we resort
          */
         if (viewGroups[group_id].size() > 1)
         {
@@ -1236,7 +1236,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
 
         size_t viewID = viewGroups[group_id][0];
         View* view = _qc->getView(viewID);
-    
+
         if (resortRelation(view->_origin, viewID))
         {
             headerString += offset(2)+"std::sort("+relName+".begin(),"+
@@ -1251,14 +1251,14 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                     const std::string& attrName = _td->getAttribute(var)->_name;
                     headerString += offset(3)+"if(lhs."+attrName+" != rhs."+attrName+")\n"+
                         offset(4)+"return lhs."+attrName+" < rhs."+attrName+";\n";
-                    // Reset the relSortOrder array for future calls 
+                    // Reset the relSortOrder array for future calls
                     sortOrders[view->_origin][orderIdx] = var;
                     ++orderIdx;
                 }
             }
             headerString += offset(3)+"return false;\n"+offset(2)+"});\n";
         }
-    
+
         for (const size_t& incViewID : incViews)
         {
             /*
@@ -1290,7 +1290,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                     }
                 }
                 //headerString += offset(3)+"return 0;\n";
-            
+
                 headerString += offset(2)+"});\n";
             }
         }
@@ -1307,8 +1307,8 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
         "system_clock::now().time_since_epoch()).count();\n\n";
 #endif
 
-    // Generate max values for the join varibales 
-    // headerString += genMaxMinValues(varOrder);    
+    // Generate max values for the join varibales
+    // headerString += genMaxMinValues(varOrder);
     for (size_t var = 0; var < varOrder.size(); ++var)
     {
         Attribute* attr = _td->getAttribute(varOrder[var]);
@@ -1326,10 +1326,10 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
         baseRelation->_name, numOfJoinVarString, _parallelizeGroup[group_id]);
 
     // Lower and upper pointer for each incoming view
-    for (const size_t& viewID : incViews)            
+    for (const size_t& viewID : incViews)
         headerString += genPointerArrays(
             viewName[viewID],numOfJoinVarString, false);
-    
+
 // #ifdef PREVIOUS
 //     std::string closeAddTuple = "";
 //     for (const size_t& viewID : viewGroups[group_id])
@@ -1338,14 +1338,14 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
 
 //         returnString += offset(2)+"double aggregates_"+viewName[viewID]+
 //             "["+std::to_string(view->_aggregates.size())+"] = {};\n";
-        
+
 //         if (view->_fVars.count() == 0)
 //         {
 //             returnString += offset(2)+"bool addTuple_"+viewName[viewID]+" = false;\n";
 
 //             closeAddTuple += offset(2)+"if (addTuple_"+viewName[viewID]+")\n"+
 //                  offset(2)+"{\n"+offset(3)+viewName[viewID]+".push_back({});\n";
-            
+
 //             closeAddTuple+=offset(3)+"memcpy(&"+viewName[viewID]+"[0].aggregates[0],"+
 //                 "&aggregates_"+viewName[viewID]+"[0], sizeof(double) * "+
 //                 std::to_string(view->_aggregates.size())+");\n"+
@@ -1354,20 +1354,20 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
 //     }
 //     // for each join var --- create the string that does the join
 //     returnString += genGroupLeapfrogJoinCode(group_id, *baseRelation, 0);
-    
+
 //     returnString += closeAddTuple;
 // #else
-    // array that stores the indexes of the aggregates 
+    // array that stores the indexes of the aggregates
     finalAggregateIndexes.resize(_qc->numberOfViews());
     newFinalAggregates.resize(_qc->numberOfViews());
     numAggregateIndexes = new size_t[_qc->numberOfViews()]();
-    
+
     viewLoopFactors.resize(_qc->numberOfViews());
     outViewLoopID.resize(_qc->numberOfViews());
     outViewLoop.resize(_qc->numberOfViews());
-    
+
     aggregateGenerator(group_id, *baseRelation);
-    
+
     /******************* PRINT OUT *****************************/
     // if (group_id == 4)
     // {
@@ -1393,20 +1393,20 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
         headerString += " *aggregates_"+viewName[viewID]+" = nullptr,";
     headerString.pop_back();
     headerString += ";\n";
-    
+
     for (const size_t& viewID : incViews)
     {
         View* view = _qc->getView(viewID);
         if ((view->_fVars & ~varOrderBitset).any())
             headerString += offset(2)+"size_t ptr_"+viewName[viewID]+" = 0;\n";
     }
-    
+
     // We now declare the register Arrrays!
     size_t numLocalProducts = 0;
     size_t numViewProducts = 0;
     size_t numAggregates = 0;
     size_t numPostAggregates = 0;
-    
+
     std::string aggReg = "";
     for (size_t depth = 0; depth < varOrder.size(); depth++)
     {
@@ -1416,14 +1416,14 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                 "["+std::to_string(newAggregateRegister[depth].size())+"],";
         }
 
-        // updating the remapping arrays 
+        // updating the remapping arrays
         aggregateRemapping[depth].resize(newAggregateRegister[depth].size(), 100);
         localProductRemapping[depth].resize(localProductList[depth].size(), 100);
         viewProductRemapping[depth].resize(viewProductList[depth].size(), 100);
-        
+
         numLocalProducts += localProductList[depth].size();
         numLocalProducts += localProductList[varOrder.size() + depth].size();
-        
+
         numViewProducts += viewProductList[depth].size();
         numViewProducts += viewProductList[varOrder.size() + depth].size();
 
@@ -1440,7 +1440,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
     // for each join var --- create the string that does the joined
 
     std::string returnString = "";
-    
+
     if (USE_LEAPFROG_JOIN)
     {
         // Creates the relation-ptr and other helper arrays for the join algo
@@ -1452,7 +1452,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
             arrays += std::to_string(viewsPerVar[idx])+",";
         }
         arrays.pop_back();
-        
+
         for (size_t var = 0; var < varOrder.size(); ++var)
         {
             Attribute* attr = _td->getAttribute(varOrder[var]);
@@ -1461,14 +1461,14 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
 
         returnString += offset(2) +"size_t rel["+numOfJoinVarString+"] = {}, "+
             "numOfRel["+numOfJoinVarString+"] = {"+arrays+"};\n" +
-            
+
         returnString += genGroupLeapfrogJoinCode(group_id, *baseRelation, 0);
 
-    }else // GENERIC JOIN 
+    }else // GENERIC JOIN
         returnString += genGroupGenericJoinCode(group_id, *baseRelation, 0);
-    
+
     std::string outputString = "";
-    // Here we add the code that outputs tuples to the view 
+    // Here we add the code that outputs tuples to the view
     for (size_t viewID : viewGroups[group_id])
     {
         if (viewLevelRegister[viewID] == varOrder.size())
@@ -1481,13 +1481,13 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
 
             if (COMPRESS_AGGREGATES)
             {
-                
+
                 AggregateIndexes bench, aggIdx;
                 std::bitset<7> increasingIndexes;
-        
+
                 mapAggregateToIndexes(bench,aggregateComputation[viewID][0],
                                       viewID,varOrder.size());
-        
+
                 size_t off = 0;
                 for (size_t aggID = 1;
                      aggID < aggregateComputation[viewID].size(); ++aggID)
@@ -1506,7 +1506,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                         // If not, output bench and all offset aggregates
                         outputString += outputFinalRegTupleString(
                             bench,off,increasingIndexes,2);
-                
+
                         // make aggregate the bench and set offset to 0
                         bench = aggIdx;
                         off = 0;
@@ -1520,12 +1520,12 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
             }
             else
             {
-                for (const AggregateTuple& aggTuple : aggregateComputation[viewID]) 
+                for (const AggregateTuple& aggTuple : aggregateComputation[viewID])
                 {
                     outputString += offset(2)+
                         "aggregates_"+viewName[aggTuple.viewID]+"["+
                         std::to_string(aggTuple.aggID)+"] += ";
-                                                              
+
                     if (aggTuple.post.first < varOrder.size())
                     {
                         std::string post = std::to_string(
@@ -1537,14 +1537,14 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                         ERROR("THIS SHOULD NOT HAPPEN - no post aggregate?!");
                         exit(1);
                     }
-        
+
                     outputString.pop_back();
-                    outputString += ";\n";    
-                }  
+                    outputString += ";\n";
+                }
             }
-        }        
+        }
     }
-    
+
     returnString += outputString;
 
     // // Add the aggregates for the case where the view has no free variables
@@ -1553,7 +1553,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
     //     if (viewLevelRegister[viewID] == varOrder.size())
     //         returnString += finalAggregateString[viewLevelRegister[viewID]];
     // }
-    
+
     if (!_parallelizeGroup[group_id])
     {
         for (const size_t& viewID : viewGroups[group_id])
@@ -1575,7 +1575,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
 
                 returnString += offset(2)+viewName[viewID]+".reserve("+
                     viewName[viewID]+"_map.size());\n";
-                
+
                 returnString +=
                     offset(2)+"for (const auto& kv_pair : "+viewName[viewID]+"_map)\n"+
                     offset(2)+"{\n"+
@@ -1584,7 +1584,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                     "&kv_pair.second.aggregates[0],"+
                     std::to_string(sizeof(double)*view->_aggregates.size())+");\n"+
                     offset(2)+"}\n";
-            
+
 #if defined(__GNUC__) && defined(NDEBUG) && !defined(__clang__)
                 std::string sortAlgo = "__gnu_parallel::sort(";
 #else
@@ -1597,13 +1597,13 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
 
                 var_bitset intersection = view->_fVars &
                     _td->getRelation(view->_destination)->_bag;
-                
+
                 for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
                 {
                     if (intersection[var])
-                    {   
+                    {
                         const std::string& attrName = _td->getAttribute(var)->_name;
-                    
+
                         returnString += offset(3)+
                             "if(lhs."+attrName+" != rhs."+attrName+")\n"+offset(4)+
                             "return lhs."+attrName+" < rhs."+attrName+";\n";
@@ -1613,15 +1613,15 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                 for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
                 {
                     if (additional[var])
-                    {   
+                    {
                         const std::string& attrName = _td->getAttribute(var)->_name;
-                    
+
                         returnString += offset(3)+
                             "if(lhs."+attrName+" != rhs."+attrName+")\n"+offset(4)+
                             "return lhs."+attrName+" < rhs."+attrName+";\n";
                     }
                 }
-                
+
                 returnString += offset(3)+"return false;\n"+offset(2)+"});\n";
             }
         }
@@ -1639,12 +1639,12 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
         returnString += offset(2)+"std::cout <<\"Compute Group "+
             std::to_string(group_id)+" thread \"+std::to_string(thread)+\" "+
             "process: \"+std::to_string(endProcess)+\"ms.\\n\";\n";
-    else 
+    else
         returnString += offset(2)+"std::cout <<\"Compute Group "+
             std::to_string(group_id)+" process: \"+"+
             "std::to_string(endProcess)+\"ms.\\n\";\n";
 
-    returnString +=    
+    returnString +=
         offset(2)+"std::ofstream ofs(\"times.txt\",std::ofstream::out| "+
         "std::ofstream::app);\n"+
         offset(2)+"ofs << \"\\t\" << endProcess;\n"+
@@ -1657,7 +1657,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
             offset(2)+"PRINT_MICRO_BENCH("+groupString+"_timer_post_aggregate);\n"+
             offset(2)+"PRINT_MICRO_BENCH("+groupString+"_timer_seek);\n"+
             offset(2)+"PRINT_MICRO_BENCH("+groupString+"_timer_while);\n";
-    
+
     if (_parallelizeGroup[group_id])
     {
         returnString += offset(1)+"}\n";
@@ -1672,9 +1672,9 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
         //     //     returnString += offset(2)+"std::vector<"+viewName[viewID]+
         //     //         "_tuple> "+viewName[viewID]+"_"+std::to_string(t)+";\n";
         //     // }
-            
+
         //     if (_requireHashing[viewID])
-        //     {    
+        //     {
         //         for (size_t t = 0; t < _threadsPerGroup[group_id]; ++t)
         //         {
         //             // returnString += offset(2)+"std::unordered_map<"+
@@ -1693,7 +1693,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
         //             returnString += offset(2)+"std::vector<"+viewName[viewID]+
         //                 "_tuple> "+viewName[viewID]+"_"+std::to_string(t)+";\n";
         //         }
-        //     }            
+        //     }
         // }
 
 
@@ -1707,7 +1707,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                 std::to_string(_threadsPerGroup[group_id])+")) - 1;\n"+
                 offset(2)+"std::thread thread"+std::to_string(t)+
                 "(computeGroup"+std::to_string(group_id)+"Parallelized,";
-            
+
             // for (const size_t& viewID : viewGroups[group_id])
             // {
             //     if (!_requireHashing[viewID])
@@ -1722,7 +1722,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
 
         for (size_t t = 0; t < _threadsPerGroup[group_id]; ++t)
             returnString += offset(2)+"thread"+std::to_string(t)+".join();\n";
-        
+
         std::string numThreads = std::to_string(_threadsPerGroup[group_id]);
 
         for (size_t& viewID : viewGroups[group_id])
@@ -1735,7 +1735,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                 //         ".size()+";
                 // returnString.pop_back();
                 // returnString += ");\n";
-                
+
                 // returnString += offset(2)+viewName[viewID]+".insert("+viewName[viewID]+
                 //     ".end(), "+viewName[viewID]+"_0.begin(), "+
                 //     viewName[viewID]+"_0.end());\n";
@@ -1757,14 +1757,14 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                     //     offset(5)+viewName[viewID]+"[it->second].aggregates[agg] += "+
                     //     viewName[viewID]+"_"+std::to_string(t)+
                     //     "[key.second].aggregates[agg];\n";
-                        
+
                     //returnString += offset(3)+"}\n"+offset(3)+"else\n"+offset(3)+"{\n"+
                     //     offset(4)+viewName[viewID]+
                     //     "_0_map[key.first] = "+viewName[viewID]+
                     //     ".size();\n"+offset(4)+viewName[viewID]+".push_back("+
                     //     viewName[viewID]+"_"+std::to_string(t)+"[key.second]);\n"+
                     //     offset(3)+"}\n"+ offset(2)+"}\n";
-                    
+
                 //     returnString += offset(2)+"for (const std::pair<"+
                 //         viewName[viewID]+"_key,"+viewName[viewID]+"_value>& key : "+
                 //         viewName[viewID]+"_"+std::to_string(t)+"_map)\n"+
@@ -1778,7 +1778,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                 //             _qc->getView(viewID)->_aggregates.size())+"; ++agg)\n"
                 //         +offset(5)+"it->second.aggregates[agg] += "+
                 //         "key.second.aggregates[agg];\n";
-                        
+
                 //     returnString += offset(3)+"}\n"+offset(3)+"else\n"+offset(3)+"{\n"+
                 //         offset(4)+viewName[viewID]+"_0_map[key.first] = key.second;\n"+
                 //         offset(3)+"}\n"+ offset(2)+"}\n";
@@ -1848,21 +1848,21 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                     //         offset(4)+viewName[viewID]+".back().aggregates[agg] += "+
                     //         viewName[viewID]+"_"+std::to_string(t)+
                     //         "[0].aggregates[agg];\n";
-                        
+
                     //     // for (size_t agg = 0; agg < view->_aggregates.size(); ++agg)
-                    //     // {    
+                    //     // {
                     //     //     returnString += offset(3)+viewName[viewID]+".back().agg_"+
                     //     //         std::to_string(viewID)+"_"+std::to_string(agg)+" += "+
                     //     //         viewName[viewID]+"_"+std::to_string(t)+"[0].agg_"+
                     //     //         std::to_string(viewID)+"_"+std::to_string(agg)+";\n";
                     //     // }
-                        
+
                     //     returnString += offset(3)+viewName[viewID]+".insert("+
                     //         viewName[viewID]+".end(), "+viewName[viewID]+"_"+
                     //         std::to_string(t)+".begin()+1, "+
                     //         viewName[viewID]+"_"+std::to_string(t)+".end());\n"+
                     //         offset(2)+"}\n";
-                    
+
                     //     returnString += offset(2)+"else\n"+offset(2)+"{\n"+
                     //         offset(3)+viewName[viewID]+".insert("+
                     //         viewName[viewID]+".end(), "+viewName[viewID]+"_"+
@@ -1880,7 +1880,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                         offset(3)+"std::vector<"+viewName[viewID]+"_tuple>& "+
                          "this_"+viewName[viewID]+" = local_"+viewName[viewID]+"[t];\n"+
                         offset(3)+"if(";
-                    
+
                         for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
                         {
                             if (view->_fVars[var])
@@ -1893,19 +1893,19 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                         }
                         returnString.pop_back();
                         returnString.pop_back();
-                        
+
                         returnString += ")\n"+offset(3)+"{\n"+
                             offset(4)+"for (size_t agg = 0; agg < "+
                             std::to_string(view->_aggregates.size())+"; ++agg)\n"+
                             offset(5)+viewName[viewID]+".back().aggregates[agg] += "+
                             "this_"+viewName[viewID]+"[0].aggregates[agg];\n";
-                        
+
                         returnString += offset(4)+viewName[viewID]+".insert("+
                             viewName[viewID]+".end(),"+
                             "this_"+viewName[viewID]+".begin()+1,"+
                             "this_"+viewName[viewID]+".end());\n"+
                             offset(3)+"}\n";
-                    
+
                         returnString += offset(3)+"else\n"+offset(3)+"{\n"+
                             offset(4)+viewName[viewID]+".insert("+
                             viewName[viewID]+".end(), "+
@@ -1923,7 +1923,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                     returnString += offset(2)+"for (size_t agg = 0; agg < "+
                         std::to_string(view->_aggregates.size())+"; ++agg)\n"+
                         offset(3)+viewName[viewID]+"[0].aggregates[agg] += ";
-                        
+
                     for (size_t t = 1; t < _threadsPerGroup[group_id]; ++t)
                     {
                         returnString += "local_"+viewName[viewID]+"["+
@@ -1963,7 +1963,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                     offset(4)+"else\n"+offset(4)+"{\n"+
                     offset(5)+viewName[viewID]+"_map[key.first] = key.second;\n"+
                     offset(4)+"}\n"+offset(3)+"}\n"+offset(2)+"}\n";
-    
+
                 std::string copyString = "";
                 for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
                 {
@@ -1973,7 +1973,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                     Attribute* att = _td->getAttribute(var);
                     copyString += "kv_pair.first."+att->_name+",";
                 }
-                copyString.pop_back();               
+                copyString.pop_back();
 
                 returnString += offset(2)+viewName[viewID]+".reserve("+
                     viewName[viewID]+"_map.size());\n";
@@ -1999,13 +1999,13 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
 
                 var_bitset intersection = view->_fVars &
                     _td->getRelation(view->_destination)->_bag;
-                
+
                 for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
                 {
                     if (intersection[var])
-                    {   
+                    {
                         const std::string& attrName = _td->getAttribute(var)->_name;
-                    
+
                         returnString += offset(3)+
                             "if(lhs."+attrName+" != rhs."+attrName+")\n"+offset(4)+
                             "return lhs."+attrName+" < rhs."+attrName+";\n";
@@ -2015,9 +2015,9 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                 for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
                 {
                     if (additional[var])
-                    {   
+                    {
                         const std::string& attrName = _td->getAttribute(var)->_name;
-                    
+
                         returnString += offset(3)+
                             "if(lhs."+attrName+" != rhs."+attrName+")\n"+offset(4)+
                             "return lhs."+attrName+" < rhs."+attrName+";\n";
@@ -2027,7 +2027,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
                 // for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
                 // {
                 //     if (view->_fVars[var])
-                //     {   
+                //     {
                 //         const std::string& attrName = _td->getAttribute(var)->_name;
                 //         returnString += offset(3)+
                 //             "if(lhs."+attrName+" != rhs."+attrName+")\n"+offset(4)+
@@ -2042,7 +2042,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
     // We now declare the register Arrrays!
     if (aggregateCounter > 0)
         headerString += offset(2)+"double aggregateRegister["+
-            std::to_string(aggregateCounter)+"] = {};\n";    
+            std::to_string(aggregateCounter)+"] = {};\n";
     if (productCounter > 0)
         headerString += offset(2)+"double localRegister["+
             std::to_string(productCounter)+"] = {};\n";
@@ -2052,7 +2052,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
     if (postCounter > 0)
         headerString += offset(2)+"double postRegister["+
             std::to_string(postCounter)+"] = {};\n";
-    
+
     return headerString + returnString + offset(1)+"}\n";
 }
 
@@ -2067,9 +2067,9 @@ void CppGenerator::createRelationSortingOrder(TDNode* node, const size_t& parent
         {
             TDNode* neighbor = _td->getRelation(node->_neighbors[neigh]);
             const size_t& neighID = neighbor->_id;
-            
+
             var_bitset interaction = node->_bag & neighbor->_bag;
-            
+
             size_t orderIdx = 0;
             for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
             {
@@ -2090,7 +2090,7 @@ void CppGenerator::createRelationSortingOrder(TDNode* node, const size_t& parent
                     sortOrders[neighID][orderIdx] = var;
                     ++orderIdx;
                 }
-            } 
+            }
             createRelationSortingOrder(neighbor, node->_id);
         }
     }
@@ -2104,7 +2104,7 @@ void CppGenerator::computeViewLevel(size_t group_id, const TDNode& node)
 
     coveredVariables.clear();
     coveredVariables.resize(varOrder.size());
-    
+
     addableViews.reset();
     addableViews.resize(varOrder.size() * (_qc->numberOfViews()+1));
 
@@ -2112,14 +2112,14 @@ void CppGenerator::computeViewLevel(size_t group_id, const TDNode& node)
     {
         View* view = _qc->getView(viewID);
         bool setViewLevel = false;
-        
-        // if this view has no free variables it should be outputted before the join 
+
+        // if this view has no free variables it should be outputted before the join
         if (view->_fVars.none())
         {
             viewLevelRegister[viewID] = varOrder.size();
             setViewLevel = true;
         }
-        
+
         var_bitset varsToCover = view->_fVars;
 
         var_bitset dependentViewVars;
@@ -2133,7 +2133,7 @@ void CppGenerator::computeViewLevel(size_t group_id, const TDNode& node)
         // TODO: (consider) should we check for overlap for bag vars that are
         // not in varOrder?
         var_bitset nonJoinVars = view->_fVars & ~varOrderBitset & ~node._bag;
-        
+
         if (nonJoinVars.any())
         {
             //  if this is the case then look for overlapping functions
@@ -2145,13 +2145,13 @@ void CppGenerator::computeViewLevel(size_t group_id, const TDNode& node)
                 {
                     const prod_bitset& product = aggregate->_agg[i];
                     prod_bitset considered;
-                        
+
                     for (size_t f = 0; f < NUM_OF_FUNCTIONS; ++f)
                     {
                         if (product.test(f) && !considered[f])
                         {
                             Function* function = _qc->getFunction(f);
-                                
+
                             // check if this function is covered
                             if ((function->_fVars & dependentViewVars).any())
                             {
@@ -2194,33 +2194,33 @@ void CppGenerator::computeViewLevel(size_t group_id, const TDNode& node)
                                 varsToCover |= overlapVars;
                             }
                         }
-                    }                        
-                }    
+                    }
+                }
             }
         }
-        
+
         // check when the freeVars of the view are covered - this determines
         // when we need to add the declaration of aggregate array and push to
         // view vector !
         size_t depth = 0;
         var_bitset coveredVariableOrder;
- 
+
         for (const size_t& var : varOrder)
         {
             coveredVariableOrder.set(var);
             coveredVariables[depth].set(var);
-            
+
             var_bitset intersection = node._bag & varOrderBitset;
-            if ((intersection & coveredVariableOrder) == intersection) 
+            if ((intersection & coveredVariableOrder) == intersection)
                 coveredVariables[depth] |= node._bag;
 
-            for (const size_t& incViewID : incomingViews[viewID]) 
+            for (const size_t& incViewID : incomingViews[viewID])
             {
                 // check if view is covered !
                 View* incView = _qc->getView(incViewID);
-                
+
                 var_bitset viewJoinVars = incView->_fVars & varOrderBitset;
-                if ((viewJoinVars & coveredVariableOrder) == viewJoinVars) 
+                if ((viewJoinVars & coveredVariableOrder) == viewJoinVars)
                 {
                     addableViews.set(incViewID + (depth * (_qc->numberOfViews()+1)));
                     coveredVariables[depth] |= incView->_fVars;
@@ -2244,23 +2244,23 @@ void CppGenerator::aggregateGenerator(size_t group_id, const TDNode& node)
 {
     const std::vector<size_t>& varOrder = groupVariableOrder[group_id];
     const var_bitset& varOrderBitset = groupVariableOrderBitset[group_id];
-    
+
     aggregateHeader.clear();
 
-    // Compute the level of the views in this group 
+    // Compute the level of the views in this group
     computeViewLevel(group_id,node);
-    
-    // TODO: TODO: TODO: Make sure the below is necessary 
+
+    // TODO: TODO: TODO: Make sure the below is necessary
     localProductList.clear();
     localProductMap.clear();
     contributingViewList.clear();
-    
+
     viewProductList.clear();
     viewProductMap.clear();
 
     newAggregateRegister.clear();
     aggregateRegisterMap.clear();
-    
+
     productToVariableMap.clear();
     productToVariableRegister.clear();
 
@@ -2269,16 +2269,16 @@ void CppGenerator::aggregateGenerator(size_t group_id, const TDNode& node)
 
     totalLoopFactors.clear();
     totalLoopFactorList.clear();
-    
+
     productLoopID.clear();
     incViewLoopID.clear();
 
     aggregateComputation.clear();
-    
+
     localProductList.resize(varOrder.size() * 2);
     localProductMap.resize(varOrder.size()* 2);
     contributingViewList.resize(varOrder.size() * 2);
-    
+
     viewProductList.resize(varOrder.size() * 2);
     viewProductMap.resize(varOrder.size() * 2);
 
@@ -2290,7 +2290,7 @@ void CppGenerator::aggregateGenerator(size_t group_id, const TDNode& node)
 
     totalLoopFactors.resize(varOrder.size() * 2);
     totalLoopFactorList.resize(varOrder.size());
-    
+
     productLoopID.resize(varOrder.size() * 2);
     incViewLoopID.resize(varOrder.size() * 2);
     aggRegLoopID.resize(varOrder.size() * 2);
@@ -2310,8 +2310,8 @@ void CppGenerator::aggregateGenerator(size_t group_id, const TDNode& node)
     newAggregateRemapping.resize(varOrder.size());
     // localProductRemapping.resize(varOrder.size());
     // viewProductRemapping.resize(varOrder.size());
-    // TODO: TODO: TODO: TODO: TODO: check if the above is correct 
-    
+    // TODO: TODO: TODO: TODO: TODO: check if the above is correct
+
     for (const size_t& viewID : viewGroups[group_id])
     {
         View* view = _qc->getView(viewID);
@@ -2320,14 +2320,14 @@ void CppGenerator::aggregateGenerator(size_t group_id, const TDNode& node)
         size_t numberIncomingViews =
             (view->_origin == view->_destination ? node._numOfNeighbors :
              node._numOfNeighbors - 1);
-        
+
         if (numberIncomingViews !=
             view->_aggregates[0]->_incoming.size() / view->_aggregates[0]->_agg.size())
         {
             ERROR("Why is this?! \n ");
             ERROR(view->_origin << " " << view->_destination << " " <<
                   node._numOfNeighbors << " " <<
-                  view->_aggregates[0]->_incoming.size()  << "  " << 
+                  view->_aggregates[0]->_incoming.size()  << "  " <<
                   view->_aggregates[0]->_agg.size()  << "\n");
 
             for (size_t aggNo = 0; aggNo < view->_aggregates.size(); ++aggNo)
@@ -2348,19 +2348,19 @@ void CppGenerator::aggregateGenerator(size_t group_id, const TDNode& node)
 
         dyn_bitset loopFactors(_qc->numberOfViews()+1);
 
-        // Compute the loops that are required by this view. 
+        // Compute the loops that are required by this view.
         for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
         {
             if (view->_fVars[var])
             {
                 if (!varOrderBitset[var])
                 {
-                    // if var is in relation - use relation 
+                    // if var is in relation - use relation
                     if (node._bag[var])
-                    {                                   
+                    {
                         loopFactors.set(_qc->numberOfViews());
                     }
-                    else // else find corresponding view 
+                    else // else find corresponding view
                     {
                         for (const size_t& incViewID : incomingViews[viewID])
                         {
@@ -2373,11 +2373,11 @@ void CppGenerator::aggregateGenerator(size_t group_id, const TDNode& node)
         }
 
         outViewLoop[viewID] = loopFactors;
-        
+
         // We add loop Factors for this view to the totalLoopFactors and keep
         // track of the id.
         // if (viewLevelRegister[viewID] != varOrder.size())
-        // {            
+        // {
         //     size_t depDepth = varOrder.size() + viewLevelRegister[viewID];
         //     auto loopit = totalLoopFactors[depDepth].find(loopFactors);
         //     if (loopit != totalLoopFactors[depDepth].end())
@@ -2387,11 +2387,11 @@ void CppGenerator::aggregateGenerator(size_t group_id, const TDNode& node)
         //     else
         //     {
         //         size_t loopID = totalLoopFactors[depDepth].size();
-        //         outViewLoopID[viewID] = loopID;            
+        //         outViewLoopID[viewID] = loopID;
         //         totalLoopFactors[depDepth][loopFactors] = loopID;
         //     }
         // }
-        
+
         for (size_t aggNo = 0; aggNo < view->_aggregates.size(); ++aggNo)
         {
             // We use a copy of the actual aggregate
@@ -2409,7 +2409,7 @@ void CppGenerator::aggregateGenerator(size_t group_id, const TDNode& node)
         }
     }
 
-    // DINFO("Registered Aggregates to Variables \n"); 
+    // DINFO("Registered Aggregates to Variables \n");
 }
 
 
@@ -2425,15 +2425,15 @@ void CppGenerator::registerAggregatesToVariables(
     View* view = _qc->getView(view_id);
     TDNode* node = _td->getRelation(view->_origin);
     const var_bitset& relationBag = node->_bag;
-    
+
     const std::vector<size_t>& varOrder = groupVariableOrder[group_id];
     const var_bitset& varOrderBitset = groupVariableOrderBitset[group_id];
-    
+
     const size_t numLocalProducts = aggregate->_agg.size();
     const size_t numberIncomingViews =
         (view->_origin == view->_destination ? node->_numOfNeighbors :
          node->_numOfNeighbors - 1);
-    
+
     dyn_bitset loopFactors(_qc->numberOfViews()+1);
 
     std::vector<std::pair<size_t, size_t>>
@@ -2442,7 +2442,7 @@ void CppGenerator::registerAggregatesToVariables(
     std::vector<std::pair<size_t,size_t>> viewReg;
     prod_bitset localFunctions, considered;
 
-    // TODO: we computed this before - perhaps reuse?! 
+    // TODO: we computed this before - perhaps reuse?!
     // Compute dependent variables on the variables in the head of view:
     var_bitset dependentVariables;
     var_bitset nonVarOrder = view->_fVars & ~varOrderBitset;
@@ -2466,7 +2466,7 @@ void CppGenerator::registerAggregatesToVariables(
             }
         }
     }
-    
+
     // go over each product and check if parts of it can be computed at current depth
     size_t incCounter = 0;
     for (size_t prodID = 0; prodID < numLocalProducts; ++prodID)
@@ -2475,18 +2475,18 @@ void CppGenerator::registerAggregatesToVariables(
 
         considered.reset();
         localFunctions.reset();
-        
+
         for (size_t f = 0; f < NUM_OF_FUNCTIONS; ++f)
         {
             if (product.test(f) && !considered[f])
             {
                 Function* function = _qc->getFunction(f);
                 considered.set(f);
-                
+
                 // check if this function is covered
                 if ((function->_fVars & coveredVariables[depth]) == function->_fVars)
-                {   
-                    // get all variables that this function depends on. 
+                {
+                    // get all variables that this function depends on.
                     var_bitset dependentFunctionVars;
                     for (size_t var=0; var<NUM_OF_VARIABLES;++var)
                     {
@@ -2513,7 +2513,7 @@ void CppGenerator::registerAggregatesToVariables(
                                 Function* otherFunction = _qc->getFunction(f);
                                 const var_bitset& otherFVars = otherFunction->_fVars;
                                 // check if functions depend on each other
-                                // if ((otherFunction->_fVars & nonVarOrder).any()) 
+                                // if ((otherFunction->_fVars & nonVarOrder).any())
                                 if ((otherFVars & dependentFunctionVars).any())
                                 {
                                     considered.set(f2);
@@ -2532,7 +2532,7 @@ void CppGenerator::registerAggregatesToVariables(
                             }
                         }
                     } while(overlaps && !computeHere);
-                                    
+
                     if (computeHere)
                     {
                         // check if the variables are dependent on vars in head
@@ -2542,7 +2542,7 @@ void CppGenerator::registerAggregatesToVariables(
                             if (viewLevelRegister[view_id] != depth)
                                 ERROR("ERROR ERROR: in dependent computation:"
                                       <<" viewLevelRegister[viewID] != depth\n");
-                            
+
                             dependentComputation[prodID].product |= overlapFunc;
                         }
                         else // add all functions that overlap together at this level!
@@ -2554,9 +2554,9 @@ void CppGenerator::registerAggregatesToVariables(
                 }
             }
         }
-        
+
         // go over each incoming views and check if their incoming products can
-        // be computed at this level. 
+        // be computed at this level.
         viewReg.clear();
 
         for (size_t n = 0; n < numberIncomingViews; ++n)
@@ -2601,25 +2601,25 @@ void CppGenerator::registerAggregatesToVariables(
                     //           << viewLevelRegister[view_id] << " "+node->_name+" ");
                     //     ERROR(view->_fVars << std::endl);
                     //     ERROR("IS THIS A MISTAKE?!\n");
-                    // }       
+                    // }
                 }
 
-                // This incoming view will no longer be considered 
+                // This incoming view will no longer be considered
                 incoming[incCounter].first = _qc->numberOfViews();
             }
             ++incCounter;
         }
-        
+
         // Check if this product has already been computed, if not we add it
         // to the list
         if (localFunctions.any() || !viewReg.empty() ||
             (depth+1 == varOrder.size() &&
                 (dependentVariables & relationBag & nonVarOrder).none()))
-        {                
+        {
             ProductAggregate prodAgg;
             prodAgg.product = localFunctions;
             prodAgg.viewAggregate = viewReg;
-            
+
             if (depth <= viewLevelRegister[view_id] &&
                 viewLevelRegister[view_id] != varOrder.size())
             {
@@ -2633,12 +2633,12 @@ void CppGenerator::registerAggregatesToVariables(
                 prodAgg.multiplyByCount = true;
             else
                 prodAgg.multiplyByCount = false;
-            
+
             auto prod_it = productToVariableMap[depth].find(prodAgg);
             if (prod_it != productToVariableMap[depth].end())
             {
                 // Then update the localAggReg for this product
-                localComputation[prodID] = {depth,prod_it->second};                
+                localComputation[prodID] = {depth,prod_it->second};
             }
             else
             {
@@ -2646,21 +2646,21 @@ void CppGenerator::registerAggregatesToVariables(
                 // If so, add it to the aggregate register
                 productToVariableMap[depth][prodAgg] = newProdID;
                 localComputation[prodID] = {depth,newProdID};
-                productToVariableRegister[depth].push_back(prodAgg);                
+                productToVariableRegister[depth].push_back(prodAgg);
             }
-            
+
             localAggReg[prodID] = localComputation[prodID];
 
             /******** PRINT OUT **********/
             // dyn_bitset contribViews(_qc->numberOfViews()+1);
             // for (auto& p : viewReg)
             //     contribViews.set(p.first);
-            
+
             // std::cout << "group_id " << group_id << " depth: " << depth << std::endl;
             // std::cout << genProductString(*node, contribViews, localFunctions)
             //           << std::endl;
             /******** PRINT OUT **********/
-        }    
+        }
         // if we didn't set a new computation - check if this level is the view Level:
         else if (depth == viewLevelRegister[view_id])
         {
@@ -2674,8 +2674,8 @@ void CppGenerator::registerAggregatesToVariables(
             exit(1);
         }
     }
-    
-    // recurse to next depth ! 
+
+    // recurse to next depth !
     if (depth != varOrder.size()-1)
     {
         registerAggregatesToVariables(
@@ -2683,11 +2683,11 @@ void CppGenerator::registerAggregatesToVariables(
     }
     else
     {
-        // resetting aggRegisters !        
+        // resetting aggRegisters !
         for (size_t i = 0; i < numLocalProducts; ++i)
             localAggReg[i] = {varOrder.size(),0};
     }
-    
+
     if (depth > viewLevelRegister[view_id] ||
         viewLevelRegister[view_id] == varOrder.size())
     {
@@ -2697,7 +2697,7 @@ void CppGenerator::registerAggregatesToVariables(
             if (localComputation[prodID].first < varOrder.size() ||
                 localAggReg[prodID].first < varOrder.size())
             {
-                PostAggRegTuple postTuple;                
+                PostAggRegTuple postTuple;
                 postTuple.local = localComputation[prodID];
                 postTuple.post = localAggReg[prodID];
 
@@ -2723,15 +2723,15 @@ void CppGenerator::registerAggregatesToVariables(
             }
         }
     }
-    
-    if (depth == viewLevelRegister[view_id] || 
+
+    if (depth == viewLevelRegister[view_id] ||
         (depth == 0 && viewLevelRegister[view_id] == varOrder.size()))
     {
         // We now add both components to the respecitve registers
         // std::pair<bool,size_t> regTupleProduct;
         // std::pair<bool,size_t> regTupleView;
 
-        // now adding aggregates to final computation 
+        // now adding aggregates to final computation
         for (size_t prodID = 0; prodID < numLocalProducts; ++prodID)
         {
             // TODO: Why not avoid this loop and put the vectors into the
@@ -2739,7 +2739,7 @@ void CppGenerator::registerAggregatesToVariables(
             // This is then one aggregateTuple for one specific Aggregate for
             // this view
             // THen add this aggregate to the specific view and not to depth
-            
+
             const prod_bitset&  dependentFunctions =
                 dependentComputation[prodID].product;
             const std::vector<std::pair<size_t,size_t>>& dependentViewReg =
@@ -2749,11 +2749,11 @@ void CppGenerator::registerAggregatesToVariables(
             prodAgg.product = dependentFunctions;
             prodAgg.viewAggregate = dependentViewReg;
             prodAgg.previous = {varOrder.size(), 0};
-            
+
             AggregateTuple aggComputation;
             aggComputation.viewID = view_id;
             aggComputation.aggID = agg_id;
-            if (viewLevelRegister[view_id] != varOrder.size()) 
+            if (viewLevelRegister[view_id] != varOrder.size())
                 aggComputation.local = localComputation[prodID];
             else
                  aggComputation.local = {varOrder.size(), 0};
@@ -2763,9 +2763,9 @@ void CppGenerator::registerAggregatesToVariables(
 
             if (dependentFunctions.any() || !dependentViewReg.empty())
                 aggComputation.hasDependentComputation = true;
-            
+
             // if (dependentFunctions.any() || !dependentViewReg.empty())
-            // {                
+            // {
             //     ProductAggregate prodAgg;
             //     prodAgg.product = dependentFunctions;
             //     prodAgg.viewAggregate = dependentViewReg;
@@ -2789,7 +2789,7 @@ void CppGenerator::registerAggregatesToVariables(
             // {
             //     aggComputation.dependentProduct = {varOrder.size(), 0};
             // }
-            
+
             aggregateComputation[view_id].push_back(aggComputation);
         }
     }
@@ -2817,9 +2817,9 @@ prod_bitset CppGenerator::computeLoopMasks(
 {
     dyn_bitset loopFactors(_qc->numberOfViews()+1);
     dyn_bitset nextLoops(_qc->numberOfViews()+1);
-    
+
     prod_bitset loopFunctionMask;
-    
+
     // then find all loops required to compute these functions and create masks
     for (size_t f = 0; f < NUM_OF_FUNCTIONS; f++)
     {
@@ -2827,7 +2827,7 @@ prod_bitset CppGenerator::computeLoopMasks(
         {
             const var_bitset& functionVars = _qc->getFunction(f)->_fVars;
             loopFactors.reset();
-            
+
             for (size_t v = 0; v < NUM_OF_VARIABLES; ++v)
             {
                 if (functionVars[v] && !varOrderBitset[v])
@@ -2855,7 +2855,7 @@ prod_bitset CppGenerator::computeLoopMasks(
             }
 
             loopFactors &= ~prefixLoops;
-            
+
             if (loopFactors == consideredLoops)
             {
                 // Add this function to the mask for this loop
@@ -2895,14 +2895,14 @@ prod_bitset CppGenerator::computeLoopMasks(
     }
 
     // Then use the registrar to split the functions to their loops
-    
+
     size_t numOfLoops = listOfLoops.size();
     listOfLoops.push_back(consideredLoops);
     functionsPerLoop.push_back(loopFunctionMask);
     functionsPerLoopBranch.push_back(loopFunctionMask);
     viewsPerLoop.push_back(nextVariable);
     nextLoopsPerLoop.push_back(std::vector<size_t>());
-        
+
     std::vector<size_t>& nextLoopIDs = nextLoopsPerLoop[numOfLoops];
 
     presentFunctions &= ~loopFunctionMask;
@@ -2917,17 +2917,17 @@ prod_bitset CppGenerator::computeLoopMasks(
 
             nextVariable.reset();
             nextVariable.set(viewID);
-            
+
             nextLoopIDs.push_back(listOfLoops.size());
-            
+
             prod_bitset nextLoopFunctions = computeLoopMasks(
                 presentFunctions,nextConsideredLoops,varOrderBitset,
                 relationBag,contributingViews,nextVariable, prefixLoops);
-            
+
             functionsPerLoopBranch[numOfLoops] |= nextLoopFunctions;
         }
     }
-    
+
     return functionsPerLoopBranch[numOfLoops];
 }
 
@@ -2945,8 +2945,8 @@ void CppGenerator::registerAggregatesToLoops(size_t depth, size_t group_id)
     viewsPerLoop.clear();
     nextLoopsPerLoop.clear();
 
-    // go through the ProductAggregates and find functions computed here 
-    prod_bitset presentFunctions;    
+    // go through the ProductAggregates and find functions computed here
+    prod_bitset presentFunctions;
     dyn_bitset contributingViews(_qc->numberOfViews()+1);
     for (const ProductAggregate& prodAgg : productToVariableRegister[depth])
     {
@@ -2960,21 +2960,21 @@ void CppGenerator::registerAggregatesToLoops(size_t depth, size_t group_id)
     //     *_td->getRelation(_qc->getView(viewGroups[group_id][0])->_origin);
     // std::cout << genProductString(node,contributingViews,presentFunctions)<<std::endl;
     /*************** PRINT OUT **************/
-    
+
     dyn_bitset consideredLoops(_qc->numberOfViews()+1);
     dyn_bitset nextVariable(_qc->numberOfViews()+1);
     dyn_bitset prefixLoops(_qc->numberOfViews()+1);
 
-    // compute the function mask for each loop 
+    // compute the function mask for each loop
     computeLoopMasks(presentFunctions, consideredLoops, varOrderBitset,
                      relationBag, contributingViews, nextVariable, prefixLoops);
 
-    
-    // The first register loop should all views that we do not iterate over! 
+
+    // The first register loop should all views that we do not iterate over!
     viewsPerLoop[0] |= contributingViews;
     for (size_t j = 1; j < viewsPerLoop.size(); ++j)
         viewsPerLoop[0] &= ~viewsPerLoop[j];
-    
+
     newAggregateRegister.clear();
     aggregateRegisterMap.clear();
     newAggregateRegister.resize(listOfLoops.size());
@@ -2989,9 +2989,9 @@ void CppGenerator::registerAggregatesToLoops(size_t depth, size_t group_id)
     viewProductList.clear();
     viewProductList.resize(listOfLoops.size());
     viewProductMap.resize(listOfLoops.size());
-    
+
     for(ProductAggregate& prodAgg : productToVariableRegister[depth])
-    {    
+    {
         size_t currentLoop = 0;
         bool loopsOverRelation = false;
         prodAgg.correspondingLoopAgg =
@@ -3009,16 +3009,16 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
 
     dyn_bitset viewsForThisLoop = viewsPerLoop[currentLoop];
     loopsOverRelation = viewsForThisLoop[_qc->numberOfViews()];
-    
+
     viewsForThisLoop.reset(_qc->numberOfViews());
- 
-    std::pair<bool,size_t> regTupleProduct = {false,0};  
+
+    std::pair<bool,size_t> regTupleProduct = {false,0};
 
     // check if this product requires computation over this loop loopmask
     prod_bitset loopFunctions = prodAgg.product & functionsPerLoop[currentLoop];
     if (loopFunctions.any())
     {
-        // This should be add to the loop not depth 
+        // This should be add to the loop not depth
         auto proditerator = localProductMap[currentLoop].find(loopFunctions);
         if (proditerator != localProductMap[currentLoop].end())
         {
@@ -3036,7 +3036,7 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
 
     bool newViewProduct = false;
     bool singleViewAgg = false;
-    
+
     std::pair<size_t, size_t> regTupleView = {2147483647,2147483647};
 
     if (!prodAgg.viewAggregate.empty())
@@ -3044,7 +3044,7 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
         if (viewsForThisLoop.count() > 1)
         {
             newViewProduct = true;
-       
+
             std::vector<std::pair<size_t, size_t>> viewReg;
 
             size_t viewID = viewsForThisLoop.find_first();
@@ -3065,7 +3065,7 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
             if (viewit != viewProductMap[currentLoop].end())
             {
                 // set this local product to the id given by the map
-                regTupleView = {currentLoop, viewit->second};            
+                regTupleView = {currentLoop, viewit->second};
             }
             else
             {
@@ -3082,7 +3082,7 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
             // the aggregate from the view - this could be captured in the aggregate
             // computation that captures both the local aggregate and the view Agg
             singleViewAgg = true;
-        
+
             // reuse the simple aggregate from the corresponding view
             size_t viewID = viewsForThisLoop.find_first();
 
@@ -3105,10 +3105,10 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
 
         }
     }
-    
-    
+
+
     std::pair<size_t,size_t> previousComputation = {listOfLoops.size(),0};
-    
+
     for (size_t next=0; next < nextLoopsPerLoop[thisLoopID].size(); ++next)
     {
         size_t nextLoop = nextLoopsPerLoop[thisLoopID][next];
@@ -3118,12 +3118,12 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
             ERROR("There is a problem with nextLoopsPerLoop\n");
             exit(1);
         }
-        
+
         if ((functionsPerLoopBranch[nextLoop] & prodAgg.product).any())
         {
             std::pair<size_t, size_t> postComputation =
                 addProductToLoop(prodAgg, nextLoop, loopsOverRelation, maxDepth);
-            
+
             if (next + 1 != nextLoopsPerLoop[thisLoopID].size() &&
                 (functionsPerLoopBranch[nextLoopsPerLoop[thisLoopID][next+1]]&
                  prodAgg.product).any())
@@ -3131,9 +3131,9 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
                 // Add this product to this loop with the 'prev'Computation
                 AggRegTuple postRegTuple;
                 postRegTuple.postLoopAgg = true;
-                postRegTuple.previous = previousComputation; 
+                postRegTuple.previous = previousComputation;
                 postRegTuple.postLoop = postComputation;
-                
+
                 // TODO: add the aggregate to the register!!
                 auto regit = aggregateRegisterMap[nextLoop].find(postRegTuple);
                 if (regit != aggregateRegisterMap[nextLoop].end())
@@ -3146,7 +3146,7 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
                     size_t newID = newAggregateRegister[nextLoop].size();
                     aggregateRegisterMap[nextLoop][postRegTuple] = newID;
                     newAggregateRegister[nextLoop].push_back(postRegTuple);
-                    
+
                     previousComputation =  {nextLoop,newID};
                 }
             }
@@ -3154,10 +3154,10 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
             {
                 previousComputation = postComputation;
             }
-            
+
         }
     }
-    
+
     // while(currentLoop < listOfLoops.size()-1)
     // {
     //     currentLoop++;
@@ -3185,7 +3185,7 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
     //                 // If so, add it to the aggregate register
     //                 size_t newID = newAggregateRegister[currentLoop].size();
     //                 aggregateRegisterMap[currentLoop][postRegTuple] = newID;
-    //                 newAggregateRegister[currentLoop].push_back(postRegTuple); 
+    //                 newAggregateRegister[currentLoop].push_back(postRegTuple);
     //                 previousComputation =  {currentLoop,newID};;
     //             }
     //         }
@@ -3205,19 +3205,19 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
     //         regTuple.viewAgg.first << "  " << regTuple.viewAgg.second << std::endl;
     // }
     /********* PRINT OUT ********/
-           
+
     regTuple.newViewProduct = newViewProduct;
     regTuple.singleViewAgg = singleViewAgg;
     regTuple.postLoop = previousComputation;
 
     regTuple.previous = {listOfLoops.size(),0};
     regTuple.multiplyByCount = false;
-    
+
     // Multiply by previous #computation -- if needed
     if (thisLoop.none())
     {
         if (prodAgg.previous.first < maxDepth)
-        {            
+        {
             const ProductAggregate& prevProdAgg =
                 productToVariableRegister[prodAgg.previous.first]
                 [prodAgg.previous.second];
@@ -3240,7 +3240,7 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
         size_t newID = newAggregateRegister[thisLoopID].size();
         aggregateRegisterMap[thisLoopID][regTuple] = newID;
         newAggregateRegister[thisLoopID].push_back(regTuple);
-        
+
         previousComputation =  {thisLoopID,newID};
     }
 
@@ -3256,10 +3256,10 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
 //     const size_t thisLoopID = currentLoop;
 //     const dyn_bitset& thisLoop = listOfLoops[thisLoopID];
 //     size_t numOfLoops = thisLoop.count() + numOfOutViewLoops;
-    
+
 //     std::string returnString = "";
 //     std::string depthString = std::to_string(depth);
-        
+
 //     // Print all products for this considered loop
 //     for (size_t prodID = 0; prodID < localProductList[thisLoopID].size(); ++prodID)
 //     {
@@ -3268,7 +3268,7 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
 //         bool decomposedProduct = false;
 //         std::string productString = "";
 
-//         // We now check if parts of the product have already been computed 
+//         // We now check if parts of the product have already been computed
 //         if (product.count() > 1)
 //         {
 //             prod_bitset subProduct = product;
@@ -3307,7 +3307,7 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
 //                     localProductRemapping[thisLoopID][subProductID]);
 
 //                 productString += "localRegister["+local+"]*";
-                    
+
 //                 auto local_it = localProductMap[thisLoopID].find(removedFunctions);
 //                 if (local_it != localProductMap[thisLoopID].end())
 //                 {
@@ -3327,14 +3327,14 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
 //                 decomposedProduct = true;
 //             }
 //         }
-        
+
 //         // We turn the product into a string
 //         if (!decomposedProduct)
 //             productString += genProductString(node,contributingViews,product);
 
 //         returnString += offset(3+depth+numOfLoops)+"localRegister["+
 //             std::to_string(productCounter)+"] = "+productString + ";\n";
-        
+
 //         // increment the counter and update the remapping array
 //         localProductRemapping[thisLoopID][prodID] = productCounter;
 //         ++productCounter;
@@ -3348,19 +3348,19 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
 //         {
 //             viewProduct += "aggregates_"+viewName[viewAgg.first]+"["+
 //                 std::to_string(viewAgg.second)+"]*";
-//         }   
+//         }
 //         viewProduct.pop_back();
 
 //         returnString += offset(3+depth+numOfLoops)+
 //             "viewRegister["+std::to_string(viewCounter)+"] = "+
 //             viewProduct +";\n";
-            
+
 //         // Increment the counter and update the remapping array
 //         viewProductRemapping[thisLoopID][viewProd] = viewCounter;
 //         ++viewCounter;
 //     }
 
-    
+
 //     // Recurse to the next loop(s) if possible
 //     for (size_t next=0; next < nextLoopsPerLoop[thisLoopID].size(); ++next)
 //     {
@@ -3384,11 +3384,11 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
 //                     "[ptr_"+viewName[viewID]+"];\n"+
 //                     offset(4+depth+numOfLoops)+"double *aggregates_"+viewName[viewID]+
 //                     " = "+viewName[viewID]+"Tuple.aggregates;\n";
-                
+
 //                 closeLoopString += offset(4+depth+numOfLoops)+"++ptr_"+viewName[viewID]+
 //                     ";\n"+offset(3+depth+numOfLoops)+"}\n"+closeLoopString;
 //             }
-//             else 
+//             else
 //             {
 //                 returnString +=
 //                     offset(3+depth+numOfLoops)+"ptr_"+node._name+
@@ -3399,14 +3399,14 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
 //                     offset(4+depth+numOfLoops)+node._name +
 //                     "_tuple &"+node._name+"Tuple = "+node._name+
 //                     "[ptr_"+node._name+"];\n";
-                
+
 //                 closeLoopString = offset(4+depth+numOfLoops)+"++ptr_"+node._name+";\n"+
 //                     offset(3+depth+numOfLoops)+"}\n"+closeLoopString;
 //             }
 
 //             returnString += genAggLoopString(
 //                 node, nextLoop, depth, contributingViews, 0);
-            
+
 //             returnString += closeLoopString;
 
 //             // After recurse, add the aggregates that have been added with post FLAG
@@ -3414,7 +3414,7 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
 //                      newAggregateRegister[nextLoop].size(); ++aggID)
 //             {
 //                 const AggRegTuple& regTuple = newAggregateRegister[nextLoop][aggID];
-        
+
 //                 if (regTuple.postLoopAgg)
 //                 {
 //                     // We use a mapping to the correct index
@@ -3434,13 +3434,13 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
 //                     {
 //                         std::string post = std::to_string(
 //                             newAggregateRemapping[depth][regTuple.postLoop.first]
-//                             [regTuple.postLoop.second]); 
+//                             [regTuple.postLoop.second]);
 //                         returnString += "aggregateRegister["+post+"]*";
 //                     }
-                        
+
 //                     returnString.pop_back();
 //                     returnString += ";\n";
-            
+
 //                     // Increment the counter and update the remapping array
 //                     newAggregateRemapping[depth][nextLoop][aggID] = aggregateCounter;
 //                     ++aggregateCounter;
@@ -3453,7 +3453,7 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
 //     for (size_t aggID = 0; aggID < newAggregateRegister[thisLoopID].size(); ++aggID)
 //     {
 //         const AggRegTuple& regTuple = newAggregateRegister[thisLoopID][aggID];
-        
+
 //         if (!regTuple.postLoopAgg)
 //         {
 //             // We use a mapping to the correct index
@@ -3466,10 +3466,10 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
 //                     newAggregateRemapping[regTuple.prevDepth]
 //                     [regTuple.previous.first]
 //                     [regTuple.previous.second]);
-                
+
 //                 returnString += "aggregateRegister["+prev+"]*";
 //             }
-            
+
 //             if (regTuple.product.first)
 //             {
 //                 std::string local = std::to_string(
@@ -3477,7 +3477,7 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
 //                     );
 //                 returnString += "localRegister["+local+"]*";
 //             }
-        
+
 //             if (regTuple.newViewProduct)
 //             {
 //                 std::string view = std::to_string(
@@ -3489,7 +3489,7 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
 //                 returnString += "aggregates_"+viewName[regTuple.viewAgg.first]+"["+
 //                     std::to_string(regTuple.viewAgg.second)+"]*";
 //             }
-            
+
 //             if (regTuple.multiplyByCount)
 //                 returnString +=  "count*";
 
@@ -3500,16 +3500,16 @@ std::pair<size_t,size_t> CppGenerator::addProductToLoop(
 //                     [regTuple.postLoop.second]);
 //                 returnString += "aggregateRegister["+postLoop+"]*";
 //             }
-            
+
 //             returnString.pop_back();
 //             returnString += ";\n";
-            
+
 //             // Increment the counter and update the remapping array
 //             newAggregateRemapping[depth][thisLoopID][aggID] = aggregateCounter;
 //             ++aggregateCounter;
 //         }
 //     }
-    
+
 //     return returnString;
 // }
 
@@ -3529,18 +3529,18 @@ std::string CppGenerator::genDependentAggLoopString(
     std::string returnString = "";
 
     std::string depthString = std::to_string(depth);
-        
+
     // Print all products for this considered loop
     for (size_t prodID = 0; prodID < localProductList[thisLoopID].size(); ++prodID)
     {
         const prod_bitset& product = localProductList[thisLoopID][prodID];
 
-        // We turn the product into a string 
+        // We turn the product into a string
         std::string productString = genProductString(node,contributingViews,product);
 
         returnString += offset(3+depth+numOfLoops)+"localRegister["+
             std::to_string(productCounter)+"] = "+productString+";\n";
-        
+
         // increment the counter and update the remapping array
         depLocalProductRemapping[thisLoopID][prodID] = productCounter;
         ++productCounter;
@@ -3555,7 +3555,7 @@ std::string CppGenerator::genDependentAggLoopString(
     //     {
     //         viewProduct += "aggregates_"+viewName[viewAgg.first]+"["+
     //             std::to_string(viewAgg.second)+"]*";
-    //     }   
+    //     }
     //     viewProduct.pop_back();
     //     returnString += offset(3+depth+numOfLoops)+
     //         "viewRegister["+std::to_string(viewCounter)+"] = "+
@@ -3563,12 +3563,12 @@ std::string CppGenerator::genDependentAggLoopString(
     //     // Increment the counter and update the remapping array
     //     viewProductRemapping[thisLoopID][viewProd] = viewCounter;
     //     ++viewCounter;
-    // }    
-    
+    // }
+
     for (size_t aggID = 0; aggID < newAggregateRegister[thisLoopID].size(); ++aggID)
-    {        
+    {
         const AggRegTuple& regTuple = newAggregateRegister[thisLoopID][aggID];
-        
+
         if (regTuple.preLoopAgg)
         {
             // We use a mapping to the correct index
@@ -3580,7 +3580,7 @@ std::string CppGenerator::genDependentAggLoopString(
                 std::string prev = std::to_string(
                     depAggregateRemapping[regTuple.previous.first]
                     [regTuple.previous.second]);
-                
+
                 returnString += "aggregateRegister["+prev+"]*";
             }
 
@@ -3591,13 +3591,13 @@ std::string CppGenerator::genDependentAggLoopString(
                     );
                 returnString += "localRegister["+local+"]*";
             }
-            
+
             if (regTuple.singleViewAgg)
             {
                 returnString += "aggregates_"+viewName[regTuple.viewAgg.first]+"["+
                     std::to_string(regTuple.viewAgg.second)+"]*";
             }
-            
+
             returnString.pop_back();
             returnString += ";\n";
 
@@ -3608,13 +3608,13 @@ std::string CppGenerator::genDependentAggLoopString(
         }
     }
 
-    
+
     // Recurse to the next loop(s) if possible
     for (size_t next=0; next < depLoop.next.size(); ++next)
     {
         size_t nextLoop = depLoop.next[next];
         DependentLoop& nextDepLoop = depListOfLoops[nextLoop];
-        
+
         if (((nextDepLoop.loopFactors & thisLoop) == thisLoop))
         {
             size_t viewID = nextDepLoop.loopVariable;
@@ -3634,11 +3634,11 @@ std::string CppGenerator::genDependentAggLoopString(
                     "[ptr_"+viewName[viewID]+"];\n"+
                     offset(4+depth+numOfLoops)+"double *aggregates_"+viewName[viewID]+
                     " = "+viewName[viewID]+"Tuple.aggregates;\n";
-                
+
                 closeLoopString += offset(4+depth+numOfLoops)+"++ptr_"+viewName[viewID]+
                     ";\n"+offset(3+depth+numOfLoops)+"}\n"+closeLoopString;
             }
-            else 
+            else
             {
                 loopString +=
                     offset(3+depth+numOfLoops)+"ptr_"+node._name+
@@ -3649,7 +3649,7 @@ std::string CppGenerator::genDependentAggLoopString(
                     offset(4+depth+numOfLoops)+node._name +
                     "_tuple &"+node._name+"Tuple = "+node._name+
                     "[ptr_"+node._name+"];\n";
-                
+
                 closeLoopString = offset(4+depth+numOfLoops)+"++ptr_"+node._name+";\n"+
                     offset(3+depth+numOfLoops)+"}\n"+closeLoopString;
             }
@@ -3657,7 +3657,7 @@ std::string CppGenerator::genDependentAggLoopString(
             // std::cout<< "Call genDependentAggLoopString from 1 \n";
             loopString += genDependentAggLoopString(
                 node, nextLoop, depth, contributingViews, maxDepth, resetAggregates);
-            
+
             returnString += resetAggregates+loopString+closeLoopString;
 
             // After recurse, add the aggregates that have been added with post FLAG
@@ -3665,7 +3665,7 @@ std::string CppGenerator::genDependentAggLoopString(
                      newAggregateRegister[nextLoop].size(); ++aggID)
             {
                 const AggRegTuple& regTuple = newAggregateRegister[nextLoop][aggID];
-        
+
                 if (regTuple.postLoopAgg)
                 {
 
@@ -3675,7 +3675,7 @@ std::string CppGenerator::genDependentAggLoopString(
                     // We use a mapping to the correct index
                     returnString += offset(3+depth+numOfLoops)+
                         "aggregateRegister["+std::to_string(aggregateCounter)+"] = ";
-                    
+
                     if (regTuple.previous.first < depListOfLoops.size())
                     {
                         std::string local = std::to_string(
@@ -3689,13 +3689,13 @@ std::string CppGenerator::genDependentAggLoopString(
                     {
                         std::string post = std::to_string(
                             newAggregateRemapping[depth][regTuple.postLoop.first]
-                            [regTuple.postLoop.second]); 
+                            [regTuple.postLoop.second]);
                         returnString += "aggregateRegister["+post+"]*";
                     }
-                    
+
                     returnString.pop_back();
                     returnString += ";\n";
-            
+
                     // Increment the counter and update the remapping array
                     depAggregateRemapping[nextLoop][aggID] = aggregateCounter;
                     ++aggregateCounter;
@@ -3711,7 +3711,7 @@ std::string CppGenerator::genDependentAggLoopString(
     for (size_t aggID = 0; aggID < newAggregateRegister[thisLoopID].size(); ++aggID)
     {
         const AggRegTuple& regTuple = newAggregateRegister[thisLoopID][aggID];
-        
+
         if (!regTuple.postLoopAgg && !regTuple.preLoopAgg)
         {
             // We use a mapping to the correct index
@@ -3723,10 +3723,10 @@ std::string CppGenerator::genDependentAggLoopString(
                 std::string prev = std::to_string(
                     depAggregateRemapping[regTuple.previous.first]
                     [regTuple.previous.second]);
-                
+
                 returnString += "aggregateRegister["+prev+"]*";
             }
-            
+
             if (regTuple.product.first)
             {
                 std::string local = std::to_string(
@@ -3734,13 +3734,13 @@ std::string CppGenerator::genDependentAggLoopString(
                     );
                 returnString += "localRegister["+local+"]*";
             }
-        
+
             if (regTuple.singleViewAgg)
             {
                 returnString += "aggregates_"+viewName[regTuple.viewAgg.first]+"["+
                     std::to_string(regTuple.viewAgg.second)+"]*";
             }
-            
+
             if (regTuple.postLoop.first < depListOfLoops.size())
             {
                 std::string postLoop = std::to_string(
@@ -3748,10 +3748,10 @@ std::string CppGenerator::genDependentAggLoopString(
                     [regTuple.postLoop.second]);
                 returnString += "aggregateRegister["+postLoop+"]*";
             }
-            
+
             returnString.pop_back();
             returnString += ";\n";
-            
+
             // Increment the counter and update the remapping array
             depAggregateRemapping[thisLoopID][aggID] = aggregateCounter;
             ++aggregateCounter;
@@ -3765,14 +3765,14 @@ std::string CppGenerator::genDependentAggLoopString(
             std::to_string(startingOffset)+"], 0, sizeof(double) * "+
             std::to_string(aggregateCounter-startingOffset)+");\n";
     }
-    
+
     size_t outViewID = depLoop.outView.find_first();
     while (outViewID != boost::dynamic_bitset<>::npos)
     {
         View* view = _qc->getView(outViewID);
-        
-        // Add the code that outputs tuples for the views           
-        std::string viewVars = "";            
+
+        // Add the code that outputs tuples for the views
+        std::string viewVars = "";
         for (size_t v = 0; v < NUM_OF_VARIABLES; ++v)
         {
             if (view->_fVars[v])
@@ -3802,7 +3802,7 @@ std::string CppGenerator::genDependentAggLoopString(
         // size_t offDepth = numOfLoops+depth+3;
         size_t offDepth = (depth + 1 < maxDepth ?
                            4+depth+numOfLoops : 3+depth+numOfLoops);
-        
+
         if (_requireHashing[outViewID])
         {
 
@@ -3871,10 +3871,10 @@ std::string CppGenerator::genDependentAggLoopString(
         {
             AggregateIndexes bench, aggIdx;
             std::bitset<7> increasingIndexes;
-        
+
             mapAggregateToIndexes(bench,aggregateComputation[outViewID][0],
                                   outViewID,maxDepth);
-        
+
             size_t off = 0;
             for (size_t aggID = 1; aggID <
                      aggregateComputation[outViewID].size(); ++aggID)
@@ -3896,7 +3896,7 @@ std::string CppGenerator::genDependentAggLoopString(
                     // If not, output bench and all offset aggregates
                     returnString += outputFinalRegTupleString(
                         bench,off,increasingIndexes,offDepth);
-                
+
                     // make aggregate the bench and set offset to 0
                     bench = aggIdx;
                     off = 0;
@@ -3909,7 +3909,7 @@ std::string CppGenerator::genDependentAggLoopString(
             returnString += outputFinalRegTupleString(
                 bench,off,increasingIndexes,offDepth);
         }
-        else 
+        else
         {
             for(const AggregateTuple& aggTuple : aggregateComputation[outViewID])
             {
@@ -3923,15 +3923,15 @@ std::string CppGenerator::genDependentAggLoopString(
                     const ProductAggregate& prodAgg =
                         productToVariableRegister[aggTuple.local.first]
                         [aggTuple.local.second];
-        
+
                     const std::pair<size_t,size_t>& correspondingLoopAgg =
                         prodAgg.correspondingLoopAgg;
-                    
+
                     std::string prev = std::to_string(
                         newAggregateRemapping[aggTuple.local.first]
                         [correspondingLoopAgg.first]
                         [correspondingLoopAgg.second]);
-                
+
                     aggBody += "aggregateRegister["+prev+"]*";
                 }
                 if (aggTuple.post.first < maxDepth)
@@ -3946,7 +3946,7 @@ std::string CppGenerator::genDependentAggLoopString(
                 {
                     const std::pair<size_t,size_t>& correspondingLoopAgg =
                         aggTuple.dependentProdAgg.correspondingLoopAgg;
-                
+
                     std::string prev = std::to_string(
                         depAggregateRemapping[correspondingLoopAgg.first]
                         [correspondingLoopAgg.second]);
@@ -3958,7 +3958,7 @@ std::string CppGenerator::genDependentAggLoopString(
                     aggBody = "1*";
                 returnString += aggBody;
                 returnString.pop_back();
-                returnString += ";\n";            
+                returnString += ";\n";
             }
         }
 
@@ -3972,9 +3972,9 @@ std::string CppGenerator::genDependentAggLoopString(
 std::string CppGenerator::outputAggRegTupleString(
     AggregateIndexes& idx, size_t numOfAggs, const std::bitset<7>& increasing,
     size_t stringOffset, bool postLoop)
-{  
+{
     std::string outString = "";
-    
+
     if (numOfAggs+1 > LOOPIFY_THRESHOLD)
     {
         outString += offset(stringOffset)+
@@ -3983,7 +3983,7 @@ std::string CppGenerator::outputAggRegTupleString(
         if (postLoop)
             outString += offset(stringOffset+1)+
                 "aggregateRegister["+std::to_string(idx.indexes[7])+"+i] = ";
-        else 
+        else
             outString += offset(stringOffset+1)+
                 "aggregateRegister["+std::to_string(idx.indexes[7])+"+i] += ";
 
@@ -4013,13 +4013,13 @@ std::string CppGenerator::outputAggRegTupleString(
         if (idx.present[3])
         {
             // TODO: CHECK THAT index 4 is also presenth
-            size_t viewID = idx.indexes[3];                
+            size_t viewID = idx.indexes[3];
             if (increasing[3])
             {
                 ERROR("VIEW ID SHOULD NEVER INCREASE!!! \n");
                 exit(1);
             }
-            
+
             std::string aggID = std::to_string(idx.indexes[4]);
             if (increasing[4])
                 aggID += "+i";
@@ -4032,7 +4032,7 @@ std::string CppGenerator::outputAggRegTupleString(
 
         if (idx.present[6])
         {
-            std::string k = std::to_string(idx.indexes[6]);            
+            std::string k = std::to_string(idx.indexes[6]);
             if (increasing[6])
                 k += "+i";
             outString += "aggregateRegister["+k+"]*";
@@ -4080,7 +4080,7 @@ std::string CppGenerator::outputAggRegTupleString(
             if (idx.present[3])
             {
                 // TODO: CHECK THAT index 4 is also presenth
-                size_t viewID = idx.indexes[3];                
+                size_t viewID = idx.indexes[3];
                 if (increasing[3])
                 {
                     ERROR("VIEW ID SHOULD NEVER INCREASE!!! \n");
@@ -4120,14 +4120,14 @@ std::string CppGenerator::outputPostRegTupleString(
     size_t stringOffset)
 {
     std::string outString = "";
-    
+
     if (numOfAggs+1 > LOOPIFY_THRESHOLD)
     {
         outString += offset(stringOffset)+
             "for (size_t i = 0; i < "+std::to_string(numOfAggs+1)+";++i)\n";
         outString += offset(stringOffset+1)+
             "postRegister["+std::to_string(idx.indexes[2])+"+i] += ";
-        
+
         if (idx.present[0])
         {
             std::string k = std::to_string(idx.indexes[0]);
@@ -4148,7 +4148,7 @@ std::string CppGenerator::outputPostRegTupleString(
                 k += "+i";
             outString +="postRegister["+k+"]*";
         }
-        
+
         outString.pop_back();
         outString += ";\n";
     }
@@ -4160,7 +4160,7 @@ std::string CppGenerator::outputPostRegTupleString(
             // We use a mapping to the correct index
             outString += offset(stringOffset)+
                 "postRegister["+std::to_string(idx.indexes[2]+i)+"] += ";
-            
+
             if (idx.present[0])
             {
                 size_t k = idx.indexes[0];
@@ -4173,7 +4173,7 @@ std::string CppGenerator::outputPostRegTupleString(
                 ERROR("WE EXPECT LOCAL IN POST REG TO BE SET!! \n");
                 // exit(1);
             }
-            
+
             if (idx.present[1])
             {
                 size_t k = idx.indexes[1];
@@ -4181,7 +4181,7 @@ std::string CppGenerator::outputPostRegTupleString(
                     k += i;
                 outString +="postRegister["+std::to_string(k)+"]*";
             }
-            
+
             outString.pop_back();
             outString += ";\n";
         }
@@ -4196,7 +4196,7 @@ std::string CppGenerator::outputFinalRegTupleString(
     size_t stringOffset)
 {
     std::string outString = "";
-    
+
     if (numOfAggs > LOOPIFY_THRESHOLD)
     {
         outString += offset(stringOffset)+
@@ -4205,7 +4205,7 @@ std::string CppGenerator::outputFinalRegTupleString(
         std::string aggIDString = std::to_string(idx.indexes[4]);
         if (increasing[4])
             aggIDString += "+i";
-        
+
         outString += offset(stringOffset+1)+"aggregates_"+viewName[idx.indexes[3]]+
             "["+aggIDString+"] += ";
 
@@ -4241,7 +4241,7 @@ std::string CppGenerator::outputFinalRegTupleString(
         }
         else
             aggString.pop_back();
-        
+
         outString += aggString;
         outString += ";\n";
     }
@@ -4253,13 +4253,13 @@ std::string CppGenerator::outputFinalRegTupleString(
             size_t aggID = idx.indexes[4];
             if (increasing[4])
                 aggID += i;
-        
+
             // We use a mapping to the correct index
             outString += offset(stringOffset)+"aggregates_"+viewName[idx.indexes[3]]+
                 "["+std::to_string(aggID)+"] += ";
 
             std::string aggString = "";
-            
+
             if (idx.present[0])
             {
                 size_t k = idx.indexes[0];
@@ -4267,7 +4267,7 @@ std::string CppGenerator::outputFinalRegTupleString(
                     k += i;
                 aggString +="aggregateRegister["+std::to_string(k)+"]*";
             }
-            
+
             if (idx.present[1])
             {
                 size_t k = idx.indexes[1];
@@ -4291,7 +4291,7 @@ std::string CppGenerator::outputFinalRegTupleString(
             }
             else
                 aggString.pop_back();
-        
+
             outString += aggString;
             outString += ";\n";
         }
@@ -4309,21 +4309,21 @@ std::string CppGenerator::genAggLoopStringCompressed(
     const size_t thisLoopID = currentLoop;
     const dyn_bitset& thisLoop = listOfLoops[thisLoopID];
     size_t numOfLoops = thisLoop.count() + numOfOutViewLoops;
-    
+
     std::string returnString = "";
     std::string depthString = std::to_string(depth);
-        
+
     // Print all products for this considered loop
     for (size_t prodID = 0; prodID < localProductList[thisLoopID].size(); ++prodID)
     {
         const prod_bitset& product = localProductList[thisLoopID][prodID];
-        
+
         // std::cout << product << std::endl;
-        
+
         bool decomposedProduct = false;
         std::string productString = "";
 
-        // We now check if parts of the product have already been computed 
+        // We now check if parts of the product have already been computed
         if (product.count() > 1)
         {
             prod_bitset subProduct = product;
@@ -4344,7 +4344,7 @@ std::string CppGenerator::genAggLoopStringCompressed(
                         break;
                     }
                 }
-                
+
                 subProduct.reset(highestPosition);
                 removedFunctions.set(highestPosition);
 
@@ -4356,7 +4356,7 @@ std::string CppGenerator::genAggLoopStringCompressed(
                     subProductID = local_it->second;
                 }
             }
-            
+
 
             if (foundSubProduct)
             {
@@ -4364,7 +4364,7 @@ std::string CppGenerator::genAggLoopStringCompressed(
                     localProductRemapping[thisLoopID][subProductID]);
 
                 productString += "localRegister["+local+"]*";
-                    
+
                 auto local_it = localProductMap[thisLoopID].find(removedFunctions);
                 if (local_it != localProductMap[thisLoopID].end() &&
                     local_it->second < prodID)
@@ -4385,27 +4385,27 @@ std::string CppGenerator::genAggLoopStringCompressed(
                 decomposedProduct = true;
             }
         }
-        
+
         // We turn the product into a string
         if (!decomposedProduct)
             productString += genProductString(node,contributingViews,product);
 
         returnString += offset(3+depth+numOfLoops)+"localRegister["+
             std::to_string(productCounter)+"] = "+productString + ";\n";
-        
+
         // increment the counter and update the remapping array
         localProductRemapping[thisLoopID][prodID] = productCounter;
         ++productCounter;
     }
 
     for (size_t viewProd = 0; viewProd < viewProductList[thisLoopID].size(); ++viewProd)
-    {   
+    {
         std::string viewProduct = "";
         for (const std::pair<size_t, size_t>& viewAgg : viewProductList[thisLoopID][viewProd])
         {
             viewProduct += "aggregates_"+viewName[viewAgg.first]+"["+
                 std::to_string(viewAgg.second)+"]*";
-        }   
+        }
         viewProduct.pop_back();
 
         returnString += offset(3+depth+numOfLoops)+
@@ -4417,7 +4417,7 @@ std::string CppGenerator::genAggLoopStringCompressed(
         ++viewCounter;
     }
 
-    
+
     // Recurse to the next loop(s) if possible
     for (size_t next=0; next < nextLoopsPerLoop[thisLoopID].size(); ++next)
     {
@@ -4441,11 +4441,11 @@ std::string CppGenerator::genAggLoopStringCompressed(
                     "[ptr_"+viewName[viewID]+"];\n"+
                     offset(4+depth+numOfLoops)+"double *aggregates_"+viewName[viewID]+
                     " = "+viewName[viewID]+"Tuple.aggregates;\n";
-                
+
                 closeLoopString += offset(4+depth+numOfLoops)+"++ptr_"+viewName[viewID]+
                     ";\n"+offset(3+depth+numOfLoops)+"}\n"+closeLoopString;
             }
-            else 
+            else
             {
                 loopString +=
                     offset(3+depth+numOfLoops)+"ptr_"+node._name+
@@ -4456,7 +4456,7 @@ std::string CppGenerator::genAggLoopStringCompressed(
                     offset(4+depth+numOfLoops)+node._name +
                     "_tuple &"+node._name+"Tuple = "+node._name+
                     "[ptr_"+node._name+"];\n";
-                
+
                 closeLoopString = offset(4+depth+numOfLoops)+"++ptr_"+node._name+";\n"+
                     offset(3+depth+numOfLoops)+"}\n"+closeLoopString;
             }
@@ -4469,7 +4469,7 @@ std::string CppGenerator::genAggLoopStringCompressed(
             returnString += resetAggregates + loopString + closeLoopString;
 
             if (COMPRESS_AGGREGATES)
-            {                    
+            {
                 // After recurse, add the aggregates that have been added with post FLAG
                 AggregateIndexes bench, aggIdx;
                 std::bitset<7> increasingIndexes;
@@ -4482,7 +4482,7 @@ std::string CppGenerator::genAggLoopStringCompressed(
                          newAggregateRegister[nextLoop].size(); ++aggID)
                 {
                     const AggRegTuple& regTuple = newAggregateRegister[nextLoop][aggID];
-        
+
                     if (regTuple.postLoopAgg)
                     {
                         mapAggregateToIndexes(aggIdx,regTuple,depth,nextLoop);
@@ -4495,18 +4495,18 @@ std::string CppGenerator::genAggLoopStringCompressed(
                         addedAggregates = true;
                         break;
                     }
-                }   
-            
-                // Loop over all other aggregates 
+                }
+
+                // Loop over all other aggregates
                 for (; aggID <
                          newAggregateRegister[nextLoop].size(); ++aggID)
                 {
                     const AggRegTuple& regTuple = newAggregateRegister[nextLoop][aggID];
-        
+
                     if (regTuple.postLoopAgg)
                     {
                         aggIdx.reset();
-                    
+
                         mapAggregateToIndexes(aggIdx,regTuple,depth,nextLoop);
 
                         if (aggIdx.isIncrement(bench,off,increasingIndexes))
@@ -4518,7 +4518,7 @@ std::string CppGenerator::genAggLoopStringCompressed(
                             // If not, output bench and all offset aggregates
                             returnString += outputAggRegTupleString(
                                 bench,off,increasingIndexes, 3+depth+numOfLoops,true);
-                        
+
                             // make aggregate the bench and set offset to 0
                             bench = aggIdx;
                             off = 0;
@@ -4539,13 +4539,13 @@ std::string CppGenerator::genAggLoopStringCompressed(
             {
                 // here we output the aggregates uncompressed -TODO: we could probably
                 // remove this and incorporate it in the previous part
-            
+
                 // After recurse, add the aggregates that have been added with post FLAG
                 for (size_t aggID = 0; aggID <
                          newAggregateRegister[nextLoop].size(); ++aggID)
                 {
                     const AggRegTuple& regTuple = newAggregateRegister[nextLoop][aggID];
-        
+
                     if (regTuple.postLoopAgg)
                     {
                         // We use a mapping to the correct index
@@ -4565,13 +4565,13 @@ std::string CppGenerator::genAggLoopStringCompressed(
                         {
                             std::string post = std::to_string(
                                 newAggregateRemapping[depth][regTuple.postLoop.first]
-                                [regTuple.postLoop.second]); 
+                                [regTuple.postLoop.second]);
                             returnString += "aggregateRegister["+post+"]*";
                         }
-                        
+
                         returnString.pop_back();
                         returnString += ";\n";
-            
+
                         // Increment the counter and update the remapping array
                         newAggregateRemapping[depth][nextLoop][aggID] = aggregateCounter;
                         ++aggregateCounter;
@@ -4581,28 +4581,28 @@ std::string CppGenerator::genAggLoopStringCompressed(
         }
         else break;
     }
-    
+
     size_t startingOffset = aggregateCounter;
-    
+
     if (COMPRESS_AGGREGATES)
-    {        
+    {
         // After recurse, add the aggregates that have been added with post FLAG
         AggregateIndexes bench, aggIdx;
         std::bitset<7> increasingIndexes;
         size_t aggID = 0, off = 0;
-    
+
         bool addedAggregates = false;
 
         // Loop to identify the first bench
         for (; aggID < newAggregateRegister[thisLoopID].size(); ++aggID)
         {
             const AggRegTuple& regTuple = newAggregateRegister[thisLoopID][aggID];
-        
+
             if (!regTuple.postLoopAgg)
             {
                 mapAggregateToIndexes
                     (bench,newAggregateRegister[thisLoopID][aggID],depth,thisLoopID);
-            
+
                 addedAggregates = true;
 
                 // Increment the counter and update the remapping array
@@ -4614,15 +4614,15 @@ std::string CppGenerator::genAggLoopStringCompressed(
             }
         }
 
-        // Loop over all other aggregates 
+        // Loop over all other aggregates
         for (; aggID < newAggregateRegister[thisLoopID].size(); ++aggID)
         {
             const AggRegTuple& regTuple = newAggregateRegister[thisLoopID][aggID];
-        
+
             if (!regTuple.postLoopAgg)
             {
                 aggIdx.reset();
-            
+
                 mapAggregateToIndexes
                     (aggIdx,newAggregateRegister[thisLoopID][aggID],depth,thisLoopID);
 
@@ -4635,7 +4635,7 @@ std::string CppGenerator::genAggLoopStringCompressed(
                     // If not, output bench and all offset aggregates
                     returnString += outputAggRegTupleString(bench,off,increasingIndexes,
                                                             3+depth+numOfLoops,false);
-                
+
                     // make aggregate the bench and set offset to 0
                     bench = aggIdx;
                     off = 0;
@@ -4654,11 +4654,11 @@ std::string CppGenerator::genAggLoopStringCompressed(
     }
     else
     {
-        
+
         for (size_t aggID = 0; aggID < newAggregateRegister[thisLoopID].size(); ++aggID)
         {
             const AggRegTuple& regTuple = newAggregateRegister[thisLoopID][aggID];
-        
+
             if (!regTuple.postLoopAgg)
             {
                 // We use a mapping to the correct index
@@ -4671,10 +4671,10 @@ std::string CppGenerator::genAggLoopStringCompressed(
                         newAggregateRemapping[regTuple.prevDepth]
                         [regTuple.previous.first]
                         [regTuple.previous.second]);
-                
+
                     returnString += "aggregateRegister["+prev+"]*";
                 }
-            
+
                 if (regTuple.product.first)
                 {
                     std::string local = std::to_string(
@@ -4682,7 +4682,7 @@ std::string CppGenerator::genAggLoopStringCompressed(
                         );
                     returnString += "localRegister["+local+"]*";
                 }
-        
+
                 if (regTuple.newViewProduct)
                 {
                     std::string view = std::to_string(
@@ -4694,7 +4694,7 @@ std::string CppGenerator::genAggLoopStringCompressed(
                     returnString += "aggregates_"+viewName[regTuple.viewAgg.first]+"["+
                         std::to_string(regTuple.viewAgg.second)+"]*";
                 }
-            
+
                 if (regTuple.multiplyByCount)
                     returnString +=  "count*";
 
@@ -4705,17 +4705,17 @@ std::string CppGenerator::genAggLoopStringCompressed(
                         [regTuple.postLoop.second]);
                     returnString += "aggregateRegister["+postLoop+"]*";
                 }
-            
+
                 returnString.pop_back();
                 returnString += ";\n";
-            
+
                 // Increment the counter and update the remapping array
                 newAggregateRemapping[depth][thisLoopID][aggID] = aggregateCounter;
                 ++aggregateCounter;
             }
         }
     }
-    
+
 
     if (aggregateCounter > startingOffset)
     {
@@ -4724,7 +4724,7 @@ std::string CppGenerator::genAggLoopStringCompressed(
             std::to_string(startingOffset)+"], 0, sizeof(double) * "+
             std::to_string(aggregateCounter-startingOffset)+");\n";
     }
-    
+
     return returnString;
 }
 
@@ -4748,25 +4748,25 @@ void CppGenerator::mapAggregateToIndexes(
         index.present.set(0);
         index.indexes[0] = prev;
     }
-            
+
     if (aggregate.product.first)
     {
         size_t local =
             localProductRemapping[thisLoopID][aggregate.product.second];
-        
+
         index.present.set(1);
         index.indexes[1] = local;
     }
-        
+
     if (aggregate.newViewProduct)
     {
-        size_t view = 
+        size_t view =
             viewProductRemapping[thisLoopID][aggregate.viewAgg.second];
 
         index.present.set(2);
         index.indexes[2] = view;
     }
-    
+
     else if (aggregate.singleViewAgg)
     {
         index.present.set(3);
@@ -4775,7 +4775,7 @@ void CppGenerator::mapAggregateToIndexes(
         index.present.set(4);
         index.indexes[4] = aggregate.viewAgg.second;
     }
-            
+
     if (aggregate.multiplyByCount)
     {
         index.present.set(5);
@@ -4784,7 +4784,7 @@ void CppGenerator::mapAggregateToIndexes(
 
     if (aggregate.postLoop.first < listOfLoops.size())
     {
-        size_t postLoop = 
+        size_t postLoop =
             newAggregateRemapping[depth][aggregate.postLoop.first]
             [aggregate.postLoop.second];
 
@@ -4806,26 +4806,26 @@ void CppGenerator::mapAggregateToIndexes(
     {
         const ProductAggregate& prodAgg =
             productToVariableRegister[aggregate.local.first][aggregate.local.second];
-        
+
         const std::pair<size_t,size_t>& correspondingLoopAgg =
             prodAgg.correspondingLoopAgg;
-        
+
         size_t local = newAggregateRemapping[depth]
             [correspondingLoopAgg.first]
             [correspondingLoopAgg.second];
-        
+
         index.present.set(0);
         index.indexes[0] = local;
     }
-            
+
     if (aggregate.post.first < maxDepth)
     {
         size_t post = postRemapping[aggregate.post.first][aggregate.post.second];
-        
+
         index.present.set(1);
         index.indexes[1] = post;
     }
-    
+
     index.indexes[2] = postCounter;
 }
 
@@ -4834,28 +4834,28 @@ void CppGenerator::mapAggregateToIndexes(
     const size_t& viewID, const size_t& maxDepth)
 {
     index.reset();
-    
+
     if (aggregate.local.first < maxDepth)
     {
         const ProductAggregate& prodAgg =
             productToVariableRegister[aggregate.local.first]
             [aggregate.local.second];
-        
+
         const std::pair<size_t,size_t>& correspondingLoopAgg =
             prodAgg.correspondingLoopAgg;
-                    
+
         size_t local = newAggregateRemapping[aggregate.local.first]
             [correspondingLoopAgg.first]
             [correspondingLoopAgg.second];
 
         index.present.set(0);
-        index.indexes[0] = local;        
+        index.indexes[0] = local;
     }
-    
+
     if (aggregate.post.first < maxDepth)
     {
         size_t post = postRemapping[aggregate.post.first][aggregate.post.second];
-        
+
         index.present.set(1);
         index.indexes[1] = post;
     }
@@ -4864,13 +4864,13 @@ void CppGenerator::mapAggregateToIndexes(
     {
         const std::pair<size_t,size_t>& correspondingLoopAgg =
             aggregate.dependentProdAgg.correspondingLoopAgg;
-                
-        size_t depComp = 
+
+        size_t depComp =
             depAggregateRemapping[correspondingLoopAgg.first]
             [correspondingLoopAgg.second];
 
         index.present.set(2);
-        index.indexes[2] = depComp;        
+        index.indexes[2] = depComp;
     }
 
     index.present.set(3);
@@ -4904,7 +4904,7 @@ prod_bitset CppGenerator::computeDependentLoops(
         }
     }
 
-    
+
     dyn_bitset nonAddedOutLoops = outViewLoop[view_id] & ~addedOutLoops;
 
     // then find all loops required to compute these functions and create masks
@@ -4914,7 +4914,7 @@ prod_bitset CppGenerator::computeDependentLoops(
         {
             const var_bitset& functionVars = _qc->getFunction(f)->_fVars;
             loopFactors.reset();
-            
+
             for (size_t v = 0; v < NUM_OF_VARIABLES; ++v)
             {
                 if (functionVars[v] && !varOrderBitset[v])
@@ -4940,13 +4940,13 @@ prod_bitset CppGenerator::computeDependentLoops(
                 }
             }
 
-            // TODO: TODO: Consider this again 
+            // TODO: TODO: Consider this again
             if ((loopFactors & nonAddedOutLoops).any() ||
                 (nonAddedOutLoops.any() && (loopFactors & ~outViewLoop[view_id]).any()))
                 continue;
-            
+
             loopFactors |= addedOutLoops;
-            
+
             if (loopFactors == consideredLoops)
             {
                 // Add this function to the mask for this loop
@@ -4973,14 +4973,14 @@ prod_bitset CppGenerator::computeDependentLoops(
             }
         }
     }
-    
+
     presentFunctions &= ~loopFunctionMask;
-    
+
     // Then use the registrar to split the functions to their loops
     DependentLoop& depLoop = depListOfLoops[thisLoopID];
     if (loopFunctionMask.any())
         depLoop.functionMask.push_back({view_id, loopFunctionMask});
-    
+
     // Recurse to the next loops
     for (size_t viewID=0; viewID < _qc->numberOfViews() + 1; ++viewID)
     {
@@ -5020,7 +5020,7 @@ prod_bitset CppGenerator::computeDependentLoops(
                 newDepLoop.loopVariable = viewID;
 
                 // std::cout << "#########" << newDepLoop.loopFactors << std::endl;
-                
+
                 depListOfLoops.push_back(newDepLoop);
 
                 // std::cout << depLoop.next.size() << std::endl;
@@ -5067,8 +5067,8 @@ prod_bitset CppGenerator::computeDependentLoops(
                 DependentLoop newDepLoop(_qc->numberOfViews());
                 newDepLoop.loopFactors = nextConsideredLoops;
                 newDepLoop.loopVariable = nextOutLoop;
-                
-                
+
+
                 depListOfLoops.push_back(newDepLoop);
 
                 depListOfLoops[thisLoopID].next.push_back(nextLoopID);
@@ -5076,7 +5076,7 @@ prod_bitset CppGenerator::computeDependentLoops(
 
             addedOutLoops.set(nextOutLoop);
 
-            prod_bitset branch =                
+            prod_bitset branch =
                 computeDependentLoops(view_id,presentFunctions,relationBag,
                                       contributingViews,varOrderBitset,
                                       addedOutLoops,nextLoopID);
@@ -5084,7 +5084,7 @@ prod_bitset CppGenerator::computeDependentLoops(
             depListOfLoops[thisLoopID].branchFunctions |= branch;
         }
     }
-    
+
     return depListOfLoops[thisLoopID].branchFunctions;
 }
 
@@ -5096,12 +5096,12 @@ std::pair<size_t,size_t> CppGenerator::addDependentProductToLoop(
 {
     const size_t thisLoopID = currentLoop;
     const DependentLoop& thisLoop = depListOfLoops[currentLoop];
-    
+
     size_t maskID = 0;
     bool hasMask = false;
-    
+
     dyn_bitset nonAddedOutLoops = outViewLoop[view_id] & ~thisLoop.loopFactors;
-    
+
     for (size_t id = 0; id < thisLoop.functionMask.size(); ++id)
     {
         if (thisLoop.functionMask[id].first == view_id)
@@ -5113,16 +5113,16 @@ std::pair<size_t,size_t> CppGenerator::addDependentProductToLoop(
     }
 
     std::pair<bool,size_t> regTupleProduct = {false,0};
-    
+
     if (hasMask)
     {
         const prod_bitset& fMask = thisLoop.functionMask[maskID].second;
-    
+
         // check if this product requires computation over this loop loopmask
         prod_bitset loopFunctions = prodAgg.product & fMask;
         if (loopFunctions.any())
         {
-            // This should be add to the loop not depth 
+            // This should be add to the loop not depth
             auto proditerator = localProductMap[currentLoop].find(loopFunctions);
             if (proditerator != localProductMap[currentLoop].end())
             {
@@ -5138,16 +5138,16 @@ std::pair<size_t,size_t> CppGenerator::addDependentProductToLoop(
             }
         }
     }
-    
+
     bool singleViewAgg = false;
     std::pair<size_t, size_t> regTupleView = {2147483647,2147483647};
-    
+
     if (!prodAgg.viewAggregate.empty() && thisLoop.loopVariable != _qc->numberOfViews())
     {
         if (outViewLoop[view_id][thisLoop.loopVariable] || regTupleProduct.first)
         {
             singleViewAgg = true;
-            
+
             for (const std::pair<size_t, size_t>& viewAgg : prodAgg.viewAggregate)
             {
                 if (viewAgg.first == thisLoop.loopVariable)
@@ -5158,26 +5158,26 @@ std::pair<size_t,size_t> CppGenerator::addDependentProductToLoop(
             }
         }
     }
-    
+
     std::pair<size_t,size_t> previousLoopComp = {depListOfLoops.size(),0};
     std::pair<size_t, size_t> postComputation =  {depListOfLoops.size(),0};
-    
-    // If this aggregate is part of the 
+
+    // If this aggregate is part of the
     if (nonAddedOutLoops.any())
     {
-        if ((regTupleProduct.first || singleViewAgg) && 
+        if ((regTupleProduct.first || singleViewAgg) &&
             (thisLoop.loopFactors & outViewLoop[view_id]) == thisLoop.loopFactors)
         {
             AggRegTuple regTuple;
             regTuple.product = regTupleProduct;
-            
+
             regTuple.singleViewAgg = singleViewAgg;
             regTuple.viewAgg = regTupleView;
 
             regTuple.preLoopAgg = true;
             regTuple.previous = prevAgg;
             regTuple.prevDepth = viewLevelRegister[view_id];
-            
+
             auto regit = aggregateRegisterMap[thisLoopID].find(regTuple);
             if (regit != aggregateRegisterMap[thisLoopID].end())
             {
@@ -5187,23 +5187,23 @@ std::pair<size_t,size_t> CppGenerator::addDependentProductToLoop(
             {
                 // If so, add it to the aggregate register
                 size_t newID = newAggregateRegister[thisLoopID].size();
-                
+
                 aggregateRegisterMap[thisLoopID][regTuple] = newID;
                 newAggregateRegister[thisLoopID].push_back(regTuple);
-        
+
                 previousLoopComp =  {thisLoopID,newID};
             }
 
             prevAgg = previousLoopComp;
         }
-        
+
         // need to find the loop that adds the next OutLoop
         size_t nextOutLoop = nonAddedOutLoops.find_first();
-        
+
         bool found = false;
         dyn_bitset nextConsideredLoops = thisLoop.loopFactors;
         nextConsideredLoops.set(nextOutLoop);
-        
+
         for (size_t next=0; next < thisLoop.next.size(); ++next)
         {
             size_t nextLoopID = thisLoop.next[next];
@@ -5245,14 +5245,14 @@ std::pair<size_t,size_t> CppGenerator::addDependentProductToLoop(
                 postComputation =
                     addDependentProductToLoop(prodAgg, view_id, nextLoopID, maxDepth,
                                               pAgg);
-            
+
                 if (next + 1 != thisLoop.next.size() &&
                     (thisLoop.branchFunctions & prodAgg.product).any())
                 {
                     // Add this product to this loop with the 'prev'Computation
                     AggRegTuple postRegTuple;
                     postRegTuple.postLoopAgg = true;
-                    postRegTuple.previous = previousLoopComp; 
+                    postRegTuple.previous = previousLoopComp;
                     postRegTuple.postLoop = postComputation;
                     postRegTuple.prevDepth = viewLevelRegister[view_id];
 
@@ -5268,7 +5268,7 @@ std::pair<size_t,size_t> CppGenerator::addDependentProductToLoop(
                         size_t newID = newAggregateRegister[nextLoopID].size();
                         aggregateRegisterMap[nextLoopID][postRegTuple] = newID;
                         newAggregateRegister[nextLoopID].push_back(postRegTuple);
-                    
+
                         previousLoopComp =  {nextLoopID,newID};
                     }
                 }
@@ -5289,9 +5289,9 @@ std::pair<size_t,size_t> CppGenerator::addDependentProductToLoop(
             regTuple.viewAgg = regTupleView;
             regTuple.singleViewAgg = singleViewAgg;
             regTuple.postLoop = previousLoopComp;
-            
+
             regTuple.previous = prevAgg;
-            
+
             auto regit = aggregateRegisterMap[thisLoopID].find(regTuple);
             if (regit != aggregateRegisterMap[thisLoopID].end())
             {
@@ -5303,14 +5303,14 @@ std::pair<size_t,size_t> CppGenerator::addDependentProductToLoop(
                 size_t newID = newAggregateRegister[thisLoopID].size();
                 aggregateRegisterMap[thisLoopID][regTuple] = newID;
                 newAggregateRegister[thisLoopID].push_back(regTuple);
-        
+
                 previousLoopComp =  {thisLoopID,newID};
             }
 
             prevAgg = previousLoopComp;
         }
     }
-    
+
     return previousLoopComp;
 }
 
@@ -5331,15 +5331,15 @@ void CppGenerator::registerDependentComputationToLoops(size_t depth, size_t grou
     DependentLoop depLoop(_qc->numberOfViews());
     depLoop.loopFactors = consideredLoops;
     depLoop.loopVariable = _qc->numberOfViews();
-    
+
     depListOfLoops.push_back(depLoop);
 
-    // Go over each view that can be outputted at this depth 
+    // Go over each view that can be outputted at this depth
     for (const size_t viewID : viewGroups[group_id])
     {
         if (viewLevelRegister[viewID] == depth)
         {
-            // go through the ProductAggregates and find functions computed here 
+            // go through the ProductAggregates and find functions computed here
             prod_bitset presentFunctions;
             dyn_bitset contributingViews(_qc->numberOfViews()+1);
             dyn_bitset addedOutLoops(_qc->numberOfViews()+1);
@@ -5353,7 +5353,7 @@ void CppGenerator::registerDependentComputationToLoops(size_t depth, size_t grou
                     contributingViews.set(p.first);
             }
 
-            
+
             // Compute the loops for the dependent computation of this
             // output view
             computeDependentLoops(viewID,presentFunctions,relationBag,contributingViews,
@@ -5366,7 +5366,7 @@ void CppGenerator::registerDependentComputationToLoops(size_t depth, size_t grou
     localProductMap.clear();
     localProductList.resize(depListOfLoops.size());
     localProductMap.resize(depListOfLoops.size());
-    
+
     newAggregateRegister.clear();
     aggregateRegisterMap.clear();
     newAggregateRegister.resize(depListOfLoops.size());
@@ -5384,7 +5384,7 @@ void CppGenerator::registerDependentComputationToLoops(size_t depth, size_t grou
 
                 size_t currentLoop = 0;
                 std::pair<size_t, size_t> prevAgg = {depListOfLoops.size(), 0};
-                
+
                 addDependentProductToLoop(
                     prodAgg, viewID, currentLoop, maxDepth, prevAgg);
 
@@ -5410,13 +5410,13 @@ std::string CppGenerator::genProductString(
             std::string freeVarString = "";
 
             for (size_t v = 0; v < NUM_OF_VARIABLES; ++v)
-            {                        
+            {
                 if (functionVars[v])
                 {
                     if (node._bag[v])
                     {
                         freeVarString += node._name+"Tuple."+
-                            _td->getAttribute(v)->_name+",";                            
+                            _td->getAttribute(v)->_name+",";
                     }
                     else
                     {
@@ -5434,7 +5434,7 @@ std::string CppGenerator::genProductString(
                                         _td->getAttribute(v)->_name+",";
                                     notFound = false;
                                     break;
-                                }                  
+                                }
                             }
                         }
 
@@ -5453,13 +5453,13 @@ std::string CppGenerator::genProductString(
             productString += getFunctionString(function,freeVarString)+"*";
         }
     }
-            
+
     if (!productString.empty())
         productString.pop_back();
     else
         productString += "1";
-    
-    return productString;    
+
+    return productString;
 }
 
 
@@ -5473,14 +5473,14 @@ std::string CppGenerator::genGroupGenericJoinCode(
 
     const std::string& attrName = _td->getAttribute(varOrder[depth])->_name;
     const std::string& relName = node._name;
-    
+
     size_t idx = depth * (_qc->numberOfViews() + 2);
     size_t numberContributing = viewsPerVar[idx];
 
     std::string depthString = std::to_string(depth);
     std::string returnString = "";
 
-    /* Setting upper and lower pointer for this level */ 
+    /* Setting upper and lower pointer for this level */
     size_t off = 1;
     if (depth > 0)
     {
@@ -5491,7 +5491,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
             "lowerptr_"+relName+"["+std::to_string(depth-1)+"];\n";
 
         for (const size_t& viewID : incViews)
-        {   
+        {
             returnString +=
                 offset(2+depth)+"upperptr_"+viewName[viewID]+"["+depthString+"] = "+
                 "upperptr_"+viewName[viewID]+"["+std::to_string(depth-1)+"];\n"+
@@ -5499,7 +5499,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
                 "lowerptr_"+viewName[viewID]+"["+std::to_string(depth-1)+"];\n";
         }
     }
-    
+
     returnString += offset(2+depth)+ "atEnd["+depthString+"] = false;\n";
 
     /* Resetting the postRegister before we start the loop */
@@ -5512,11 +5512,11 @@ std::string CppGenerator::genGroupGenericJoinCode(
             std::to_string(firstidx)+"], 0, sizeof(double) * "+
             std::to_string(postRegisterList[depth].size())+");\n";
     }
-    
-    // Start while loop of the join 
+
+    // Start while loop of the join
     returnString += offset(2+depth)+"while(!atEnd["+depthString+"])\n"+
         offset(2+depth)+"{\n";
-    
+
     if (numberContributing > 1)
     {
         if (MICRO_BENCH)
@@ -5536,7 +5536,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
                 "upperptr_"+relName+"["+depthString+"] = "+
                 "lowerptr_"+relName+"["+depthString+"];\n";
 
-            // update range for base relation 
+            // update range for base relation
             // relationCase += updateRanges(depth, relName, attrName,
             // _parallelizeGroup[group_id]);
             relationCase += offset(4+depth)+//while statement
@@ -5547,7 +5547,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
                 offset(5+depth)+"++upperptr_"+relName+"["+depthString+"];\n";
             off = 2;
         }
-        
+
         // Seek Value
         returnString += offset(3+depth)+"max_"+attrName+" = "+
             viewName[viewsPerVar[idx+off]]+"[lowerptr_"+viewName[viewsPerVar[idx+off]]+
@@ -5558,7 +5558,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
             offset(4+depth)+"found["+depthString+"] = true;\n";
 
         bool firstFactor = true;
-        
+
         for (; off <= numberContributing; ++off)
         {
             const size_t& viewID = viewsPerVar[idx+off];
@@ -5567,11 +5567,11 @@ std::string CppGenerator::genGroupGenericJoinCode(
                 seekValueGenericJoin(depth,viewName[viewID],attrName,false, firstFactor);
 
             firstFactor = false;
-            
+
             returnString += offset(4+depth)+
                 "upperptr_"+viewName[viewID]+"["+depthString+"] = "+
                 "lowerptr_"+viewName[viewID]+"["+depthString+"];\n";
-            
+
             // returnString += updateRanges(depth,viewName[viewID],attrName,false);
             returnString += offset(4+depth)+
                 //while statement
@@ -5580,10 +5580,10 @@ std::string CppGenerator::genGroupGenericJoinCode(
                 viewName[viewID]+"[upperptr_"+viewName[viewID]+"["+depthString+"]+1]."+
                 attrName+" == max_"+attrName+")\n"+                //body
                 offset(5+depth)+"++upperptr_"+viewName[viewID]+"["+depthString+"];\n";
-            
+
         }
         returnString += relationCase;//+offset(4+depth)+"}\n";
-        
+
         // Close the do loop
         returnString += offset(3+depth)+"} while (!found["+depthString+"] && !atEnd["+
             depthString+"]);\n"+offset(3+depth)+"// End Seek Value\n";
@@ -5598,7 +5598,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
                 std::to_string(group_id)+"_timer_seek);\n";
     }
     else {
-        
+
         if (MICRO_BENCH)
             returnString += offset(3+depth)+
                 "BEGIN_MICRO_BENCH(Group"+std::to_string(group_id)+"_timer_while);\n";
@@ -5611,18 +5611,18 @@ std::string CppGenerator::genGroupGenericJoinCode(
                 relName+"[lowerptr_"+relName+"["+depthString+"]]."+attrName +";\n"+
                 offset(4+depth)+"upperptr_"+relName+"["+depthString+"] = "+
                 "lowerptr_"+relName+"["+depthString+"];\n";
-            
-            // update range for base relation 
+
+            // update range for base relation
             // returnString += updateRanges(depth, relName, attrName,
             //                              _parallelizeGroup[group_id]);
-            
+
             returnString += offset(4+depth)+//while statement
                 "while(upperptr_"+relName+"["+depthString+"]<"+
                 getUpperPointer(relName, depth, _parallelizeGroup[group_id])+" && "+
                 relName+"[upperptr_"+relName+"["+depthString+"]+1]."+
                 attrName+" == max_"+attrName+")\n"+
                 offset(5+depth)+"++upperptr_"+relName+"["+depthString+"];\n";
-                        
+
             off = 2;
         }
 
@@ -5636,7 +5636,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
                 offset(4+depth)+
                 "upperptr_"+viewName[viewID]+"["+depthString+"] = "+
                 "lowerptr_"+viewName[viewID]+"["+depthString+"];\n";
-        
+
             //returnString += updateRanges(depth,viewName[viewID],attrName,false);
             returnString += offset(4+depth)+
                 //while statementnd
@@ -5652,7 +5652,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
             returnString += offset(3+depth)+
                 "END_MICRO_BENCH(Group"+std::to_string(group_id)+"_timer_while);\n";
     }
-    
+
     registerAggregatesToLoops(depth,group_id);
 
     newAggregateRemapping[depth].resize(listOfLoops.size());
@@ -5662,7 +5662,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
     size_t numAggsRegistered = 0;
     for (size_t loop = 0; loop < listOfLoops.size(); loop++)
     {
-        // updating the remapping arrays 
+        // updating the remapping arrays
         newAggregateRemapping[depth][loop].resize(
             newAggregateRegister[loop].size(),10000);
         localProductRemapping[loop].resize(
@@ -5672,7 +5672,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
 
         numAggsRegistered += newAggregateRegister[loop].size();
     }
-    
+
     // setting the addTuple bool to false;
     returnString += offset(3+depth)+"addTuple["+depthString+"] = false;\n";
 
@@ -5680,14 +5680,14 @@ std::string CppGenerator::genGroupGenericJoinCode(
     if (MICRO_BENCH)
         returnString += offset(3+depth)+
             "BEGIN_MICRO_BENCH(Group"+std::to_string(group_id)+"_timer_aggregate);\n";
-    
+
     if (numAggsRegistered > 0)
     {
         returnString += offset(3 + depth)+"memset(&aggregateRegister["+
             std::to_string(aggregateCounter)+"], 0, sizeof(double) * "+
             std::to_string(numAggsRegistered)+");\n";
     }
-   
+
     // We add the definition of the Tuple references and aggregate pointers
     // TODO: This could probably be simplified TODO: TODO: TODO: !!!!!
     returnString += offset(3+depth)+relName +"_tuple &"+node._name+"Tuple = "+
@@ -5705,7 +5705,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
     if (depth + 1 == varOrder.size())
         returnString += offset(3+depth)+"double count = upperptr_"+relName+
             "["+depthString+"] - lowerptr_"+relName+"["+depthString+"] + 1;\n";
-    
+
     // dyn_bitset consideredLoops(_qc->numberOfViews()+1);
     // returnString += newgenAggregateString(node, consideredLoops, depth, group_id);
 
@@ -5718,16 +5718,16 @@ std::string CppGenerator::genGroupGenericJoinCode(
     // returnString += genAggLoopString(node,loopID,depth,contributingViews,0);
 
     returnString += resetString + loopString;
-    
+
     if (MICRO_BENCH)
         returnString += offset(3+depth)+"END_MICRO_BENCH(Group"+std::to_string(group_id)+
             "_timer_aggregate);\n";
 
-    
+
     // then you would need to go to next variable
     if (depth+1 < varOrder.size())
     {
-        // leapfrogJoin for next join variable 
+        // leapfrogJoin for next join variable
         returnString += genGroupGenericJoinCode(group_id, node, depth+1);
         // returnString += genGroupLeapfrogJoinCode(group_id, node, depth+1);
     }
@@ -5742,12 +5742,12 @@ std::string CppGenerator::genGroupGenericJoinCode(
     size_t postOff = (depth+1 < varOrder.size() ? 4+depth : 3+depth);
 
     std::string postComputationString = "";
-    
+
     // for (const PostAggRegTuple& tuple : postRegisterList[depth])
     // {
     //     const ProductAggregate& prodAgg =
     //         productToVariableRegister[tuple.local.first][tuple.local.second];
-        
+
     //     const std::pair<size_t,size_t>& correspondingLoopAgg =
     //         prodAgg.correspondingLoopAgg;
 
@@ -5755,7 +5755,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
     //     //     std::cout << "************************************ " <<
     //     //         correspondingLoopAgg.first << "  " <<
     //     //         correspondingLoopAgg.second << std::endl;
-        
+
     //     std::string local = std::to_string(
     //         newAggregateRemapping[depth][correspondingLoopAgg.first]
     //         [correspondingLoopAgg.second]);
@@ -5772,7 +5772,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
     //     }
     //     else
     //          returnString += ";\n";
-        
+
     //     postRemapping[depth].push_back(postCounter);
     //     ++postCounter;
     // }
@@ -5781,7 +5781,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
     {
         AggregateIndexes bench, aggIdx;
         std::bitset<7> increasingIndexes;
-        
+
         mapAggregateToIndexes(bench,postRegisterList[depth][0],depth,varOrder.size());
 
         postRemapping[depth].push_back(postCounter);
@@ -5793,7 +5793,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
             const PostAggRegTuple& tuple = postRegisterList[depth][aggID];
 
             aggIdx.reset();
-            
+
             mapAggregateToIndexes(aggIdx,tuple,depth,varOrder.size());
 
             if (aggIdx.isIncrement(bench,offset,increasingIndexes))
@@ -5805,7 +5805,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
                 // If not, output bench and all offset aggregates
                 postComputationString += outputPostRegTupleString(
                     bench,offset,increasingIndexes, postOff);
-                        
+
                 // make aggregate the bench and set offset to 0
                 bench = aggIdx;
                 offset = 0;
@@ -5819,16 +5819,16 @@ std::string CppGenerator::genGroupGenericJoinCode(
         postComputationString += outputPostRegTupleString(
             bench,offset,increasingIndexes, postOff);
     }
-    
+
     registerDependentComputationToLoops(depth, group_id);
 
     depAggregateRemapping.resize(depListOfLoops.size());
     depLocalProductRemapping.resize(depListOfLoops.size());
-    
+
     size_t depNumAggsRegistered = 0;
     for (size_t loop = 0; loop < depListOfLoops.size(); loop++)
     {
-        // updating the remapping arrays 
+        // updating the remapping arrays
         depAggregateRemapping[loop].resize(
             newAggregateRegister[loop].size(),10000);
         depLocalProductRemapping[loop].resize(
@@ -5836,7 +5836,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
 
         depNumAggsRegistered += newAggregateRegister[loop].size();
     }
-    
+
     // if (depNumAggsRegistered > 0)
     // {
     //     returnString += offset(3 + depth)+"memset(&aggregateRegister["+
@@ -5845,7 +5845,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
     // }
     resetString = "";
     loopString = "";
-    
+
     size_t depLoopID = 0;
     dyn_bitset depContributingViews(_qc->numberOfViews()+1);
     loopString += genDependentAggLoopString(
@@ -5872,9 +5872,9 @@ std::string CppGenerator::genGroupGenericJoinCode(
             returnString += offset(3+depth)+"END_MICRO_BENCH(Group"+
                 std::to_string(group_id)+"_timer_post_aggregate);\n";
     }
-    
-    
-    // Set lower to upper pointer 
+
+
+    // Set lower to upper pointer
     off = 1;
     if (viewsPerVar[idx+1] == _qc->numberOfViews())
     {
@@ -5887,7 +5887,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
             getUpperPointer(relName,depth,_parallelizeGroup[group_id])+")\n"+
             // body
             offset(4+depth)+"atEnd["+depthString+"] = true;\n";
-        
+
         off = 2;
     }
 
@@ -5904,8 +5904,8 @@ std::string CppGenerator::genGroupGenericJoinCode(
             offset(4+depth)+"atEnd["+depthString+"] = true;\n";
     }
 
-    
-    // Closing the while loop 
+
+    // Closing the while loop
     return returnString + offset(2+depth)+"}\n";
 }
 
@@ -5920,14 +5920,14 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
 
     const std::string& attrName = _td->getAttribute(varOrder[depth])->_name;
     const std::string& relName = node._name;
-    
+
     size_t idx = depth * (_qc->numberOfViews() + 2);
     size_t numberContributing = viewsPerVar[idx];
     // bool addTuple;
 
     std::string depthString = std::to_string(depth);
     std::string returnString = "";
-    
+
     size_t off = 1;
     if (depth > 0)
     {
@@ -5938,7 +5938,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
             "lowerptr_"+relName+"["+std::to_string(depth-1)+"];\n";
 
         for (const size_t& viewID : incViews)
-        {   
+        {
             returnString +=
                 offset(2+depth)+"upperptr_"+viewName[viewID]+"["+depthString+"] = "+
                 "upperptr_"+viewName[viewID]+"["+std::to_string(depth-1)+"];\n"+
@@ -5949,17 +5949,17 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
 
     if (numberContributing > 1)
     {
-        // Ordering Relations 
+        // Ordering Relations
         returnString += genGroupRelationOrdering(relName, depth, group_id);
     }
     else
     {
-        std::string factor;        
+        std::string factor;
         if (viewsPerVar[idx+1] == _qc->numberOfViews())
             factor = relName;
         else
             factor = viewName[viewsPerVar[idx+1]];
-        
+
         returnString += offset(2+depth)+"max_"+attrName+" = "+
             factor+"[0]."+attrName+";\n";
     }
@@ -5968,12 +5968,12 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
     //     addTuple = true;
     // else
     //     addTuple = false;
-    
-    // Update rel pointers 
+
+    // Update rel pointers
     returnString += offset(2+depth)+ "rel["+depthString+"] = 0;\n"+
         offset(2+depth)+ "atEnd["+depthString+"] = false;\n";
 
-    // resetting the post register before we start the loop 
+    // resetting the post register before we start the loop
     if (!postRegisterList[depth].empty())
     {
         size_t firstidx = 0;
@@ -5983,8 +5983,8 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
             std::to_string(firstidx)+"], 0, sizeof(double) * "+
             std::to_string(postRegisterList[depth].size())+");\n";
     }
-    
-    // Start while loop of the join 
+
+    // Start while loop of the join
     returnString += offset(2+depth)+"while(!atEnd["+depthString+"])\n"+
         offset(2+depth)+"{\n";
 
@@ -5993,7 +5993,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
         if (MICRO_BENCH)
            returnString += offset(3+depth)+
                "BEGIN_MICRO_BENCH(Group"+std::to_string(group_id)+"_timer_seek);\n";
-        
+
         // Seek Value
         returnString += offset(3+depth)+"found["+depthString+"] = false;\n"+
             offset(3+depth)+"// Seek Value\n" +
@@ -6002,7 +6002,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
             offset(4+depth)+"switch(order_"+attrName+"[rel["+
             depthString+"]].second)\n" +
             offset(4+depth)+"{\n";
-        
+
         off = 1;
         if (viewsPerVar[idx+1] == _qc->numberOfViews())
         {
@@ -6011,7 +6011,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
                                           _parallelizeGroup[group_id]);
             off = 2;
         }
-        
+
         for (; off <= numberContributing; ++off)
         {
             const size_t& viewID = viewsPerVar[idx+off];
@@ -6019,7 +6019,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
             returnString += seekValueCase(depth,viewName[viewID],attrName,false);
         }
         returnString += offset(4+depth)+"}\n";
-        
+
         // Close the do loop
         returnString += offset(3+depth)+"} while (!found["+
             depthString+"] && !atEnd["+
@@ -6049,7 +6049,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
             "upperptr_"+relName+"["+depthString+"] = "+
             "lowerptr_"+relName+"["+depthString+"];\n";
 
-        // update range for base relation 
+        // update range for base relation
         returnString += updateRanges(depth, relName, attrName,
                                      _parallelizeGroup[group_id]);
         off = 2;
@@ -6062,7 +6062,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
         returnString += offset(3+depth)+
             "upperptr_"+viewName[viewID]+"["+depthString+"] = "+
             "lowerptr_"+viewName[viewID]+"["+depthString+"];\n";
-        
+
         returnString += updateRanges(depth,viewName[viewID],attrName,false);
     }
 
@@ -6079,7 +6079,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
     size_t numAggsRegistered = 0;
     for (size_t loop = 0; loop < listOfLoops.size(); loop++)
     {
-        // updating the remapping arrays 
+        // updating the remapping arrays
         newAggregateRemapping[depth][loop].resize(
             newAggregateRegister[loop].size(),10000);
         localProductRemapping[loop].resize(
@@ -6089,7 +6089,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
 
         numAggsRegistered += newAggregateRegister[loop].size();
     }
-    
+
     // setting the addTuple bool to false;
     returnString += offset(3+depth)+"addTuple["+depthString+"] = false;\n";
 
@@ -6097,14 +6097,14 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
     if (MICRO_BENCH)
         returnString += offset(3+depth)+
             "BEGIN_MICRO_BENCH(Group"+std::to_string(group_id)+"_timer_aggregate);\n";
-    
+
     if (numAggsRegistered > 0)
     {
         returnString += offset(3 + depth)+"memset(&aggregateRegister["+
             std::to_string(aggregateCounter)+"], 0, sizeof(double) * "+
             std::to_string(numAggsRegistered)+");\n";
     }
-   
+
     // We add the definition of the Tuple references and aggregate pointers
     // TODO: This could probably be simplified TODO: TODO: TODO: !!!!!
     returnString += offset(3+depth)+relName +"_tuple &"+node._name+"Tuple = "+
@@ -6122,7 +6122,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
     if (depth + 1 == varOrder.size())
         returnString += offset(3+depth)+"double count = upperptr_"+relName+
             "["+depthString+"] - lowerptr_"+relName+"["+depthString+"] + 1;\n";
-    
+
     // dyn_bitset consideredLoops(_qc->numberOfViews()+1);
     // returnString += newgenAggregateString(node, consideredLoops, depth, group_id);
 
@@ -6135,16 +6135,16 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
     // returnString += genAggLoopString(node,loopID,depth,contributingViews,0);
 
     returnString += resetString + loopString;
-    
+
     if (MICRO_BENCH)
         returnString += offset(3+depth)+"END_MICRO_BENCH(Group"+std::to_string(group_id)+
             "_timer_aggregate);\n";
 
-    
+
     // then you would need to go to next variable
     if (depth+1 < varOrder.size())
     {
-        // leapfrogJoin for next join variable 
+        // leapfrogJoin for next join variable
         returnString += genGroupLeapfrogJoinCode(group_id, node, depth+1);
     }
     else
@@ -6156,12 +6156,12 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
     size_t postOff = (depth+1 < varOrder.size() ? 4+depth : 3+depth);
 
     std::string postComputationString = "";
-    
+
     // for (const PostAggRegTuple& tuple : postRegisterList[depth])
     // {
     //     const ProductAggregate& prodAgg =
     //         productToVariableRegister[tuple.local.first][tuple.local.second];
-        
+
     //     const std::pair<size_t,size_t>& correspondingLoopAgg =
     //         prodAgg.correspondingLoopAgg;
 
@@ -6169,7 +6169,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
     //     //     std::cout << "************************************ " <<
     //     //         correspondingLoopAgg.first << "  " <<
     //     //         correspondingLoopAgg.second << std::endl;
-        
+
     //     std::string local = std::to_string(
     //         newAggregateRemapping[depth][correspondingLoopAgg.first]
     //         [correspondingLoopAgg.second]);
@@ -6186,7 +6186,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
     //     }
     //     else
     //          returnString += ";\n";
-        
+
     //     postRemapping[depth].push_back(postCounter);
     //     ++postCounter;
     // }
@@ -6195,7 +6195,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
     {
         AggregateIndexes bench, aggIdx;
         std::bitset<7> increasingIndexes;
-        
+
         mapAggregateToIndexes(bench,postRegisterList[depth][0],depth,varOrder.size());
 
         postRemapping[depth].push_back(postCounter);
@@ -6207,7 +6207,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
             const PostAggRegTuple& tuple = postRegisterList[depth][aggID];
 
             aggIdx.reset();
-            
+
             mapAggregateToIndexes(aggIdx,tuple,depth,varOrder.size());
 
             if (aggIdx.isIncrement(bench,offset,increasingIndexes))
@@ -6219,7 +6219,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
                 // If not, output bench and all offset aggregates
                 postComputationString += outputPostRegTupleString(
                     bench,offset,increasingIndexes, postOff);
-                        
+
                 // make aggregate the bench and set offset to 0
                 bench = aggIdx;
                 offset = 0;
@@ -6233,16 +6233,16 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
         postComputationString += outputPostRegTupleString(
             bench,offset,increasingIndexes, postOff);
     }
-    
+
     registerDependentComputationToLoops(depth, group_id);
 
     depAggregateRemapping.resize(depListOfLoops.size());
     depLocalProductRemapping.resize(depListOfLoops.size());
-    
+
     size_t depNumAggsRegistered = 0;
     for (size_t loop = 0; loop < depListOfLoops.size(); loop++)
     {
-        // updating the remapping arrays 
+        // updating the remapping arrays
         depAggregateRemapping[loop].resize(
             newAggregateRegister[loop].size(),10000);
         depLocalProductRemapping[loop].resize(
@@ -6250,7 +6250,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
 
         depNumAggsRegistered += newAggregateRegister[loop].size();
     }
-    
+
     // if (depNumAggsRegistered > 0)
     // {
     //     returnString += offset(3 + depth)+"memset(&aggregateRegister["+
@@ -6268,10 +6268,10 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
     postComputationString += resetString+loopString;
 
     if (depth+1 < varOrder.size() && !postComputationString.empty())
-        // The computation below is only done if we have satisfying join values 
+        // The computation below is only done if we have satisfying join values
         returnString += offset(3+depth)+"if (addTuple["+depthString+"]) \n"+
             offset(3+depth)+"{\n";
-    
+
     if (MICRO_BENCH)
         returnString += offset(3+depth)+
             "BEGIN_MICRO_BENCH(Group"+std::to_string(group_id)+
@@ -6285,8 +6285,8 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
 
     if (depth+1 < varOrder.size() && !postComputationString.empty())
         returnString += offset(3+depth)+"}\n";
-    
-    // Set lower to upper pointer 
+
+    // Set lower to upper pointer
     off = 1;
     if (viewsPerVar[idx+1] == _qc->numberOfViews())
     {
@@ -6305,16 +6305,16 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
     }
 
     if (numberContributing > 1)
-    {        
+    {
         // Switch to update the max value and relation pointer
         returnString += offset(3+depth)+
             "switch(order_"+attrName+"[rel["+depthString+"]].second)\n";
         returnString += offset(3+depth)+"{\n";
 
-        // Add switch cases to the switch 
+        // Add switch cases to the switch
         off = 1;
         if (viewsPerVar[idx+1] == _qc->numberOfViews())
-        {            
+        {
             returnString += updateMaxCase(depth,relName,attrName,
                                           _parallelizeGroup[group_id]);
             off = 2;
@@ -6331,7 +6331,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
     {
         std::string factor;
         bool parallel;
-        
+
         if (viewsPerVar[idx+1] == _qc->numberOfViews())
         {
             factor = relName;
@@ -6342,7 +6342,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
             factor = viewName[viewsPerVar[idx+1]];
             parallel = false;
         }
-        
+
         returnString += offset(3+depth)+"lowerptr_"+factor+"["+depthString+"] += 1;\n"+
             // if statement
             offset(3+depth)+"if(lowerptr_"+factor+"["+depthString+"] > "+
@@ -6355,7 +6355,7 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
             depthString+"]]."+attrName+";\n";
     }
 
-    // Closing the while loop 
+    // Closing the while loop
     return returnString + offset(2+depth)+"}\n";
 }
 
@@ -6379,7 +6379,7 @@ std::string CppGenerator::genGroupRelationOrdering(
     const std::string& attr_name = attr->_name;
     const std::string attrType = typeToStr(attr->_type);
     const std::string depthString = std::to_string(depth);
-    
+
     size_t idx = depth * (_qc->numberOfViews() + 2);
     size_t numberContributing = groupViewsPerVarInfo[group_id][idx];
 
@@ -6387,7 +6387,7 @@ std::string CppGenerator::genGroupRelationOrdering(
     {
         std::string first, firstID;
         if (groupViewsPerVarInfo[group_id][idx+1] == _qc->numberOfViews())
-        {    
+        {
             first = rel_name+"[lowerptr_"+rel_name+"["+depthString+"]]."+attr_name;
             firstID = rel_name+"_ID";
         }
@@ -6423,7 +6423,7 @@ std::string CppGenerator::genGroupRelationOrdering(
         res += offset(2+depth)+"std::pair<"+attrType+", int> order_"+attr_name+"["+
             std::to_string(numberContributing)+"] = \n"+
             offset(3+depth)+"{";
-        
+
         size_t off = 1;
         if (groupViewsPerVarInfo[group_id][idx+1] == _qc->numberOfViews())
         {
@@ -6432,7 +6432,7 @@ std::string CppGenerator::genGroupRelationOrdering(
                 rel_name+"_ID),";
             off = 2;
         }
-        
+
         for (; off <= numberContributing; ++off)
         {
             size_t viewID = groupViewsPerVarInfo[group_id][idx+off];
@@ -6442,14 +6442,14 @@ std::string CppGenerator::genGroupRelationOrdering(
         }
         res.pop_back();
         res += "\n"+offset(3+depth)+"};\n";
-    
+
         res += offset(2+depth)+"std::sort(order_"+attr_name+", order_"+attr_name+
             " + "+std::to_string(numberContributing)+",[](const std::pair<"+
             attrType+",int> &lhs, const std::pair<"+attrType+",int> &rhs)\n"+
             offset(3+depth)+"{\n"+offset(4+depth)+"return lhs.first < rhs.first;\n"+
             offset(3+depth)+"});\n";
     }
-    
+
 
     res += offset(2+depth)+"min_"+attr_name+" = order_"+attr_name+"[0].first;\n";
     res += offset(2+depth)+"max_"+attr_name+" = order_"+attr_name+"["+
@@ -6476,7 +6476,7 @@ bool CppGenerator::requireHash(const size_t& view_id, const size_t& rel_id)
             ++orderIdx;
         }
     }
-    
+
     return false;
 }
 
@@ -6484,7 +6484,7 @@ bool CppGenerator::requireHash(const size_t& view_id, const size_t& rel_id)
 bool CppGenerator::resortRelation(const size_t& rel_id, const size_t& view_id)
 {
     TDNode* rel = _td->getRelation(rel_id);
-    
+
     size_t orderIdx = 0;
     for (const size_t& var : variableOrder[view_id])
     {
@@ -6495,7 +6495,7 @@ bool CppGenerator::resortRelation(const size_t& rel_id, const size_t& view_id)
             ++orderIdx;
         }
     }
-    
+
     return false;
 }
 
@@ -6545,7 +6545,7 @@ std::string CppGenerator::genPointerArrays(const std::string& rel,
 }
 
 
-// One Generic Case for Seek Value 
+// One Generic Case for Seek Value
 std::string CppGenerator::seekValueCase(size_t depth, const std::string& rel_name,
                                         const std::string& attr_name,
                                         bool parallel)
@@ -6555,11 +6555,11 @@ std::string CppGenerator::seekValueCase(size_t depth, const std::string& rel_nam
         offset(5+depth)+"if("+rel_name+"[lowerptr_"+rel_name+"["+
         std::to_string(depth)+"]]."+attr_name+" == max_"+attr_name+")\n"+
         offset(6+depth)+"found["+std::to_string(depth)+"] = true;\n"+
-        // else if 
+        // else if
         offset(5+depth)+"else if(max_"+attr_name+" > "+rel_name+"["+
         getUpperPointer(rel_name, depth, parallel)+"]."+attr_name+")\n"+
         offset(6+depth)+"atEnd["+std::to_string(depth)+"] = true;\n"+
-        //else 
+        //else
         offset(5+depth)+"else\n"+offset(5+depth)+"{\n"+
         /* Calling genFindUpperBound Function */
         genFindUpperBound(rel_name,attr_name,depth, parallel)+
@@ -6575,15 +6575,15 @@ std::string CppGenerator::seekValueCase(size_t depth, const std::string& rel_nam
         offset(5+depth)+"break;\n";
 }
 
-// One Generic Case for Seek Value 
+// One Generic Case for Seek Value
 std::string CppGenerator::seekValueGenericJoin(
     size_t depth, const std::string& rel_name, const std::string& attr_name,
     bool parallel, bool firstFactor)
 {
     const std::string depthString = std::to_string(depth);
     const std::string upperPointer = getUpperPointer(rel_name,depth,parallel);
-    
-    std::string findUpperBound = 
+
+    std::string findUpperBound =
         offset(5+depth)+"leap = 1;\n"+
         offset(5+depth)+"high = lowerptr_"+rel_name+"["+depthString+"];\n"+
         offset(5+depth)+"while (high <= "+
@@ -6596,7 +6596,7 @@ std::string CppGenerator::seekValueGenericJoin(
     /*
      * When we found an upper bound; to find the least upper bound;
      * use binary search to backtrack.
-     */ 
+     */
     findUpperBound += offset(5+depth)+"/* Backtrack with binary search */\n"+
         // offset(6+depth)+"if (leap > 2 && max_"+attr_name+" <= "+rel_name+
         // "[lowerptr_"+rel_name+"["+depthString+"]]."+attr_name+")\n"
@@ -6645,17 +6645,17 @@ std::string CppGenerator::seekValueGenericJoin(
             offset(5+depth)+"continue;\n"+
             offset(4+depth)+"}\n";
     }
-    
-    
+
+
     return /*offset(4+depth)+"if("+rel_name+"[lowerptr_"+rel_name+"["+
         std::to_string(depth)+"]]."+attr_name+" == max_"+attr_name+")\n"+
         offset(5+depth)+"found["+depthString+"] = true;\n"+*/
-        // else if 
+        // else if
         offset(4+depth)+"if(max_"+attr_name+" > "+rel_name+"["+
         getUpperPointer(rel_name, depth, parallel)+"]."+attr_name+")\n"+
         offset(4+depth)+"{\n"+offset(5+depth)+"atEnd["+depthString+"] = true;\n"+
         offset(5+depth)+"break;\n"+offset(4+depth)+"}\n"+
-        //else 
+        //else
         offset(4+depth)+"else if (max_"+attr_name+" > "+
         rel_name+"[lowerptr_"+rel_name+"["+depthString+"]]."+attr_name+")\n"+
         offset(4+depth)+"{\n"+findUpperBound+
@@ -6706,7 +6706,7 @@ std::string CppGenerator::getLowerPointer(const std::string rel_name, size_t dep
         return "0";
     return "lowerptr_"+rel_name+"["+std::to_string(depth-1)+"]";
 }
-    
+
 std::string CppGenerator::updateRanges(size_t depth, const std::string& rel_name,
                                        const std::string& attr_name, bool parallel)
 {
@@ -6744,15 +6744,15 @@ std::string CppGenerator::getFunctionString(Function* f, std::string& fvars)
     case Operation::lr_cat_parameter :
         return "(0.15)";  // "_param["+fvars+"]"; // // TODO: THIS NEEDS TO BE A
                           // CATEGORICAL PARAMETER - Index?!
-    case Operation::indicator_eq : 
+    case Operation::indicator_eq :
         return "("+fvars+" == "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
-    case Operation::indicator_lt : 
+    case Operation::indicator_lt :
         return "("+fvars+" <= "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
-    case Operation::indicator_neq : 
+    case Operation::indicator_neq :
         return "("+fvars+" != "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
-    case Operation::indicator_gt : 
+    case Operation::indicator_gt :
         return "("+fvars+" > "+std::to_string(f->_parameter[0])+" ? 1 : 0)";
-    case Operation::dynamic : 
+    case Operation::dynamic :
         return  f->_name+"("+fvars+")";
     default : return "f("+fvars+")";
     }
@@ -6762,7 +6762,7 @@ std::string CppGenerator::genRunFunction(bool parallelize)
 {
     std::string returnString = offset(1)+"void run()\n"+
         offset(1)+"{\n";
-    
+
     returnString += offset(2)+"int64_t startLoading = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count();\n\n"+
         offset(2)+"loadRelations();\n\n"+
@@ -6774,7 +6774,7 @@ std::string CppGenerator::genRunFunction(bool parallelize)
         "std::ofstream::app);\n"+
         offset(2)+"ofs << loadTime;\n"+
         offset(2)+"ofs.close();\n\n";
-    
+
     returnString += offset(2)+"int64_t startSorting = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count();\n\n";
 
@@ -6801,7 +6801,7 @@ std::string CppGenerator::genRunFunction(bool parallelize)
             returnString += offset(2)+"sort"+node->_name+"Thread.join();\n";
         }
     }
-    
+
     returnString += "\n"+offset(2)+"int64_t sortingTime = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count()-startSorting;\n"+
         offset(2)+"std::cout << \"Data sorting: \" + "+
@@ -6814,7 +6814,7 @@ std::string CppGenerator::genRunFunction(bool parallelize)
     returnString += offset(2)+"int64_t startProcess = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count();\n\n";
 
-// #ifndef OPTIMIZED    
+// #ifndef OPTIMIZED
 //     for (size_t view = 0; view < _qc->numberOfViews(); ++view)
 //         returnString += offset(2)+"computeView"+std::to_string(view)+"();\n";
 // #else
@@ -6828,14 +6828,14 @@ std::string CppGenerator::genRunFunction(bool parallelize)
             // else
             //     returnString +=
             //     offset(2)+"computeGroup"+std::to_string(group)+"();\n";
-            
+
             returnString += offset(2)+"computeGroup"+std::to_string(group)+"();\n";
         }
     }
     else
     {
         std::vector<bool> joinedGroups(viewGroups.size());
-    
+
         for (size_t group = 0; group < viewGroups.size(); ++group)
         {
             for (const size_t& viewID : groupIncomingViews[group])
@@ -6850,7 +6850,7 @@ std::string CppGenerator::genRunFunction(bool parallelize)
                 }
             }
 
-            // if (_parallelizeGroup[group])            
+            // if (_parallelizeGroup[group])
             //     returnString += offset(2)+"std::thread group"+std::to_string(group)+
             //         "Thread(computeGroup"+std::to_string(group)+"Parallelized);\n";
             // else
@@ -6858,7 +6858,7 @@ std::string CppGenerator::genRunFunction(bool parallelize)
             //         "Thread(computeGroup"+std::to_string(group)+");\n";
 
             returnString += offset(2)+"std::thread group"+std::to_string(group)+
-                    "Thread(computeGroup"+std::to_string(group)+");\n";            
+                    "Thread(computeGroup"+std::to_string(group)+");\n";
         }
 
         for (size_t group = 0; group < viewGroups.size(); ++group)
@@ -6872,15 +6872,15 @@ std::string CppGenerator::genRunFunction(bool parallelize)
     // returnString += "\n"+offset(2)+"std::cout << \"Data process: \"+"+
     //     "std::to_string(duration_cast<milliseconds>("+
     //     "system_clock::now().time_since_epoch()).count()-startProcess)+\"ms.\\n\";\n\n";
-    
+
     returnString += "\n"+offset(2)+"int64_t processTime = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count()-startProcess;\n"+
         offset(2)+"std::cout << \"Data process: \"+"+
         "std::to_string(processTime)+\"ms.\\n\";\n"+
         offset(2)+"ofs.open(\"times.txt\",std::ofstream::out | std::ofstream::app);\n"+
         offset(2)+"ofs << \"\\t\" << processTime;\n";
-    
-    
+
+
 // #ifdef BENCH_INDIVIDUAL
     for (size_t view = 0; view < _qc->numberOfViews(); ++view)
     {
@@ -6891,19 +6891,23 @@ std::string CppGenerator::genRunFunction(bool parallelize)
     if (_hasApplicationHandler)
     {
         returnString += offset(2)+"ofs.close();\n\n"+
-            offset(2)+"int64_t appProcess = duration_cast<milliseconds>("+
+            offset(2)+"int64_t startAppProcess = duration_cast<milliseconds>("+
             "system_clock::now().time_since_epoch()).count();\n\n";
 
 #ifdef BENCH_INDIVIDUAL
         returnString += offset(2)+"std::cout << \"run Application:\\n\";\n";
 #endif
-        returnString += offset(2)+"runApplication();\n"; 
+        returnString += offset(2)+"runApplication();\n"+
+        "\n"+offset(2)+"int64_t processAppTime = duration_cast<milliseconds>("+
+        "system_clock::now().time_since_epoch()).count()-startAppProcess;\n"+
+        offset(2)+"std::cout << \"App process: \"+"+
+        "std::to_string(processAppTime)+\"ms.\\n\";\n";
     }
-    else {        
+    else {
         returnString += offset(2)+"ofs << std::endl;\n"+
             offset(2)+"ofs.close();\n\n";
     }
-    
+
     return returnString+offset(1)+"}\n";
 }
 
@@ -6920,10 +6924,10 @@ std::string CppGenerator::genRunFunction(bool parallelize)
 //         offset(2)+"std::cout << \"Data loading: \" + std::to_string("+
 //         "duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count()-"+
 //         "startLoading)+\"ms.\\n\";\n\n";
-    
+
 //     returnString += offset(2)+"int64_t startSorting = duration_cast<milliseconds>("+
 //         "system_clock::now().time_since_epoch()).count();\n\n";
-    
+
 //     for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
 //     {
 //         TDNode* node = _td->getRelation(rel);
@@ -6974,10 +6978,10 @@ std::string CppGenerator::genRunFunction(bool parallelize)
 //         if(!joinedViews[view])
 //             returnString += offset(2)+"view"+std::to_string(view)+"Thread.join();\n";
 //     }
-    
+
 // #else
 //     std::vector<bool> joinedGroups(viewGroups.size());
-    
+
 //     for (size_t group = 0; group < viewGroups.size(); ++group)
 //     {
 //         for (const size_t& viewID : groupIncomingViews[group])
@@ -6992,7 +6996,7 @@ std::string CppGenerator::genRunFunction(bool parallelize)
 //             }
 //         }
 
-//         if (_parallelizeGroup[group])            
+//         if (_parallelizeGroup[group])
 //             returnString += offset(2)+"std::thread group"+std::to_string(group)+
 //                 "Thread(computeGroup"+std::to_string(group)+"Parallelized);\n";
 //         else
@@ -7005,7 +7009,7 @@ std::string CppGenerator::genRunFunction(bool parallelize)
 //         if (!joinedGroups[group])
 //             returnString += offset(2)+"group"+std::to_string(group)+"Thread.join();\n";
 //     }
-    
+
 // #endif
 
 //     returnString += "\n"+offset(2)+"std::cout << \"Data process: \"+"+
@@ -7017,7 +7021,7 @@ std::string CppGenerator::genRunFunction(bool parallelize)
 //         returnString += offset(2)+"std::cout << \""+viewName[view]+": \" << "+
 //             viewName[view]+".size() << std::endl;\n";
 //     }
-    
+
 //     return returnString+offset(1)+"}\n#endif\n";
 // }
 
@@ -7028,7 +7032,7 @@ std::string CppGenerator::genFindUpperBound(const std::string& rel_name,
 {
     const std::string depthString = std::to_string(depth);
     const std::string upperPointer = getUpperPointer(rel_name,depth,parallel);
-    
+
     std::string returnString = offset(6+depth)+"min_"+attrName+" = "+
         rel_name+"[lowerptr_"+rel_name+"["+depthString+"]]."+attrName +";\n"+
         offset(6+depth)+"size_t leap = 1;\n"+
@@ -7050,7 +7054,7 @@ std::string CppGenerator::genFindUpperBound(const std::string& rel_name,
     /*
      * When we found an upper bound; to find the least upper bound;
      * use binary search to backtrack.
-     */ 
+     */
     returnString += offset(6+depth)+"/* Backtrack with binary search */\n"+
         offset(6+depth)+"if (leap > 2 && max_"+attrName+" <= "+rel_name+
         "[lowerptr_"+rel_name+"["+depthString+"]]."+attrName+")\n"+offset(6+depth)+"{\n"+
@@ -7082,7 +7086,7 @@ std::string CppGenerator::genTestFunction()
         offset(1)+"void ouputViewsForTesting()\n"+
         offset(1)+"{\n"+offset(2)+"std::ofstream ofs(\"test.out\");\n"+
         offset(2)+"ofs << std::fixed << std::setprecision(2);\n";
-    
+
     for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
     {
         View* view = _qc->getView(viewID);
@@ -7106,7 +7110,7 @@ std::string CppGenerator::genTestFunction()
         fields.pop_back();
         fields.pop_back();
         fields.pop_back();
-        
+
         returnString += offset(2)+"for (size_t i=0; i < "+viewName[viewID]+
             ".size(); ++i)\n"+offset(2)+"{\n"+offset(3)+
             viewName[viewID]+"_tuple& tuple = "+viewName[viewID]+"[i];\n"+
@@ -7119,10 +7123,10 @@ std::string CppGenerator::genTestFunction()
 
 std::string CppGenerator::genDumpFunction()
 {
-    std::string returnString = "#ifdef DUMP_OUTPUT\n" + 
+    std::string returnString = "#ifdef DUMP_OUTPUT\n" +
             offset(1) + "void dumpOutputViews()\n" + offset(1) + "{\n" +
             offset(2) + "std::ofstream ofs;\n";
-    
+
     for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
     {
         View* view = _qc->getView(viewID);
@@ -7137,9 +7141,9 @@ std::string CppGenerator::genDumpFunction()
             offset(2)+"ofs << \""+dimCountSize+" "+
             viewCountSize+"\\n\" << std::fixed << std::setprecision(2);\n";
 
-   
+
         std::string fields = "";
-        
+
         for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
         {
             if (view->_fVars[var])
@@ -7154,7 +7158,7 @@ std::string CppGenerator::genDumpFunction()
         fields.pop_back();
         fields.pop_back();
         fields.pop_back();
-        
+
         returnString += offset(2)+"for (size_t i=0; i < "+viewName[viewID]+
             ".size(); ++i)\n"+offset(2)+"{\n"+offset(3)+
             tupleType +" = "+viewName[viewID]+"[i];\n"+
@@ -7182,7 +7186,7 @@ std::string CppGenerator::genComputeViewFunction(size_t view_id)
     std::vector<size_t>& incViews = incomingViews[view_id];
 
     /**************************/
-    // Now create the actual join code for this view 
+    // Now create the actual join code for this view
     // Compare with template code
     /**************************/
 
@@ -7191,10 +7195,10 @@ std::string CppGenerator::genComputeViewFunction(size_t view_id)
 
     // ************************************************
     // SORT THE RELATION AND VIEW IF NECESSARY!
-    /* 
+    /*
      * Compares viewSortOrder with the varOrder required - if orders are
-     * different we resort 
-     */ 
+     * different we resort
+     */
     if (resortRelation(view->_origin, view_id))
     {
         returnString += offset(2)+"std::sort("+relName+".begin(),"+
@@ -7209,7 +7213,7 @@ std::string CppGenerator::genComputeViewFunction(size_t view_id)
                 const std::string& attrName = _td->getAttribute(var)->_name;
                 returnString += offset(3)+"if(lhs."+attrName+" != rhs."+attrName+")\n"+
                     offset(4)+"return lhs."+attrName+" < rhs."+attrName+";\n";
-                // Reset the relSortOrder array for future calls 
+                // Reset the relSortOrder array for future calls
                 sortOrders[view->_origin][orderIdx] = var;
                 ++orderIdx;
             }
@@ -7248,13 +7252,13 @@ std::string CppGenerator::genComputeViewFunction(size_t view_id)
                 }
             }
             //returnString += offset(3)+"return 0;\n";
-            
+
             returnString += offset(2)+"});\n";
         }
     }
     // ************************************************
 
-    // Generate min and max values for the join varibales 
+    // Generate min and max values for the join varibales
     // returnString += genMaxMinValues(view_id);
     returnString += genMaxMinValues(varOrder);
 
@@ -7267,21 +7271,21 @@ std::string CppGenerator::genComputeViewFunction(size_t view_id)
     {
         size_t idx = v * (_qc->numberOfViews() + 2);
         arrays += std::to_string(viewsPerVar[idx])+",";
-    }   
+    }
     arrays.pop_back();
 
     returnString += offset(2) +"size_t rel["+numOfJoinVarString+"] = {}, "+
-        "numOfRel["+numOfJoinVarString+"] = {"+arrays+"};\n" + 
+        "numOfRel["+numOfJoinVarString+"] = {"+arrays+"};\n" +
         offset(2) + "bool found["+numOfJoinVarString+"] = {}, "+
         "atEnd["+numOfJoinVarString+"] = {};\n";
 
     // Lower and upper pointer for the base relation
     returnString += genPointerArrays(baseRelation->_name, numOfJoinVarString, false);
-        
+
     // Lower and upper pointer for each incoming view
-    for (const size_t& viewID : incViews)            
+    for (const size_t& viewID : incViews)
         returnString += genPointerArrays(viewName[viewID],numOfJoinVarString, false);
-    
+
     if (view->_fVars.count() == 0)
     {
         returnString += offset(2)+"bool addTuple = false;\n";
@@ -7291,7 +7295,7 @@ std::string CppGenerator::genComputeViewFunction(size_t view_id)
         returnString.pop_back();
         returnString += ";\n";
     }
-    
+
     // for each join var --- create the string that does the join
     returnString += genLeapfrogJoinCode(view_id, 0);
 
@@ -7324,7 +7328,7 @@ std::string CppGenerator::genComputeViewFunction(size_t view_id)
 void CppGenerator::createVariableOrder()
 {
     DINFO("Generate variableOrder \n");
-    
+
     viewsPerNode = new std::vector<size_t>[_td->numberOfRelations()]();
 
     variableOrder = new std::vector<size_t>[_qc->numberOfViews()]();
@@ -7339,21 +7343,21 @@ void CppGenerator::createVariableOrder()
         size_t numberIncomingViews =
             (view->_origin == view->_destination ? baseRelation->_numOfNeighbors :
              baseRelation->_numOfNeighbors - 1);
-        
+
         // for free vars push them on the variableOrder
         for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
             if (view->_fVars[var])
                 variableOrder[viewID].push_back(var);
-        
+
         // Now we find which variables are joined on and which views
         // contribute to this view
         var_bitset joinVars;
         std::vector<bool> incViewBitset(_qc->numberOfViews());
         for (size_t aggNo = 0; aggNo < view->_aggregates.size(); ++aggNo)
-        {            
+        {
             Aggregate* aggregate = view->_aggregates[aggNo];
             size_t incOffset = 0;
-            
+
             // First find the all views that contribute to this Aggregate
             for (size_t i = 0; i < aggregate->_agg.size(); ++i)
             {
@@ -7361,7 +7365,7 @@ void CppGenerator::createVariableOrder()
                 {
                     const size_t& incViewID = aggregate->_incoming[incOffset].first;
                     // Add the intersection of the view and the base
-                    // relation to joinVars 
+                    // relation to joinVars
                     joinVars |= (_qc->getView(incViewID)->_fVars &
                                  baseRelation->_bag);
                     // Indicate that this view contributes to some aggregate
@@ -7372,7 +7376,7 @@ void CppGenerator::createVariableOrder()
         }
 
         // For all join vars that are not free vars, add them to the
-        // variable order 
+        // variable order
         var_bitset additionalVars = joinVars & ~view->_fVars;
         for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
             if (additionalVars[var])
@@ -7393,7 +7397,7 @@ void CppGenerator::createVariableOrder()
                 ++off;
             }
         }
-        
+
         // For each incoming view, check if it contains any vars from the
         // variable order and then add it to the corresponding info
         for (size_t incViewID=0; incViewID < _qc->numberOfViews(); ++incViewID)
@@ -7402,7 +7406,7 @@ void CppGenerator::createVariableOrder()
             {
                 incomingViews[viewID].push_back(incViewID);
                 const var_bitset& viewFVars = _qc->getView(incViewID)->_fVars;
-                    
+
                 for (size_t var=0; var < variableOrder[viewID].size(); ++var)
                 {
                     if (viewFVars[variableOrder[viewID][var]])
@@ -7416,9 +7420,9 @@ void CppGenerator::createVariableOrder()
             }
         }
 
-        // Keep track of the views that origin from this node 
+        // Keep track of the views that origin from this node
         viewsPerNode[view->_origin].push_back(viewID);
-        
+
 /* PRINT OUT */
         // std::cout << viewID << " : ";
         // for(size_t& n : variableOrder[viewID]) std::cout << n <<" ";
@@ -7446,14 +7450,14 @@ std::string CppGenerator::genRelationOrdering(
     const std::string& attr_name = attr->_name;
     const std::string attrType = typeToStr(attr->_type);
     const std::string depthString = std::to_string(depth);
-    
+
     size_t idx = depth * (_qc->numberOfViews() + 2);
     size_t numberContributing = viewsPerVarInfo[view_id][idx];
     if (numberContributing == 2)
     {
         std::string first, firstID;
         if (viewsPerVarInfo[view_id][idx+1] == _qc->numberOfViews())
-        {    
+        {
             first = rel_name+"[lowerptr_"+rel_name+"["+depthString+"]]."+attr_name;
             firstID = rel_name+"_ID";
         }
@@ -7485,11 +7489,11 @@ std::string CppGenerator::genRelationOrdering(
             offset(2+depth)+"}\n";
     }
     else
-    {    
+    {
         res += offset(2+depth)+"std::pair<"+attrType+", int> order_"+attr_name+"["+
             std::to_string(numberContributing)+"] = \n"+
             offset(3+depth)+"{";
-        
+
         size_t off = 1;
         if (viewsPerVarInfo[view_id][idx+1] == _qc->numberOfViews())
         {
@@ -7498,7 +7502,7 @@ std::string CppGenerator::genRelationOrdering(
                 rel_name+"_ID),";
             off = 2;
         }
-        
+
         for (; off <= numberContributing; ++off)
         {
             size_t viewID = viewsPerVarInfo[view_id][idx+off];
@@ -7508,14 +7512,14 @@ std::string CppGenerator::genRelationOrdering(
         }
         res.pop_back();
         res += "\n"+offset(3+depth)+"};\n";
-    
+
         res += offset(2+depth)+"std::sort(order_"+attr_name+", order_"+attr_name+
             " + "+std::to_string(numberContributing)+",[](const std::pair<"+
             attrType+",int> &lhs, const std::pair<"+attrType+",int> &rhs)\n"+
             offset(3+depth)+"{\n"+offset(4+depth)+"return lhs.first < rhs.first;\n"+
             offset(3+depth)+"});\n";
     }
-    
+
     res += offset(2+depth)+"min_"+attr_name+" = order_"+attr_name+"[0].first;\n";
     res += offset(2+depth)+"max_"+attr_name+" = order_"+attr_name+"["+
         std::to_string(numberContributing-1)+"].first;\n";
@@ -7530,10 +7534,10 @@ std::string CppGenerator::genAggregateString(
 {
     std::string returnString = "", localAggregates = "";
     std::string depthString = std::to_string(depth);
-    
+
     size_t numOfLoops = consideredLoops.count();
     dyn_bitset nextLoops(_qc->numberOfViews());
-    
+
     for (size_t agg = 0; agg < aggRegister.size(); agg++)
     {
         if (includableAggs[agg])
@@ -7559,7 +7563,7 @@ std::string CppGenerator::genAggregateString(
                     localAggregates += offset(3+depth+numOfLoops)+
                         "aggregateRegister_"+depthString+
                         "["+std::to_string(agg)+"] += "+aggRegister[agg];
-                    
+
                     includableAggs.reset(agg);
                 }
             }
@@ -7592,14 +7596,14 @@ std::string CppGenerator::genAggregateString(
 
                 returnString += genAggregateString(aggRegister,loopReg,
                     nextConsideredLoops, includableAggs, depth);
-            
+
                 returnString += offset(4+depth+numOfLoops)+
                     "++ptr_"+viewName[viewID]+";\n"+
                     offset(3+depth+numOfLoops)+"}\n";
             }
         }
     }
-    
+
     return returnString + localAggregates;
 }
 
@@ -7610,15 +7614,15 @@ std::string CppGenerator::genFinalAggregateString(
 {
     size_t numOfLoops = consideredLoops.count();
     dyn_bitset nextLoops(_qc->numberOfViews());
-    
+
     std::string depthString = std::to_string(depth);
-    
+
     std::string aggregateString = "";
     for (size_t agg = 0; agg < aggRegister.size(); ++agg)
     {
         if (includableAggs[agg])
         {
-            // TODO: TODO: TODO: IS THIS CORRECT ??  ?? ?? 
+            // TODO: TODO: TODO: IS THIS CORRECT ??  ?? ??
             if ((loopReg[agg] & consideredLoops) == consideredLoops)
             {
                 // add the aggregate at this level
@@ -7640,13 +7644,13 @@ std::string CppGenerator::genFinalAggregateString(
         if ((viewLoopFactors[viewID] & consideredLoops) == consideredLoops)
         {
             // std::cout << "includableView: "<< viewID << std::endl;
-            
+
             // should wrap it in the loop
             dyn_bitset remainingLoops = viewLoopFactors[viewID] & ~consideredLoops;
 
             // check if there are any aggregates that can be computed here
             // if so add it in
-            
+
             // recurse to the next loop(s)
             // -- first check any next view loops
             // -- then check for any next agg loops
@@ -7654,7 +7658,7 @@ std::string CppGenerator::genFinalAggregateString(
             if (remainingLoops.any())
             {
                 // std::cout << "HERE remainingLoops.any()\n";
-                
+
                 // need to continue with this the next loop
                 for (size_t view=0; view < _qc->numberOfViews(); ++view)
                 {
@@ -7695,8 +7699,8 @@ std::string CppGenerator::genFinalAggregateString(
                 {
                     View* view = _qc->getView(viewID);
                     TDNode* node = _td->getRelation(view->_origin);
-                    
-                    std::string viewVars = "";            
+
+                    std::string viewVars = "";
                     for (size_t v = 0; v < NUM_OF_VARIABLES; ++v)
                     {
                         if (view->_fVars[v])
@@ -7766,7 +7770,7 @@ std::string CppGenerator::genFinalAggregateString(
                         //     exit(1);
                         // }
                     }
-                    
+
                     // add loop to add to the aggregate Array
                     size_t numOfIndexes = finalAggregateIndexes[viewID].size();
 
@@ -7780,7 +7784,7 @@ std::string CppGenerator::genFinalAggregateString(
                     // THE COMPUTE METHOD
                     aggregateHeader +=  offset(2)+"size_t "+viewName[viewID]+"Indexes["+
                         std::to_string(numOfIndexes)+"] = {"+indexes+"};\n";
-                    
+
                     outputString += offset(offDepth+numOfLoops)+"for(size_t i = 0; i < "+
                         std::to_string(numOfIndexes)+"; i += "+
                         std::to_string(numAggregateIndexes[viewID])+")\n"+
@@ -7788,19 +7792,19 @@ std::string CppGenerator::genFinalAggregateString(
                         viewName[viewID]+"["+viewName[viewID]+"Indexes[i]] += "+
                         "aggregateRegister_"+std::to_string(depth)+"["+
                         viewName[viewID]+"Indexes[i+1]]";
-        
-                    if (numAggregateIndexes[viewID] == 3) 
+
+                    if (numAggregateIndexes[viewID] == 3)
                         outputString += "*aggregateRegister_"+std::to_string(depth)+"["+viewName[viewID]+"Indexes[i+2]];\n";
                     else if (numAggregateIndexes[viewID] == 2)
                         outputString += ";\n";
-        
+
                     addedViews.set(viewID);
                 }
             }
         }
     }
 
-    std::string returnString = "";    
+    std::string returnString = "";
     if (nextLoops.any())
     {
         for (size_t viewID=0; viewID < _qc->numberOfViews(); ++viewID)
@@ -7834,11 +7838,11 @@ std::string CppGenerator::genFinalAggregateString(
             }
         }
     }
-    
+
     return aggregateString + returnString + outputString;
 }
 
-#endif 
+#endif
 
 
 #ifdef OLD
@@ -7847,17 +7851,17 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
     std::string returnString = "";
 
 #ifdef PREVIOUS
-    
+
     View* view = _qc->getView(view_id);
     TDNode* node = _td->getRelation(view->_origin);
-    
+
     const std::vector<size_t>& varOrder = variableOrder[view_id];
     const std::vector<size_t>& viewsPerVar = viewsPerVarInfo[view_id];
     const std::vector<size_t>& incViews = incomingViews[view_id];
 
     const std::string& attrName = _td->getAttribute(varOrder[depth])->_name;
     const std::string& relName = node->_name;
-    
+
     size_t numberIncomingViews =
         (view->_origin == view->_destination ? node->_numOfNeighbors :
          node->_numOfNeighbors - 1);
@@ -7866,7 +7870,7 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
     size_t numberContributing = viewsPerVarInfo[view_id][idx];
 
     std::string depthString = std::to_string(depth);
-    
+
     size_t off = 1;
     if (depth > 0)
     {
@@ -7877,7 +7881,7 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
             "lowerptr_"+relName+"["+std::to_string(depth-1)+"];\n";
 
         for (const size_t& viewID : incViews)
-        {   
+        {
             returnString +=
                 offset(2+depth)+"upperptr_"+viewName[viewID]+"["+depthString+"] = "+
                 "upperptr_"+viewName[viewID]+"["+std::to_string(depth-1)+"];\n"+
@@ -7885,17 +7889,17 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
                 "lowerptr_"+viewName[viewID]+"["+std::to_string(depth-1)+"];\n";
         }
     }
-        
-    // Ordering Relations 
+
+    // Ordering Relations
     returnString += genRelationOrdering(relName, depth, view_id);
-            
-    // Update rel pointers 
+
+    // Update rel pointers
     returnString += offset(2+depth)+
         "rel["+depthString+"] = 0;\n";
     returnString += offset(2+depth)+
         "atEnd["+depthString+"] = false;\n";
 
-    // Start while loop of the join 
+    // Start while loop of the join
     returnString += offset(2+depth)+"while(!atEnd["+
         depthString+"])\n"+
         offset(2+depth)+"{\n"+
@@ -7908,7 +7912,7 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
         offset(4+depth)+"switch(order_"+attrName+"[rel["+
         depthString+"]].second)\n" +
         offset(4+depth)+"{\n";
-        
+
     off = 1;
     if (viewsPerVarInfo[view_id][idx+1] == _qc->numberOfViews())
     {
@@ -7916,7 +7920,7 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
         returnString += seekValueCase(depth, relName, attrName,false);
         off = 2;
     }
-        
+
     for (; off <= numberContributing; ++off)
     {
         const size_t& viewID = viewsPerVarInfo[view_id][idx+off];
@@ -7924,14 +7928,14 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
         returnString += seekValueCase(depth,viewName[viewID],attrName,false);
     }
     returnString += offset(4+depth)+"}\n";
-        
+
     // Close the do loop
     returnString += offset(3+depth)+"} while (!found["+
         depthString+"] && !atEnd["+
         depthString+"]);\n" +
         offset(3+depth)+"// End Seek Value\n";
     // End seek value
-        
+
     // check if atEnd
     returnString += offset(3+depth)+"// If atEnd break loop\n"+
         offset(3+depth)+"if(atEnd["+depthString+"])\n"+
@@ -7939,13 +7943,13 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
 
     off = 1;
     if (viewsPerVarInfo[view_id][idx+1] == _qc->numberOfViews())
-    {            
+    {
         // Set upper = lower and update ranges
         returnString += offset(3+depth)+
             "upperptr_"+relName+"["+depthString+"] = "+
             "lowerptr_"+relName+"["+depthString+"];\n";
 
-        // update range for base relation 
+        // update range for base relation
         returnString += updateRanges(depth,relName,attrName,false);
         off = 2;
     }
@@ -7959,10 +7963,10 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
             "["+depthString+"] = "+
             "lowerptr_"+viewName[viewID]+
             "["+depthString+"];\n";
-        
+
         returnString += updateRanges(depth,viewName[viewID],attrName,false);
     }
-        
+
     if (depth + 1 == view->_fVars.count())
     {
         returnString += offset(3+depth)+"bool addTuple = false;\n";
@@ -7972,11 +7976,11 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
         returnString.pop_back();
         returnString += ";\n";
     }
-        
+
     // then you would need to go to next variable
     if (depth+1 < varOrder.size())
-    {     
-        // leapfrogJoin for next join variable 
+    {
+        // leapfrogJoin for next join variable
         returnString += genLeapfrogJoinCode(view_id, depth+1);
     }
     else
@@ -7985,13 +7989,13 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
             "/****************AggregateComputation*******************/\n";
 
         returnString += offset(3+depth)+"addTuple = true;\n";
-        
+
         std::unordered_map<std::vector<bool>,std::string> aggregateSection;
         for (size_t aggID = 0; aggID < view->_aggregates.size(); ++aggID)
         {
             // get the aggregate pointer
             Aggregate* aggregate = view->_aggregates[aggID];
-            
+
             // UPDATE THE AGGREGATE WITH THE AGG YOU WANT TO DO!
             std::string agg = "";
             size_t aggIdx = 0, incomingCounter = 0;
@@ -7999,12 +8003,12 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
             {
                 std::vector<bool> loopFactors(_qc->numberOfViews() + 1);
                 size_t numLoopFactors = 0;
-                    
+
                 // This loop defines the local aggregates computed at this node
                 std::string localAgg = "";
                 while (aggIdx < aggregate->_m[i])
-                {    
-                    const prod_bitset& product = aggregate->_agg[aggIdx];           
+                {
+                    const prod_bitset& product = aggregate->_agg[aggIdx];
                     for (size_t f = 0; f < NUM_OF_FUNCTIONS; ++f)
                     {
                         if (product.test(f))
@@ -8033,7 +8037,7 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
 
                                             if (!loopFactors[_qc->numberOfViews()])
                                                 ++numLoopFactors;
-                                                        
+
                                             loopFactors[_qc->numberOfViews()] = 1;
                                         }
                                     }
@@ -8081,9 +8085,9 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
                                                             ++numLoopFactors;
                                                         loopFactors[viewID] = 1;
                                                     }
-                                                        
+
                                                     found = true;
-                                                    break; 
+                                                    break;
                                                 }
                                                 incCounter += 2;
                                             }
@@ -8102,7 +8106,7 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
                                 freeVarString.pop_back();
 
                             // This is just one function that we want to
-                            // multiply with other functions and 
+                            // multiply with other functions and
                             // turn function into a string of cpp-code
                             localAgg += getFunctionString(function,freeVarString)+"*";
                         }
@@ -8145,7 +8149,7 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
                                 ".agg_"+std::to_string(viewID)+"_"+
                                 std::to_string(aggID)+"*";
                         }
-                            
+
                         incomingCounter += 2;
                     }
                     viewAgg.pop_back();
@@ -8153,28 +8157,28 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
                 }
                 if (viewAgg.size() != 0)
                     viewAgg.pop_back();
-                    
+
                 std::string aggregateString = offset(3+depth+numLoopFactors)+
                     "agg_"+std::to_string(aggID)+" += ";
                 if (viewAgg.size() > 0 && localAgg.size() > 0)
                     aggregateString += "("+localAgg+")*("+viewAgg+");\n";
-                else 
+                else
                     aggregateString += localAgg+viewAgg+";\n"; // One is empty
-                    
+
                 auto it = aggregateSection.find(loopFactors);
                 if (it != aggregateSection.end())
                     it->second += aggregateString;
                 else
-                    aggregateSection[loopFactors] = aggregateString;                    
+                    aggregateSection[loopFactors] = aggregateString;
             } // end localAggregate (i.e. one product)
-                
+
         } // end complete Aggregate
-            
+
         for (const auto& loopCondition : aggregateSection)
         {
             size_t loopCounter = 0;
             std::string closeLoopString = "";
-                
+
             if (loopCondition.first[_qc->numberOfViews()]) // Then loop over
                 // relation
             {
@@ -8188,11 +8192,11 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
                     offset(3+depth)+"}\n";
                 ++loopCounter;
             }
-                
+
             for (size_t viewID=0; viewID < _qc->numberOfViews(); ++viewID)
             {
                 if (loopCondition.first[viewID])
-                {                        
+                {
                     returnString += offset(3+depth)+"size_t ptr_"+viewName[viewID]+
                         " = lowerptr_"+viewName[viewID]+"["+depthString+"]\n";
 
@@ -8249,10 +8253,10 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
         returnString += "});\n";
     }
 
-    // Set lower to upper pointer 
+    // Set lower to upper pointer
     off = 1;
     if (viewsPerVarInfo[view_id][idx+1] == _qc->numberOfViews())
-    {            
+    {
         // Set upper = lower and update ranges
         returnString += offset(3+depth)+
             "lowerptr_"+relName+"["+depthString+"] = "+
@@ -8273,10 +8277,10 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
         "switch(order_"+attrName+"[rel["+depthString+"]].second)\n";
     returnString += offset(3+depth)+"{\n";
 
-    // Add switch cases to the switch 
+    // Add switch cases to the switch
     off = 1;
     if (viewsPerVarInfo[view_id][idx+1] == _qc->numberOfViews())
-    {            
+    {
         returnString += updateMaxCase(depth,relName,attrName,false);
         off = 2;
     }
@@ -8288,8 +8292,8 @@ std::string CppGenerator::genLeapfrogJoinCode(size_t view_id, size_t depth)
     }
     returnString += offset(3+depth)+"}\n";
 
-#endif    
-    // Closing the while loop 
+#endif
+    // Closing the while loop
     return returnString + offset(2+depth)+"}\n";
 }
 #endif

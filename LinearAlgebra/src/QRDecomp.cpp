@@ -52,8 +52,8 @@ namespace LMFAO::LinearAlgebra
         mNumFeatsExp = numFeatsExp - 1;
         mNumFeats = numFeats - 1;
         mNumFeatsCont = numFeatsCont - 1;
-        std::cout << mNumFeatsExp << " " << mNumFeatsExp << " " <<
-            mNumFeatsCont << std::endl;
+        //std::cout << mNumFeatsExp << " " << mNumFeatsExp << " " <<
+        //    mNumFeatsCont << std::endl;
         mNumFeatsCat = mNumFeats - mNumFeatsCont;
         mSigma = Eigen::MatrixXd::Zero(mNumFeatsExp, mNumFeatsExp);
 
@@ -70,7 +70,7 @@ namespace LMFAO::LinearAlgebra
         }
         //std::cout << vIsCat.size() << std::endl;
         const_cast<std::vector<bool>&>(vIsCat).erase(vIsCat.begin());
-        std::cout << vIsCat.size() << std::endl;
+        //std::cout << vIsCat.size() << std::endl;
         rearrangeMatrix(vIsCat);
     }
 

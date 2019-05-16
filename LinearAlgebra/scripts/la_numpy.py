@@ -31,7 +31,7 @@ def dump_qr(r):
     r_positive = np.dot(matr_sgn_r, r)
 
     with open("QR.txt", "w") as file:
-        print(r_positive.shape[0], r_positive.shape[1])
+        #print(r_positive.shape[0], r_positive.shape[1])
         file.write("{} {}\n".format(r_positive.shape[0], r_positive.shape[1]))
         row_num = r_positive.shape[0]
         col_num = r_positive.shape[1]
