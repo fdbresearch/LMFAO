@@ -6,7 +6,8 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 import sys
-
+from timeit import default_timer as timer
+import os
 
 class DummyEncoder(BaseEstimator, TransformerMixin):
     def transform(self, X):
@@ -25,12 +26,12 @@ class IdentityTransformer(BaseEstimator, TransformerMixin):
         return self
 
 
-def dump_qr(r):
+def dump_qr(r, dump_file):
     diag_sgn_r = np.sign(r.diagonal())
     matr_sgn_r = np.diag(diag_sgn_r)
     r_positive = np.dot(matr_sgn_r, r)
 
-    with open("QR.txt", "w") as file:
+    with open(dump_file, "w") as file:
         #print(r_positive.shape[0], r_positive.shape[1])
         file.write("{} {}\n".format(r_positive.shape[0], r_positive.shape[1]))
         row_num = r_positive.shape[0]
@@ -40,29 +41,9 @@ def dump_qr(r):
                 file.write("{} ".format(r_positive[row, col]))
             file.write("\n")
 
-
-if __name__ == "__main__":
-    parser = ArgumentParser()
-    parser.add_argument("-f", "--features", dest="features", required=True)
-    parser.add_argument("-c", "--categorical_features", dest="categorical_features", required=True)
-    parser.add_argument("-d", "--data_path", dest="data_path", required=True)
-    parser.add_argument("-o", "--operation", dest="operation", required=True)
-    parser.add_argument("--dump", dest="dump", required=True)
-
-    np.set_printoptions(threshold=sys.maxsize, precision=20)
-    pd.set_option('display.max_columns', 500)
-    args = parser.parse_args()
-    features = args.features
-    cat_featurs = args.categorical_features
-    data_path = args.data_path
-    operation = args.operation
-    dump = args.dump
-    columns = features.split(",")
-
-    columns_cat = cat_featurs.split(",")
-
+def run_test(data, columns, columns_cat, dump, dump_file):
+    start = timer()
     transformer_a = []
-    data = pd.read_csv(data_path, names=columns, delimiter="|", header=None)
     for column in columns:
         if column in columns_cat:
             transf_name = column + "_onehot"
@@ -84,4 +65,36 @@ if __name__ == "__main__":
         #  whose diagonal is sign of diagonal of R
         r = np.linalg.qr(one_hot_a, mode='r')
         if dump:
-            dump_qr(r)
+            dump_qr(r, dump_file)
+
+    end = timer()
+    print(end - start)
+
+
+if __name__ == "__main__":
+    parser = ArgumentParser()
+    parser.add_argument("-f", "--features", dest="features", required=True)
+    parser.add_argument("-c", "--categorical_features", dest="categorical_features", required=True)
+    parser.add_argument("-d", "--data_path", dest="data_path", required=True)
+    parser.add_argument("-o", "--operation", dest="operation", required=True)
+    parser.add_argument("-n", "--num_it", dest="num_it", required=True)
+    parser.add_argument("-D", "--dump_file", dest="dump_file", required=False)
+    parser.add_argument('--dump', dest="dump", action='store_true')
+
+    np.set_printoptions(threshold=sys.maxsize, precision=20)
+    pd.set_option('display.max_columns', 500)
+    args = parser.parse_args()
+    features = args.features
+    cat_featurs = args.categorical_features
+    data_path = args.data_path
+    operation = args.operation
+    num_it = int(args.num_it)
+    dump_file = args.dump_file
+    dump = args.dump if args.dump else False
+    columns = features.split(",")
+    columns_cat = cat_featurs.split(",")
+
+    data = pd.read_csv(data_path, names=columns, delimiter="|", header=None)
+
+    for it in range(0, num_it):
+        run_test(data, columns, columns_cat, dump, dump_file)

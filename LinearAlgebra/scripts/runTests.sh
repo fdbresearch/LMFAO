@@ -14,6 +14,7 @@ function init_global_paths()
     DFDB_SH_JOIN_RES_PATH="${DFDB_SH_RUNTIME_SQL}/joinresult.txt"
     DFDB_SH_LOG_PATH="${DFDB_SH_LA}/logs"
     DFDB_SH_COMP_PATH="${DFDB_SH_LA}/comparisons"
+    DFDB_SH_DUMP_PATH="${DFDB_SH_LA}/dumps"
 }
 
 function init_global_vars()
@@ -27,6 +28,7 @@ function init_global_vars()
     DFDB_SH_FEATURES=()
     DFDB_SH_FEATURES_CAT=()
     DFDB_SH_POSITIONAL=()
+
     DFDB_SH_JOIN=false
     DFDB_SH_LMFAO=false
     DFDB_SH_JOIN=false
@@ -35,7 +37,9 @@ function init_global_vars()
     DFDB_SH_SCIPY=false
     DFDB_SH_NUMPY=false
     DFDB_SH_PRECISION=false
-    DFDB_SH_FULL_EXP=false
+
+    DFDB_SH_DUMP=false
+    DFDB_SH_NUM_REP=1
     DFDB_SH_HELP_SHOW=false
     DFDB_SH_HELP_TXT=$"
 Usage: runTests [-h --help] [-b|--build =<OPTS>]
@@ -105,6 +109,7 @@ function get_build_opts()
             DFDB_SH_JOIN=true
             DFDB_SH_LMFAO=true
             DFDB_SH_NUMPY=true
+            DFDB_SH_DUMP=true
             DFDB_SH_PRECISION=true
             ;;
             *)    # unknown option
@@ -154,8 +159,11 @@ function get_str_args()
         EXTENSION="${option#*=}"
         get_data_sets $EXTENSION
         ;;
+        --dump)
+        DFDB_SH_DUMP=true
+        ;;
         -f|--full_exps)
-        DFDB_SH_FULL_EXP=true
+        DFDB_SH_NUM_REP=5
         ;;
         -h|--help)
         echo "$DFDB_SH_HELP_TXT"
@@ -208,9 +216,8 @@ function run_test()
 {
     local clean_up_fun="$2"
     local run_test_impl="$1"
-    [[ $DFDB_SH_FULL_EXP == true ]] && num_it=5 || num_it=1
-    for i in $(seq 1 $num_it); do
-        echo "Iteration number $i / $num_it"
+    for i in $(seq 1 $DFDB_SH_NUM_REP); do
+        echo "Iteration number $i / $DFDB_SH_NUM_REP"
         if [[ $i > 1 ]]; then
             "$clean_up_fun"
         fi
@@ -246,6 +253,16 @@ function build_and_run_tests() {
     local log_scipy=${DFDB_SH_LOG_PATH}/scipy/log"${data_set}${data_op}".txt
     local path_comp=${DFDB_SH_COMP_PATH}/comp"${data_set}${data_op}"
 
+    local dump_madlib=${DFDB_SH_DUMP_PATH}/madlib/dump"${data_set}${data_op}".txt
+    local dump_eigen=${DFDB_SH_DUMP_PATH}/eigen/dump"${data_set}${data_op}".txt
+    local dump_lmfao=${DFDB_SH_DUMP_PATH}/lmfao/dump"${data_set}${data_op}".txt
+    local dump_r=${DFDB_SH_DUMP_PATH}/r/dump"${data_set}${data_op}".txt
+    local dump_numpy=${DFDB_SH_DUMP_PATH}/numpy/dump"${data_set}${data_op}".txt
+    local dump_scipy=${DFDB_SH_DUMP_PATH}/scipy/dump"${data_set}${data_op}".txt
+
+    local dump_opt=""
+    [[ $DFDB_SH_DUMP == true ]] && dump_opt="--dump"
+
     [[ $DFDB_SH_MADLIB  == true ]] && {
         echo '*********Madlib test started**********'
         (source la_madlib.sh ${data_set} ${features_cat_out}  &> ${log_madlib})
@@ -260,8 +277,8 @@ function build_and_run_tests() {
 
     [[ $DFDB_SH_LMFAO  == true ]] && {
         echo '*********LMFAO test started**********'
-        (source test_lmfaola.sh ${data_set} ${data_op} ${DFDB_SH_PRECISION} \
-                &> ${log_lmfao})
+        (source test_lmfaola.sh ${data_set} ${data_op} ${DFDB_SH_DUMP} \
+                "${dump_lmfao}" &> ${log_lmfao})
         echo '*********LMFAO test finished**********'
     }
 
@@ -274,16 +291,16 @@ function build_and_run_tests() {
     }
 
     [[ $DFDB_SH_NUMPY  == true ]] && {
-        local dump=False
-        [[ $DFDB_SH_PRECISION == true ]] && dump=True
         echo '*********numpy test started**********'
         eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/la_numpy.py" \
                           -f ${features_out} -c ${features_cat_out}  \
                           -d "${DFDB_SH_JOIN_RES_PATH}" -o "$data_op"\
-                          --dump "$dump" &> ${log_numpy}
+                          -n "${DFDB_SH_NUM_REP}"  "${dump_opt}"     \
+                          --dump_file "${dump_numpy}"         \
+                           &> ${log_numpy}
         echo '*********numpy test finished**********'
     }
-
+    # TODO: Add tests for scipy, R, Madlib
     [[ $DFDB_SH_SCIPY  == true ]] && {
         echo '*********scipy test started**********'
         eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/la_scipy.py" \
@@ -295,10 +312,10 @@ function build_and_run_tests() {
     # This one has to be always the last
     [[ $DFDB_SH_PRECISION  == true ]] && {
       echo '*********comparison test started**********'
-      comp_file="$path_comp"
+      # TODO: Update path to file for QR.txt
       python3 "${DFDB_SH_LA_SCRIPT}/precision_comparison.py" \
-              -lp "${DFDB_SH_RUNTIME_CPP}/QR.txt" -cp "${DFDB_SH_LA_SCRIPT}/QR.txt" \
-              -pr 1e-10 -op "${comp_file}"
+              -lp "${dump_lmfao}" -cp "${dump_numpy}" \
+              -pr 1e-10 --output_path "${path_comp}"
       echo '*********comparison test started**********'
     }
 }
@@ -331,7 +348,7 @@ function main() {
         local log_psql=${DFDB_SH_LOG_PATH}/psql/log"${data_set}".txt
         [[ $DFDB_SH_JOIN  == true ]] && {
             echo '*********Join started**********'
-            (source generate_join.sh ${data_set}  &> ${log_psql})
+            #(source generate_join.sh ${data_set}  &> ${log_psql})
             echo '*********Join finished**********'
         }
 

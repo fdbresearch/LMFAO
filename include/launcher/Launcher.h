@@ -49,7 +49,7 @@ public:
                const std::string& tdFile, const std::string& outDirectory,
                const bool mo, const bool resort, const bool microbench,
                const bool compress, const int k, const bool useLinearDependencyCheck,
-               const bool outputDecomp);
+               const bool outputDecomp, const std::string& dumpFile);
 
     /**
      * Returns a pointer to the tree decomposition.

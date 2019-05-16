@@ -22,8 +22,8 @@ public:
     SVDecompApp(const std::string& pathToFiles,
         std::shared_ptr<Launcher> launcher,
         bool useLinearDependencyCheck,
-        bool outputDecomp) :
-    QRDecompApp(pathToFiles, launcher, useLinearDependencyCheck, outputDecomp){}
+        bool outputDecomp, const std::string& dumpFile) :
+    QRDecompApp(pathToFiles, launcher, useLinearDependencyCheck, outputDecomp, dumpFile){}
     virtual ~SVDecompApp() override {}
 protected:
     virtual std::string getCodeOfDecomposition() override;

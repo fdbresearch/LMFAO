@@ -22,10 +22,10 @@ public:
     QRDecompApp(const std::string& pathToFiles,
         std::shared_ptr<Launcher> launcher,
         bool useLinearDependencyCheck,
-        bool outputDecomp) :
+        bool outputDecomp, const std::string& dumpFile) :
             CovarianceMatrix(pathToFiles, launcher),
             mUseLinearDependencyCheck(useLinearDependencyCheck),
-            mOutputDecomp(outputDecomp)            {}
+            mOutputDecomp(outputDecomp), mDumpFile(dumpFile)            {}
     virtual ~QRDecompApp() override {}
 protected:
     virtual std::string getCodeOfIncludes() override;
@@ -34,6 +34,7 @@ protected:
     virtual std::string getCodeOfDecomposition();
     bool mUseLinearDependencyCheck;
     bool mOutputDecomp;
+    std::string mDumpFile;
 private:
 	std::string getVectorOfFeatures();
 };

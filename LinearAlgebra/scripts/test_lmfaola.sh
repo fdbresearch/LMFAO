@@ -3,16 +3,19 @@
 DFDB_SH_DATA_SET=$1
 DFDB_SH_DATA_OP=$2
 DFDB_SH_DUMP=$3
+dump_file=$4
 #"usretailer_1"
 
 [[ $DFDB_SH_DUMP == true ]] && dump="--outputDecomp" || dump=""
 cd $DFDB_SH_ROOT
 case $DFDB_SH_DATA_OP in
     svd)
-    ./multifaq --path "data/${DFDB_SH_DATA_SET}/" --model svdecomp --parallel both "${dump}"
+    ./multifaq --path "data/${DFDB_SH_DATA_SET}/" --model svdecomp \
+               --parallel both "${dump}" --dumpFile "${dump_file}"
     ;;
     qr)
-    ./multifaq --path "data/${DFDB_SH_DATA_SET}/" --model qrdecomp --parallel both "${dump}"
+    ./multifaq --path "data/${DFDB_SH_DATA_SET}/" --model qrdecomp  \
+               --parallel both "${dump}" --dumpFile "${dump_file}"
     ;;
 esac
 cd $DFDB_SH_RUNTIME_OUTPUT

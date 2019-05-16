@@ -61,9 +61,9 @@ if __name__ == "__main__":
                     comp_val_dec = Decimal(comp_row_line_val[col])
                     diff = lmfao_val_dec - comp_val_dec
                     abs_err += diff * diff
-                    print(abs_err)
+                    #print(abs_err)
                     abs_err_comp += comp_val_dec * comp_val_dec
-                    print(abs_err_comp)
+                    #print(abs_err_comp)
                     comp_wb.save_entry(row + 1, col + 1, lmfao_val_dec, comp_val_dec)
 
     comp_wb.save()

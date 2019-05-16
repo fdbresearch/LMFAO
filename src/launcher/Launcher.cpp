@@ -73,7 +73,7 @@ int Launcher::launch(const string& model, const string& codeGenerator,
                      const bool multioutput_flag, const bool resort_flag,
                      const bool microbench_flag, const bool compression_flag,
                      const int k, const bool useLinearDependencyCheck,
-                     const bool outputDecomp
+                     const bool outputDecomp, const string& dumpFile
     )
 {
     /* Define the Feature Conf File */
@@ -126,14 +126,14 @@ int Launcher::launch(const string& model, const string& codeGenerator,
     {
         _application.reset(
             new QRDecompApp(_pathToFiles, shared_from_this(),
-                            useLinearDependencyCheck, outputDecomp));
+                            useLinearDependencyCheck, outputDecomp, dumpFile));
         hasApplicationHandler = true;
     }
     else if (model.compare("svdecomp") == 0)
     {
         _application.reset(
             new SVDecompApp(_pathToFiles, shared_from_this(),
-                            useLinearDependencyCheck, outputDecomp));
+                            useLinearDependencyCheck, outputDecomp, dumpFile));
         hasApplicationHandler = true;
     }
     else if (model.compare("count") == 0)

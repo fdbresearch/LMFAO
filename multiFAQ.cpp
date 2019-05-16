@@ -75,7 +75,10 @@ int main(int argc, char *argv[])
         /* Option to turn on linear dependency check. */
        ("useLinDep", "turn linear dependency check on (default)/off")
         /* Option to turn off outputting a result of decomposition. */
-       ("outputDecomp", "turn outputing a result of decomposition on (default)/off");
+       ("outputDecomp", "turn outputing a result of decomposition on (default)/off")
+        ("dumpFile", boost::program_options::value<std::string>(),
+        "Option where to dump file.")
+       ;
 
    /* Register previous options and do command line parsing. */
    boost::program_options::variables_map vm;
@@ -189,7 +192,8 @@ int main(int argc, char *argv[])
                                  vm["compress"].as<bool>(),
                                  vm["k"].as<int>(),
                                  vm.count("useLinDep"),
-                                 vm.count("outputDecomp"));
+                                 vm.count("outputDecomp"),
+                                 vm["dumpFile"].as<std::string>());
 
 #ifdef BENCH
    int64_t end = std::chrono::duration_cast<std::chrono::milliseconds>(
