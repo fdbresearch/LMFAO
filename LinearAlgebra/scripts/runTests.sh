@@ -292,27 +292,33 @@ function build_and_run_tests() {
 
     [[ $DFDB_SH_NUMPY  == true ]] && {
         echo '*********numpy test started**********'
-        eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/la_numpy.py" \
+        eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/la_python.py" \
                           -f ${features_out} -c ${features_cat_out}  \
                           -d "${DFDB_SH_JOIN_RES_PATH}" -o "$data_op"\
                           -n "${DFDB_SH_NUM_REP}"  "${dump_opt}"     \
-                          --dump_file "${dump_numpy}"         \
+                          --dump_file "${dump_numpy}" -s "numpy"     \
                            &> ${log_numpy}
         echo '*********numpy test finished**********'
     }
     # TODO: Add tests for scipy, R, Madlib
     [[ $DFDB_SH_SCIPY  == true ]] && {
         echo '*********scipy test started**********'
-        eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/la_scipy.py" \
-                          -f ${features_out} -c ${features_cat_out}    \
-                          -d "${DFDB_SH_JOIN_RES_PATH}" -o "$data_op" &> ${log_scipy}
+        eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/la_python.py" \
+                  -f ${features_out} -c ${features_cat_out}  \
+                  -d "${DFDB_SH_JOIN_RES_PATH}" -o "$data_op"\
+                  -n "${DFDB_SH_NUM_REP}"  "${dump_opt}"     \
+                  --dump_file "${dump_scipy}" -s "scipy"     \
+                   &> ${log_scipy}
+
+        #eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/la_scipy.py" \
+        #                  -f ${features_out} -c ${features_cat_out}    \
+        #                  -d "${DFDB_SH_JOIN_RES_PATH}" -o "$data_op" &> ${log_scipy}
         echo '*********scipy test finished**********'
     }
 
     # This one has to be always the last
     [[ $DFDB_SH_PRECISION  == true ]] && {
       echo '*********comparison test started**********'
-      # TODO: Update path to file for QR.txt
       python3 "${DFDB_SH_LA_SCRIPT}/precision_comparison.py" \
               -lp "${dump_lmfao}" -cp "${dump_numpy}" \
               -pr 1e-10 --output_path "${path_comp}"

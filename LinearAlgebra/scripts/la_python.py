@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 
 import numpy as np
+import scipy as sp
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import OneHotEncoder
@@ -41,7 +42,7 @@ def dump_qr(r, dump_file):
                 file.write("{} ".format(r_positive[row, col]))
             file.write("\n")
 
-def run_test(data, columns, columns_cat, dump, dump_file):
+def run_test(linalg_sys, data, columns, columns_cat, dump, dump_file):
     start = timer()
     transformer_a = []
     for column in columns:
@@ -54,18 +55,28 @@ def run_test(data, columns, columns_cat, dump, dump_file):
 
     preprocessor = ColumnTransformer(transformers=transformer_a)
     one_hot_a = preprocessor.fit_transform(data)
-    if operation == 'svd':
-        _, s, vh = np.linalg.svd(one_hot_a, full_matrices=False)
-        print(s)
-    elif operation == 'qr':
+    if linalg_sys == 'numpy':
+        if operation == 'svd':
+            _, s, vh = np.linalg.svd(one_hot_a, full_matrices=False)
+            print(s)
+        elif operation == 'qr':
 
-        #If A is invertible, then the factorization is unique if we require the diagonal elements of R to be positive.
-        # If A is of full rank n and we require that the diagonal elements of R1 are positive then R1 and Q1 are unique.
-        # Make elements on diagonal postive by multiplying diagonal R by a diagonal  matrix
-        #  whose diagonal is sign of diagonal of R
-        r = np.linalg.qr(one_hot_a, mode='r')
-        if dump:
-            dump_qr(r, dump_file)
+            #If A is invertible, then the factorization is unique if we require the diagonal elements of R to be positive.
+            # If A is of full rank n and we require that the diagonal elements of R1 are positive then R1 and Q1 are unique.
+            # Make elements on diagonal postive by multiplying diagonal R by a diagonal  matrix
+            #  whose diagonal is sign of diagonal of R
+            r = np.linalg.qr(one_hot_a, mode='r')
+            if dump:
+                dump_qr(r, dump_file)
+    elif linalg_sys == 'scipy':
+            print('scipy')
+            if operation == 'svd':
+                _, s, vh = sp.linalg.svd(one_hot_a, full_matrices=False)
+                print(s)
+            elif operation == 'qr':
+                r = sp.linalg.qr(one_hot_a, mode='r')
+                #if dump:
+                    #dump_qr(r, dump_file)
 
     end = timer()
     print(end - start)
@@ -73,6 +84,7 @@ def run_test(data, columns, columns_cat, dump, dump_file):
 
 if __name__ == "__main__":
     parser = ArgumentParser()
+    parser.add_argument("-s", "--system", dest="linalg_sys", required=True)
     parser.add_argument("-f", "--features", dest="features", required=True)
     parser.add_argument("-c", "--categorical_features", dest="categorical_features", required=True)
     parser.add_argument("-d", "--data_path", dest="data_path", required=True)
@@ -84,6 +96,7 @@ if __name__ == "__main__":
     np.set_printoptions(threshold=sys.maxsize, precision=20)
     pd.set_option('display.max_columns', 500)
     args = parser.parse_args()
+    linalg_sys = args.linalg_sys
     features = args.features
     cat_featurs = args.categorical_features
     data_path = args.data_path
@@ -97,4 +110,4 @@ if __name__ == "__main__":
     data = pd.read_csv(data_path, names=columns, delimiter="|", header=None)
 
     for it in range(0, num_it):
-        run_test(data, columns, columns_cat, dump, dump_file)
+        run_test(linalg_sys, data, columns, columns_cat, dump, dump_file)
