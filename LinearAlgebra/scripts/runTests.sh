@@ -2,9 +2,7 @@
 
 function init_global_paths()
 {
-    #DFDB_SH_DATA="/media/popina/test/dfdb/benchmarking/datasets"
     DFDB_SH_ROOT="${1:-/media/popina/test/dfdb/LMFAO}"
-    echo "Root path of LMFAO is: " $DFDB_SH_ROOT
     #DFDB_SH_ROOT="/home/popina/Documents/FDB/LMFAO"
     DFDB_SH_LA="$DFDB_SH_ROOT/LinearAlgebra"
     DFDB_SH_LA_SCRIPT="${DFDB_SH_LA}/scripts"
@@ -38,6 +36,38 @@ function init_global_vars()
     DFDB_SH_NUMPY=false
     DFDB_SH_PRECISION=false
     DFDB_SH_FULL_EXP=false
+    DFDB_SH_HELP_SHOW=false
+    DFDB_SH_HELP_TXT=$"
+Usage: runTests [-h --help] [-b|--build =<OPTS>]
+[-r|--root=<PATH>] [-u|--user=<NAME>] [-p|--port=<NUMBER>]
+[-o|--operation=<NAME1>, <NAME2>,...>]
+[-d|--data_sets=<NAME1>,<NAME2>,...>][-f|--full_exps]
+
+Run experiments for matrix factorizations.
+
+Mandatory arguments to long options are mandatory for short options too.
+    -b, --build=<OPTS>           run the experiments stated in opts:
+                                 j - join tables using PSQL and export the joined result
+                                 l - factorizations using LA-F (linear algebra on top of LMFAO)
+                                 r - factorizations implemented in r
+                                 n - factorizations implemented in numpy
+                                 s - factorizations implemented in scipy
+                                 e - factorizations implemented using eigen and C++
+                                 m - factorizations implemented using MADlib
+                                 p - compare accuracies of factorizations using LA-F
+                                   and other approaches.
+    -r, --root=<PATH>            set the root path to PATH of LMFAO project
+    -u, --user=<NAME>            connect to PSQL datatabase with the username NAME.
+    -p, --port=<NUMBER>          connect to PSQL database on the port NUMBER.
+    -o, --operation=<NAME1>,...> run experiments for the factorization NAME1, NAME2,...
+                                 Possible operations are qr and svd.
+    -d, --data_sets=<NAME1>,...> run experiments for data sets NAME1, NAME2,...
+                                 located on root of LMFAO project/data.
+    -f, --full_exps              run multiple times the same experiment to reduce cache
+                                 locality and statistics problems. All times
+                                 will be outputed.
+    -h, --help                   show help.
+"
 }
 
 function get_build_opts()
@@ -126,6 +156,10 @@ function get_str_args()
         ;;
         -f|--full_exps)
         DFDB_SH_FULL_EXP=true
+        ;;
+        -h|--help)
+        echo "$DFDB_SH_HELP_TXT"
+        DFDB_SH_HELP_SHOW=true
         ;;
         *)    # unknown option
         echo "Wrong  argument" $option
@@ -276,6 +310,10 @@ function main() {
     init_global_vars
 
     get_str_args "$@"
+    if [[ $DFDB_SH_HELP_SHOW == true ]]; then
+        return
+    fi
+
     cd $DFDB_SH_ROOT
     cmake .
     make -j8
@@ -293,7 +331,7 @@ function main() {
         local log_psql=${DFDB_SH_LOG_PATH}/psql/log"${data_set}".txt
         [[ $DFDB_SH_JOIN  == true ]] && {
             echo '*********Join started**********'
-            #(source generate_join.sh ${data_set}  &> ${log_psql})
+            (source generate_join.sh ${data_set}  &> ${log_psql})
             echo '*********Join finished**********'
         }
 
