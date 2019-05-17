@@ -179,6 +179,8 @@ int main(int argc, char *argv[])
    int64_t start = std::chrono::duration_cast<std::chrono::milliseconds>(
        std::chrono::system_clock::now().time_since_epoch()).count();
 #endif
+   std::string dumpFile = (vm.count("dumpFile") == 0) ? ""
+                            : vm["dumpFile"].as<std::string>();
    /* Launch program. */
    int result = launcher->launch(vm["model"].as<std::string>(),
                                  vm["codegen"].as<std::string>(),
@@ -193,7 +195,7 @@ int main(int argc, char *argv[])
                                  vm["k"].as<int>(),
                                  vm.count("useLinDep"),
                                  vm.count("outputDecomp"),
-                                 vm["dumpFile"].as<std::string>());
+                                 dumpFile);
 
 #ifdef BENCH
    int64_t end = std::chrono::duration_cast<std::chrono::milliseconds>(

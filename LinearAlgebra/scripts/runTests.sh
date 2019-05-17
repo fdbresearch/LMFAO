@@ -300,7 +300,6 @@ function build_and_run_tests() {
                            &> ${log_numpy}
         echo '*********numpy test finished**********'
     }
-    # TODO: Add tests for scipy, R, Madlib
     [[ $DFDB_SH_SCIPY  == true ]] && {
         echo '*********scipy test started**********'
         eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/la_python.py" \
@@ -316,7 +315,9 @@ function build_and_run_tests() {
         echo '*********scipy test finished**********'
     }
 
+    # TODO: Add Full tests for R and Madlib, also, add other comparison tests for precision.
     # This one has to be always the last
+    # TODO: refactor this into function with a parameter of dump
     [[ $DFDB_SH_PRECISION  == true ]] && {
       echo '*********comparison test started**********'
       python3 "${DFDB_SH_LA_SCRIPT}/precision_comparison.py" \
@@ -354,7 +355,7 @@ function main() {
         local log_psql=${DFDB_SH_LOG_PATH}/psql/log"${data_set}".txt
         [[ $DFDB_SH_JOIN  == true ]] && {
             echo '*********Join started**********'
-            #(source generate_join.sh ${data_set}  &> ${log_psql})
+            (source generate_join.sh ${data_set}  &> ${log_psql})
             echo '*********Join finished**********'
         }
 
