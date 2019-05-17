@@ -7,6 +7,7 @@ function init_global_paths()
     DFDB_SH_LA="$DFDB_SH_ROOT/LinearAlgebra"
     DFDB_SH_LA_SCRIPT="${DFDB_SH_LA}/scripts"
     DFDB_SH_DATA="$DFDB_SH_ROOT/data"
+    DFDB_SH_BUILD="$DFDB_SH_ROOT/build"
     DFDB_SH_RUNTIME="$DFDB_SH_ROOT/runtime"
     DFDB_SH_RUNTIME_CPP="$DFDB_SH_RUNTIME/cpp"
     DFDB_SH_RUNTIME_SQL="$DFDB_SH_RUNTIME/sql"
@@ -274,6 +275,7 @@ function build_and_run_tests() {
 
     local comp_numpy=${DFDB_SH_COMP_PATH}/numpy/comp"${data_set}${data_op}"
     local comp_scipy=${DFDB_SH_COMP_PATH}/scipy/comp"${data_set}${data_op}"
+    local comp_r=${DFDB_SH_COMP_PATH}/r/comp"${data_set}${data_op}"
 
     local dump_opt=""
     [[ $DFDB_SH_DUMP == true ]] && dump_opt="--dump"
@@ -300,9 +302,11 @@ function build_and_run_tests() {
     [[ $DFDB_SH_R  == true ]] && {
         echo '*********R test started**********'
         eval ${DFDB_TIME} Rscript "${DFDB_SH_LA_SCRIPT}/la.R ${DFDB_SH_JOIN_RES_PATH} \
-                ${data_op} ${#DFDB_SH_FEATURES[@]} ${#DFDB_SH_FEATURES_CAT[@]}         \
+                ${data_op} ${#DFDB_SH_FEATURES[@]} ${#DFDB_SH_FEATURES_CAT[@]}        \
+                ${DFDB_SH_NUM_REP}  ${DFDB_SH_DUMP}  ${dump_r}                        \
                 ${DFDB_SH_FEATURES[@]} ${DFDB_SH_FEATURES_CAT[@]}" &> ${log_r}
         echo '*********R test finished**********'
+        compare_precisions "${dump_r}" "${comp_r}"
     }
 
     [[ $DFDB_SH_NUMPY  == true ]] && {
@@ -342,10 +346,10 @@ function main() {
         return
     fi
 
-    cd $DFDB_SH_ROOT
-    cmake .
+    cd $DFDB_SH_BUILD
+    cmake ..
     make -j8
-
+    mv multifaq ..
     cd $DFDB_SH_LA_SCRIPT
 
     for data_set in ${DFDB_SH_DATA_SETS[@]}; do

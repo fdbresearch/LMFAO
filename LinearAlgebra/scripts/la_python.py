@@ -85,7 +85,8 @@ def run_test(linalg_sys, data, columns, columns_cat, dump, dump_file):
     elif linalg_sys == 'scipy':
             print('scipy')
             if operation == 'svd':
-                _, sigma, _ = sp.linalg.svd(one_hot_a, full_matrices=False)
+                _, sigma, _ = sp.linalg.svd(one_hot_a, full_matrices=False,
+                                            overwrite_a=True, check_finite=False)
                 if dump:
                     dump_sigma(sigma, dump_file)
             elif operation == 'qr':
