@@ -3,6 +3,7 @@ from argparse import ArgumentParser
 import numpy as np
 import scipy as sp
 import pandas as pd
+import scipy
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
@@ -28,19 +29,32 @@ class IdentityTransformer(BaseEstimator, TransformerMixin):
 
 
 def dump_qr(r, dump_file):
+    #If A is invertible, then the factorization is unique if we require the diagonal elements of R to be positive.
+    # If A is of full rank n and we require that the diagonal elements of R1 are positive then R1 and Q1 are unique.
+    # Make elements on diagonal postive by multiplying diagonal R by a diagonal  matrix
+    #  whose diagonal is sign of diagonal of R
     diag_sgn_r = np.sign(r.diagonal())
     matr_sgn_r = np.diag(diag_sgn_r)
     r_positive = np.dot(matr_sgn_r, r)
 
     with open(dump_file, "w") as file:
-        #print(r_positive.shape[0], r_positive.shape[1])
         file.write("{} {}\n".format(r_positive.shape[0], r_positive.shape[1]))
         row_num = r_positive.shape[0]
         col_num = r_positive.shape[1]
+        print(row_num)
+        print(col_num)
         for row in range(0, row_num):
             for col in range(0, col_num):
                 file.write("{} ".format(r_positive[row, col]))
             file.write("\n")
+
+def dump_sigma(sigma, dump_file):
+    with open(dump_file, "w") as file:
+        n = sigma.shape[0]
+        file.write("{}\n".format(sigma.shape[0]))
+        for idx in range(0, n):
+            file.write("{}\n".format(sigma[idx]))
+
 
 def run_test(linalg_sys, data, columns, columns_cat, dump, dump_file):
     start = timer()
@@ -56,30 +70,36 @@ def run_test(linalg_sys, data, columns, columns_cat, dump, dump_file):
     preprocessor = ColumnTransformer(transformers=transformer_a)
     one_hot_a = preprocessor.fit_transform(data)
     if linalg_sys == 'numpy':
+        print('numpy')
         if operation == 'svd':
-            _, s, vh = np.linalg.svd(one_hot_a, full_matrices=False)
-            print(s)
+            _, sigma, _ = np.linalg.svd(one_hot_a, full_matrices=False)
+            if dump:
+                dump_sigma(sigma, dump_file)
         elif operation == 'qr':
-
-            #If A is invertible, then the factorization is unique if we require the diagonal elements of R to be positive.
-            # If A is of full rank n and we require that the diagonal elements of R1 are positive then R1 and Q1 are unique.
-            # Make elements on diagonal postive by multiplying diagonal R by a diagonal  matrix
-            #  whose diagonal is sign of diagonal of R
+            # Numpy offers a mode in which is possible only to get reduced R.
+            # This gives the fastest processing time because of avoiding copying
+            # the data.
             r = np.linalg.qr(one_hot_a, mode='r')
             if dump:
                 dump_qr(r, dump_file)
     elif linalg_sys == 'scipy':
             print('scipy')
             if operation == 'svd':
-                _, s, vh = sp.linalg.svd(one_hot_a, full_matrices=False)
-                print(s)
+                _, sigma, _ = sp.linalg.svd(one_hot_a, full_matrices=False)
+                if dump:
+                    dump_sigma(sigma, dump_file)
             elif operation == 'qr':
-                r = sp.linalg.qr(one_hot_a, mode='r')
-                #if dump:
-                    #dump_qr(r, dump_file)
+                # The problem with scipy is that it doesn't offer a mode in which
+                # reduced R is returned as in numpy, which results in larger processing time
+                # mainly because of copying.
+                r, = scipy.linalg.qr(one_hot_a, overwrite_a=True, mode='r', check_finite=False)
+                r = np.resize(r, (r.shape[1], r.shape[1]))
+                if dump:
+                    dump_qr(r, dump_file)
 
     end = timer()
     print(end - start)
+    return end - start
 
 
 if __name__ == "__main__":
@@ -109,5 +129,8 @@ if __name__ == "__main__":
 
     data = pd.read_csv(data_path, names=columns, delimiter="|", header=None)
 
+    cum_time = 0.0
     for it in range(0, num_it):
-        run_test(linalg_sys, data, columns, columns_cat, dump, dump_file)
+        time = run_test(linalg_sys, data, columns, columns_cat, dump, dump_file)
+        cum_time += time
+    print(cum_time / num_it)

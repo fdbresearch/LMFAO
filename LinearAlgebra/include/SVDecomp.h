@@ -41,7 +41,7 @@ namespace LMFAO::LinearAlgebra
         void decompose();
 
         void getSingularValues(Eigen::VectorXd& vSingularValues);
-
+        friend std::ostream& operator<<(std::ostream& os, const SVDecomp& svdDecomp);
     };
 
 

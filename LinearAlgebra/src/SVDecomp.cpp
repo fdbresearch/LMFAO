@@ -1,4 +1,7 @@
 #include <iostream>
+#include <fstream>
+#include <iomanip>
+#include <limits>
 #include "SVDecomp.h"
 #include "QRDecomp.h"
 //#include "RedSVD.h"
@@ -110,5 +113,19 @@ namespace LMFAO::LinearAlgebra
         {
             vSingularValues(idx) = svdR.singularValues()(idx);
         }
+    }
+
+    std::ostream& operator<<(std::ostream& out, const SVDecomp& svdDecomp)
+    {
+        unsigned int N = svdDecomp.svdR.singularValues().rows();
+        out << N << std::endl;
+        out << std::fixed << std::setprecision(std::numeric_limits<double>::digits10 + 1);
+
+        for (unsigned int idx = 0; idx < N; idx ++)
+        {
+            out << svdDecomp.svdR.singularValues()(idx) << std::endl;
+        }
+
+        return out;
     }
 }

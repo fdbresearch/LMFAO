@@ -106,9 +106,7 @@ function get_build_opts()
             DFDB_SH_R=true
             ;;
             p)
-            DFDB_SH_JOIN=true
             DFDB_SH_LMFAO=true
-            DFDB_SH_NUMPY=true
             DFDB_SH_DUMP=true
             DFDB_SH_PRECISION=true
             ;;
@@ -211,6 +209,21 @@ function get_features()
     DFDB_SH_FEATURES_CAT=(${features_cat[@]})
 }
 
+function compare_precisions()
+{
+    local dump_test="$1"
+    local path_comp="$2"
+    [[ $DFDB_SH_PRECISION  == true ]] && {
+      echo '*********comparison test started**********'
+      echo $dump_test
+      python3 "${DFDB_SH_LA_SCRIPT}/precision_comparison.py" \
+              -lp "${dump_lmfao}" -cp "${dump_test}"         \
+              -pr 1e-10 --output_file "${path_comp}"         \
+              --operation "$data_op"
+      echo '*********comparison test started**********'
+    }
+}
+
 # Template style organization of execution of classes.
 function run_test()
 {
@@ -251,7 +264,6 @@ function build_and_run_tests() {
     local log_r=${DFDB_SH_LOG_PATH}/r/log"${data_set}${data_op}".txt
     local log_numpy=${DFDB_SH_LOG_PATH}/numpy/log"${data_set}${data_op}".txt
     local log_scipy=${DFDB_SH_LOG_PATH}/scipy/log"${data_set}${data_op}".txt
-    local path_comp=${DFDB_SH_COMP_PATH}/comp"${data_set}${data_op}"
 
     local dump_madlib=${DFDB_SH_DUMP_PATH}/madlib/dump"${data_set}${data_op}".txt
     local dump_eigen=${DFDB_SH_DUMP_PATH}/eigen/dump"${data_set}${data_op}".txt
@@ -259,6 +271,9 @@ function build_and_run_tests() {
     local dump_r=${DFDB_SH_DUMP_PATH}/r/dump"${data_set}${data_op}".txt
     local dump_numpy=${DFDB_SH_DUMP_PATH}/numpy/dump"${data_set}${data_op}".txt
     local dump_scipy=${DFDB_SH_DUMP_PATH}/scipy/dump"${data_set}${data_op}".txt
+
+    local comp_numpy=${DFDB_SH_COMP_PATH}/numpy/comp"${data_set}${data_op}"
+    local comp_scipy=${DFDB_SH_COMP_PATH}/scipy/comp"${data_set}${data_op}"
 
     local dump_opt=""
     [[ $DFDB_SH_DUMP == true ]] && dump_opt="--dump"
@@ -299,6 +314,7 @@ function build_and_run_tests() {
                           --dump_file "${dump_numpy}" -s "numpy"     \
                            &> ${log_numpy}
         echo '*********numpy test finished**********'
+        compare_precisions "${dump_numpy}" "${comp_numpy}"
     }
     [[ $DFDB_SH_SCIPY  == true ]] && {
         echo '*********scipy test started**********'
@@ -308,23 +324,11 @@ function build_and_run_tests() {
                   -n "${DFDB_SH_NUM_REP}"  "${dump_opt}"     \
                   --dump_file "${dump_scipy}" -s "scipy"     \
                    &> ${log_scipy}
-
-        #eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/la_scipy.py" \
-        #                  -f ${features_out} -c ${features_cat_out}    \
-        #                  -d "${DFDB_SH_JOIN_RES_PATH}" -o "$data_op" &> ${log_scipy}
         echo '*********scipy test finished**********'
+        compare_precisions "${dump_scipy}" "${comp_scipy}"
     }
 
     # TODO: Add Full tests for R and Madlib, also, add other comparison tests for precision.
-    # This one has to be always the last
-    # TODO: refactor this into function with a parameter of dump
-    [[ $DFDB_SH_PRECISION  == true ]] && {
-      echo '*********comparison test started**********'
-      python3 "${DFDB_SH_LA_SCRIPT}/precision_comparison.py" \
-              -lp "${dump_lmfao}" -cp "${dump_numpy}" \
-              -pr 1e-10 --output_path "${path_comp}"
-      echo '*********comparison test started**********'
-    }
 }
 
 #TODO: Add qr for eigen, madlib.
@@ -355,7 +359,7 @@ function main() {
         local log_psql=${DFDB_SH_LOG_PATH}/psql/log"${data_set}".txt
         [[ $DFDB_SH_JOIN  == true ]] && {
             echo '*********Join started**********'
-            (source generate_join.sh ${data_set}  &> ${log_psql})
+            #(source generate_join.sh ${data_set}  &> ${log_psql})
             echo '*********Join finished**********'
         }
 
