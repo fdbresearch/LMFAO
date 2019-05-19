@@ -23,6 +23,7 @@ function init_global_vars()
     DFDB_TIME="/usr/bin/time -f \"%e %P %I %O\""
     DFDB_SH_DB="usretailer"
     DFDB_SH_USERNAME=$(whoami)
+    DFDB_SH_PASSWORD=""
     DFDB_SH_PORT=5432
     DFDB_SH_DATA_SETS=(usretailer_35f_1 usretailer_35f_10 usretailer_35f_100 usretailer_35f_1000 usretailer favorita)
     DFDB_SH_OPS=("svd" "qr")
@@ -146,9 +147,13 @@ function get_str_args()
         EXTENSION="${option#*=}"
         DFDB_SH_USERNAME=$EXTENSION
         ;;
-        -p=*|--port=*)
+        -P=*|--port=*)
         EXTENSION="${option#*=}"
         DFDB_SH_PORT=$EXTENSION
+        ;;
+        -p=*|--password=*)
+        EXTENSION="${option#*=}"
+        DFDB_SH_PASSWORD=$EXTENSION
         ;;
         -o=*|--operation=*)
         EXTENSION="${option#*=}"
@@ -363,7 +368,7 @@ function main() {
         local log_psql=${DFDB_SH_LOG_PATH}/psql/log"${data_set}".txt
         [[ $DFDB_SH_JOIN  == true ]] && {
             echo '*********Join started**********'
-            #(source generate_join.sh ${data_set}  &> ${log_psql})
+            (source generate_join.sh ${data_set}  &> ${log_psql})
             echo '*********Join finished**********'
         }
 

@@ -48,11 +48,9 @@ eval ${DFDB_TIME} psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT --d ${DFDB_SH_DB} -
 eval ${DFDB_TIME} psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT -d ${DFDB_SH_DB} -f join_madlib.sql
 
 
-#/usr/local/madlib/bin/madpack -s madlib -p postgres \
-#   -c "$DFDB_SH_USERNAME@localhost:$DFDB_SH_PORT/$DFDB_SH_DATA_SET" install
+/usr/local/madlib/bin/madpack -s madlib -p postgres \
+   -c "$DFDB_SH_USERNAME/$DFDB_SH_PASSWORD@localhost:$DFDB_SH_PORT/$DFDB_SH_DATA_SET" install
 
-/home/max/installation/madlib-1.8/build/src/bin/madpack -s madlib -p postgres \
-	-c "$DFDB_SH_USERNAME@localhost:$DFDB_SH_PORT/$DFDB_SH_DATA_SET" install
 eval ${DFDB_TIME} psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT -d ${DFDB_SH_DB} -f join_one_hot_madlib.sql
 sql_output=$( psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT -d ${DFDB_SH_DB} -f sql_madlib_feats_list.sql )
 
