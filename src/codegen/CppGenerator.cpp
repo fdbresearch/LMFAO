@@ -6768,8 +6768,8 @@ std::string CppGenerator::genRunFunction(bool parallelize)
         offset(2)+"loadRelations();\n\n"+
         offset(2)+"int64_t loadTime = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count()-startLoading;\n"+
-        offset(2)+"std::cout << \"Data loading: \"+"+
-        "std::to_string(loadTime)+\"ms.\\n\";\n"+
+        offset(2)+"std::cout << \"##LMFAO##Data loading ## \"+"+
+        "std::to_string(loadTime / 1000.0)+\"ms.\\n\";\n"+
         offset(2)+"std::ofstream ofs(\"times.txt\",std::ofstream::out | "+
         "std::ofstream::app);\n"+
         offset(2)+"ofs << loadTime;\n"+
@@ -6804,8 +6804,8 @@ std::string CppGenerator::genRunFunction(bool parallelize)
 
     returnString += "\n"+offset(2)+"int64_t sortingTime = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count()-startSorting;\n"+
-        offset(2)+"std::cout << \"Data sorting: \" + "+
-        "std::to_string(sortingTime)+\"ms.\\n\";\n\n"+
+        offset(2)+"std::cout << \"##LMFAO## Data sorting ## \" + "+
+        "std::to_string(sortingTime / 1000.0)+\"s.\\n\";\n\n"+
         offset(2)+"ofs.open(\"times.txt\",std::ofstream::out | "+
         "std::ofstream::app);\n"+
         offset(2)+"ofs << \"\\t\" << sortingTime;\n"+
@@ -6871,12 +6871,12 @@ std::string CppGenerator::genRunFunction(bool parallelize)
 // #endif
     // returnString += "\n"+offset(2)+"std::cout << \"Data process: \"+"+
     //     "std::to_string(duration_cast<milliseconds>("+
-    //     "system_clock::now().time_since_epoch()).count()-startProcess)+\"ms.\\n\";\n\n";
+    //     "system_clock::now().time_since_epoch()).count()-startProcess)+\"s.\\n\";\n\n";
 
     returnString += "\n"+offset(2)+"int64_t processTime = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count()-startProcess;\n"+
-        offset(2)+"std::cout << \"Data process: \"+"+
-        "std::to_string(processTime)+\"ms.\\n\";\n"+
+        offset(2)+"std::cout << \"##LMFAO## Data process ## \"+"+
+        "std::to_string(processTime / 1000.0)+\"s.\\n\";\n"+
         offset(2)+"ofs.open(\"times.txt\",std::ofstream::out | std::ofstream::app);\n"+
         offset(2)+"ofs << \"\\t\" << processTime;\n";
 
@@ -6900,8 +6900,8 @@ std::string CppGenerator::genRunFunction(bool parallelize)
         returnString += offset(2)+"runApplication();\n"+
         "\n"+offset(2)+"int64_t processAppTime = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count()-startAppProcess;\n"+
-        offset(2)+"std::cout << \"App process: \"+"+
-        "std::to_string(processAppTime)+\"ms.\\n\";\n";
+        offset(2)+"std::cout << \"##LMFAO## App process ## \"+"+
+        "std::to_string(processAppTime / 1000.0)+\"s.\\n\";\n";
     }
     else {
         returnString += offset(2)+"ofs << std::endl;\n"+

@@ -70,9 +70,9 @@ function dump_s() {
 }
 
 function run_test_impl() {
-    eval ${DFDB_TIME} psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT \
+    eval_time "Joining data" psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT \
         -d ${DFDB_SH_DB} -f join_madlib.sql
-    eval ${DFDB_TIME} psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT \
+    eval_time "OneHotEncode" psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT \
         -d ${DFDB_SH_DB} -f join_one_hot_madlib.sql
 
     #Names of the first categories of columns.
@@ -104,7 +104,7 @@ function run_test_impl() {
     echo "${sql_madlib_svd/\#/${sing_vals_cnt}}" > svd_madlib.sql
 
     psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT -d ${DFDB_SH_DB} -f drop_madlib_cols.sql
-    eval ${DFDB_TIME} psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT \
+    eval_time "Linear algebra" psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT \
             -d ${DFDB_SH_DB} -f svd_madlib.sql
 
     [[ $DFDB_SH_DUMP == true ]] && dump_s $sing_vals_cnt
@@ -118,7 +118,7 @@ dump_file=$5
 
 generate_madlib_sql
 
-eval ${DFDB_TIME} psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT -d ${DFDB_SH_DB} -f load_data.sql
+eval_time "Loading data" psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT -d ${DFDB_SH_DB} -f load_data.sql
 
 # Adds madlib schemas to database.
 /usr/local/madlib/bin/madpack -s madlib -p postgres \
