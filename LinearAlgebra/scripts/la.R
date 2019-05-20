@@ -1,5 +1,5 @@
 
-# Installs missing packages 
+# Installs missing packages
 list.of.packages <- c("ade4", "data.table", 'stringr', 'pracma')
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
@@ -99,5 +99,5 @@ for (it in 1:num_it){
        print("No truth found");
     }
     end_time <- Sys.time()
-    print(end_time - start_time)
+    cat(paste('##LMFAO##Calculate##', end_time - start_time), '\n')
 }

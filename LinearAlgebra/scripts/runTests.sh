@@ -16,11 +16,12 @@ function init_global_paths()
     DFDB_SH_LOG_PATH="${DFDB_SH_LA}/logs"
     DFDB_SH_COMP_PATH="${DFDB_SH_LA}/comparisons"
     DFDB_SH_DUMP_PATH="${DFDB_SH_LA}/dumps"
+    DFDB_SH_TIME_PATH="${DFDB_SH_LA}/times"
 }
 
 function init_global_vars()
 {
-    DFDB_TIME="/usr/bin/time -f \"%e %P %I %O\""
+    DFDB_TIME="/usr/bin/time -f \"%e\""
     DFDB_SH_DB="usretailer"
     DFDB_SH_USERNAME=$(whoami)
     DFDB_SH_PASSWORD=""
@@ -39,6 +40,7 @@ function init_global_vars()
     DFDB_SH_SCIPY=false
     DFDB_SH_NUMPY=false
     DFDB_SH_PRECISION=false
+    DFDB_SH_PERF=false
 
     DFDB_SH_DUMP=false
     DFDB_SH_NUM_REP=1
@@ -166,6 +168,10 @@ function get_str_args()
         --dump)
         DFDB_SH_DUMP=true
         ;;
+        -t|--time)
+        DFDB_SH_PERF=true
+        DFDB_SH_NUM_REP=5
+        ;;
         -f|--full_exps)
         DFDB_SH_NUM_REP=5
         ;;
@@ -215,6 +221,7 @@ function get_features()
     DFDB_SH_FEATURES_CAT=(${features_cat[@]})
 }
 
+# TODO: Refactor this properly.
 function compare_precisions()
 {
     local dump_test="$1"
@@ -227,8 +234,37 @@ function compare_precisions()
               -lp "${dump_lmfao}" -cp "${dump_test}"         \
               -pr 1e-10 --output_file "${path_comp}"         \
               --operation "$data_op"
-      echo '*********comparison test started**********'
+      echo '*********comparison test finished**********'
     }
+}
+# TODO: Refactor this properly.
+
+function update_times()
+{
+    local time_test="$1"
+    local log_test="$2"
+    local data_op="$3"
+    [[ $DFDB_SH_PERF  == true ]] && {
+      echo '*********perf test update**********'
+      echo $time_test
+      echo $log_test
+        python3 "${DFDB_SH_LA_SCRIPT}/time_comparison.py" \
+        -t "${time_test}" -i "${log_test}"      \
+        -op "$data_op" -ds "$data_set" -s "$data_set_idx"
+      echo '*********perf test finished**********'
+    }
+
+}
+
+
+function eval_time()
+{
+    #TODO: Add optimizations for loading/reading.
+    module=$1
+    eval_output=$(eval "${DFDB_TIME}" "${@:2}" 2>&1 1>/dev/null)
+    #If there any other errors in the output, just extract the last line.
+    time_meas=$(echo $eval_output | grep -Eo '[0-9]+\.?[0-9]*$')
+    echo '##LMFAO## ' $module ' ##' "$time_meas"
 }
 
 # Template style organization of execution of classes.
@@ -256,6 +292,8 @@ make -j8
 function build_and_run_tests() {
     data_set=$1
     data_op=$2
+    data_set_idx=$3
+
     local features_out=$(printf "%s," ${DFDB_SH_FEATURES[@]})
     features_out=${features_out::-1}
     echo 'Features: ' ${features_out}
@@ -285,6 +323,12 @@ function build_and_run_tests() {
     local comp_scipy=${DFDB_SH_COMP_PATH}/scipy/comp"${data_set}${data_op}"
     local comp_r=${DFDB_SH_COMP_PATH}/r/comp"${data_set}${data_op}"
 
+    local time_lmfao=${DFDB_SH_TIME_PATH}/timelmfao".xlsx"
+    local time_madlib=${DFDB_SH_TIME_PATH}/timemadlib".xlsx"
+    local time_numpy=${DFDB_SH_TIME_PATH}/timenumpy".xlsx"
+    local time_scipy=${DFDB_SH_TIME_PATH}/timescipy".xlsx"
+    local time_r=${DFDB_SH_TIME_PATH}/timer".xlsx"
+
     local dump_opt=""
     [[ $DFDB_SH_DUMP == true ]] && dump_opt="--dump"
 
@@ -293,6 +337,7 @@ function build_and_run_tests() {
         (source test_lmfaola.sh ${data_set} ${data_op} ${DFDB_SH_DUMP} \
                 "${dump_lmfao}" &> ${log_lmfao})
         echo '*********LMFAO test finished**********'
+        update_times $time_lmfao $log_lmfao $data_op
     }
 
     [[ $DFDB_SH_MADLIB  == true ]] && {
@@ -300,7 +345,10 @@ function build_and_run_tests() {
         (source la_madlib.sh ${data_set} ${features_cat_out} ${data_op} \
             ${DFDB_SH_DUMP}  ${dump_madlib} &> ${log_madlib})
         echo '*********Madlib test finished**********'
+
         compare_precisions "${dump_madlib}" "${comp_madlib}"
+        update_times "$time_madlib" "$log_madlib" $data_op
+
     }
 
     [[ $DFDB_SH_EIGEN  == true ]] && {
@@ -317,18 +365,21 @@ function build_and_run_tests() {
                 ${DFDB_SH_FEATURES[@]} ${DFDB_SH_FEATURES_CAT[@]}" &> ${log_r}
         echo '*********R test finished**********'
         compare_precisions "${dump_r}" "${comp_r}"
+        update_times "$time_r" "$log_r" $data_op
     }
 
     [[ $DFDB_SH_NUMPY  == true ]] && {
         echo '*********numpy test started**********'
         eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/la_python.py" \
-                          -f ${features_out} -c ${features_cat_out}  \
+                      -f ${features_out} -c ${features_cat_out}  \
                           -d "${DFDB_SH_JOIN_RES_PATH}" -o "$data_op"\
                           -n "${DFDB_SH_NUM_REP}"  "${dump_opt}"     \
                           --dump_file "${dump_numpy}" -s "numpy"     \
                            &> ${log_numpy}
         echo '*********numpy test finished**********'
         compare_precisions "${dump_numpy}" "${comp_numpy}"
+        update_times "$time_numpy" "$log_numpy" $data_op
+
     }
     [[ $DFDB_SH_SCIPY  == true ]] && {
         echo '*********scipy test started**********'
@@ -340,6 +391,7 @@ function build_and_run_tests() {
                    &> ${log_scipy}
         echo '*********scipy test finished**********'
         compare_precisions "${dump_scipy}" "${comp_scipy}"
+        update_times "$time_scipy" "$log_scipy" $data_op
     }
 
 }
@@ -361,6 +413,7 @@ function main() {
     mv multifaq ..
     cd $DFDB_SH_LA_SCRIPT
 
+    data_set_idx=1
     for data_set in ${DFDB_SH_DATA_SETS[@]}; do
         DFDB_SH_DB=${data_set}
         echo tests for data set "$data_set" are starting;
@@ -370,19 +423,22 @@ function main() {
         dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
         createdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
         local log_psql=${DFDB_SH_LOG_PATH}/psql/log"${data_set}".txt
+        local time_psql=${DFDB_SH_TIME_PATH}/timepsql".xlsx"
         [[ $DFDB_SH_JOIN  == true ]] && {
             echo '*********Join started**********'
             (source generate_join.sh ${data_set}  &> ${log_psql})
             echo '*********Join finished**********'
+            update_times "$time_psql" "$log_psql" "_"
         }
 
         for data_op in ${DFDB_SH_OPS[@]}; do
             echo "*********${data_op} decomposition**********"
-            build_and_run_tests $data_set $data_op
+            build_and_run_tests $data_set $data_op $data_set_idx
             echo "*********${data_op} decomposition**********"
         done
 
         #dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
+        data_set_idx=$((data_set_idx + 1))
     done
 }
 # Example:  ./runTests.sh --build=n -o=svd -d=usretailer_35f_1 -r=/home/max/LMFAO -f

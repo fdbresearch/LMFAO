@@ -99,7 +99,7 @@ def run_test(linalg_sys, data, columns, columns_cat, dump, dump_file):
                     dump_qr(r, dump_file)
 
     end = timer()
-    print(end - start)
+    print("##LMFAO##Calculation##{}".format(end - start))
     return end - start
 
 
