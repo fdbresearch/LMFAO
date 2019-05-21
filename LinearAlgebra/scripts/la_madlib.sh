@@ -11,6 +11,11 @@ function prepare_str_cat_features() {
     cat_features_str+="'"
 }
 
+function sort_array_str() {
+    t=$(echo "$1" |  sort -V)
+    echo "$t"
+}
+
 function generate_madlib_sql() {
     prepare_str_cat_features
     cd $DFDB_SH_ROOT
@@ -78,10 +83,13 @@ function run_test_impl() {
     #Names of the first categories of columns.
     sql_output=$(psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT -d ${DFDB_SH_DB} -f sql_madlib_feats_list.sql)
 
+
+    #echo "Output is: $sql_output"
     # Limitations, what if column has number in its name two columns share the  same name?
     # TODO: If there is time to properly implement this.
+    sql_output_sor=$(sort_array_str "$sql_output")
     cat_feats_rm_a=()
-    readarray -t sql_output_a <<< "$sql_output"
+    readarray -t sql_output_a <<< "$sql_output_sor"
     for cat_feat in "${DFDB_SH_FEATURES_CAT[@]}"; do
         for column in "${sql_output_a[@]}"; do # access each element of array
             column_trimmed=$( echo "$column" | xargs )
