@@ -63,6 +63,40 @@ void getIdxAndCategories(const std::vector<std::string>& vFeats, const std::vect
     }
 }
 
+void getCntLinesAndFeatsAndCategoryCnt(const std::string& path, const std::vector<bool>& vIsCat,
+                                        unsigned int& cntLines, unsigned int& cntFeat,
+                                        std::map <unsigned int, std::set<unsigned int> >& mCntCatFeats)
+{
+    std::ifstream input(path);
+    std::stringstream lineStream;
+    std::string line;
+    std::string cell;
+    cntLines = 0;
+
+    /* Scan through the tuples in the current table. */
+    while (getline(input, line))
+    {
+        lineStream << line;
+        cntFeat = 0;
+        // Iterates column by column.
+        //
+        while (std::getline(lineStream, cell, '|'))
+        {
+            double val = std::stod(cell);
+            if (vIsCat[cntFeat])
+            {
+                unsigned int valU = std::stoul(cell);
+                mCntCatFeats[cntFeat].insert(valU);
+            }
+            cntFeat ++;
+        }
+
+        lineStream.clear();
+        cntLines ++;
+    }
+    input.close();
+}
+
 unsigned int getMatrixColsNum(unsigned int featNum, const std::map <unsigned int, std::set<unsigned int> >& mCntCatFeats)
 {
     unsigned int colNum = featNum;
@@ -101,6 +135,61 @@ void getShifts(const std::vector<bool>& vIsCat,
 }
 
 
+void getMatrix(const std::string& path, const std::vector<bool>& vIsCat,
+               const std::map <unsigned int, std::set<unsigned int> >& mCntCatFeats,
+               const std::vector<unsigned int>& vShifts,
+               Eigen::MatrixXd& A)
+{
+    std::ifstream input(path);
+    std::stringstream lineStream;
+    std::string line;
+    std::string cell;
+    unsigned int cntLines = 0;
+    unsigned int cntFeat = 0;
+
+    while (getline(input, line))
+    {
+        lineStream << line;
+        cntFeat = 0;
+        // Iterates column by column.
+        //
+        while (std::getline(lineStream, cell, '|'))
+        {
+            double val = std::stod(cell);
+            // Categorical variable.
+            //
+            //std::cout << "Val is: " << val << std::endl;
+            if (vIsCat[cntFeat])
+            {
+                unsigned int valU = std::stoul(cell);
+                unsigned int inShift = std::distance(mCntCatFeats.at(cntFeat).begin(),
+                                                      mCntCatFeats.at(cntFeat).find(valU));
+                //std::cout << "InShfit: " << inShift << std::endl;
+                if (inShift != 0)
+                {
+                    // We subtract 1 from the expression because of dummy variable.
+                    unsigned int featIdx = vShifts[cntFeat] + inShift - 1;
+                    //std::cout << "featIdx: " << featIdx << std::endl;
+                    A(cntLines, featIdx) = 1;
+                }
+            }
+            else
+            {
+                A(cntLines, cntFeat) = val;
+            }
+            cntFeat ++;
+        }
+        //for (unsigned int idx = 0; idx < cntCatN; idx++)
+        //{
+        //    std:: cout << "Stored" << A(0, idx) << std::endl;
+        //}
+
+        lineStream.clear();
+        cntLines ++;
+    }
+    input.close();
+}
+
 int main(int argc, const char *argv[])
 {
     // Arguments passed from the command line.
@@ -110,6 +199,13 @@ int main(int argc, const char *argv[])
     std::string strFeats;
     std::string strCatFeats;
 
+
+    std::string line;
+
+    std::stringstream lineStream;
+    std::string cell;
+    unsigned int cntLines = 0;
+    unsigned int cntFeat = 0;
     // Store feats names.
     //
     std::vector<std::string> vFeats;
@@ -160,112 +256,13 @@ int main(int argc, const char *argv[])
     getFeatures(strFeats, strCatFeats, vFeats, vCatFeats);
     getIsCatVector(vFeats, vCatFeats, vIsCat);
     getIdxAndCategories(vFeats, vCatFeats, sIdxCatFeats, mCntCatFeats);
-    std::ifstream input(path);
 
-    if (!input) {
-        exit(1);
-    }
-//###################################
-    /* String to receive lines (ie. tuples) from the file. */
-    std::string line;
-
-    std::stringstream lineStream;
-    std::string cell;
-    unsigned int cntLines = 0;
-    unsigned int cntFeat = 0;
-    getline(input, line);
-    lineStream << line;
-    /* In order to get number of features. */
-    while (std::getline(lineStream, cell, '|'))
-    {
-        cntFeat++;
-    }
-    lineStream.clear();
-    input.clear();
-    input.seekg(0, std::ios::beg);
-
-    /* Scan through the tuples in the current table. */
-    while (getline(input, line))
-    {
-        cntLines ++;
-
-        lineStream << line;
-        unsigned int cntFeatIn = 0;
-        // Iterates column by column.
-        //
-        while (std::getline(lineStream, cell, '|'))
-        {
-            double val = std::stod(cell);
-            if (vIsCat[cntFeatIn])
-            {
-                unsigned int valU = std::stoul(cell);
-                mCntCatFeats[cntFeatIn].insert(valU);
-            }
-            cntFeatIn ++;
-        }
-
-        lineStream.clear();
-        cntLines ++;
-    }
-    input.clear();
-    input.seekg(0, std::ios::beg);
-
-    //for (const auto & it: mCntCatFeats)
-    //{
-    //    std::cout << it.first << " "  << it.second.size() << std::endl;
-    //}
-//###################################
-    //std::cout  << "Vals" << cntLines << " " << cntFeat << std::endl;
-
+    getCntLinesAndFeatsAndCategoryCnt(path, vIsCat, cntLines, cntFeat, mCntCatFeats);
     unsigned int cntCatN = getMatrixColsNum(cntFeat, mCntCatFeats);
     Eigen::MatrixXd A = Eigen::MatrixXd::Zero(cntLines, cntCatN);
     getShifts(vIsCat, mCntCatFeats, vShifts);
-    cntLines = 0;
-    // Reads rows from joinresult.
-    //
-    while (getline(input, line))
-    {
-        lineStream << line;
-        cntFeat = 0;
-        // Iterates column by column.
-        //
-        while (std::getline(lineStream, cell, '|'))
-        {
-            double val = std::stod(cell);
-            // Categorical variable.
-            //
-            //std::cout << "Val is: " << val << std::endl;
-            if (vIsCat[cntFeat])
-            {
-                unsigned int valU = std::stoul(cell);
-                unsigned int inShift = std::distance(mCntCatFeats[cntFeat].begin(),
-                                                      mCntCatFeats[cntFeat].find(valU));
-                //std::cout << "InShfit: " << inShift << std::endl;
-                if (inShift != 0)
-                {
-                    // We subtract 1 from the expression because of dummy variable.
-                    unsigned int featIdx = vShifts[cntFeat] + inShift - 1;
-                    //std::cout << "featIdx: " << featIdx << std::endl;
-                    A(cntLines, featIdx) = 1;
-                }
-            }
-            else
-            {
-                A(cntLines, cntFeat) = val;
-            }
-            cntFeat ++;
-        }
-        //for (unsigned int idx = 0; idx < cntCatN; idx++)
-        //{
-        //    std:: cout << "Stored" << A(0, idx) << std::endl;
-        //}
+    getMatrix(path, vIsCat, mCntCatFeats, vShifts, A);
 
-        lineStream.clear();
-        cntLines ++;
-    }
-    input.close();
-    //std::cout << "SUCCESS";
-//###################################
     auto begin_timer = std::chrono::high_resolution_clock::now();
     if (decomposition.find("qr") != std::string::npos)
     {
@@ -284,7 +281,4 @@ int main(int argc, const char *argv[])
     std::chrono::duration<double> elapsed_time = end_timer - begin_timer;
     double time_spent = elapsed_time.count();
     std::cout << "Time spent " << time_spent << std::endl;
-    /*
-    */
-
 }
