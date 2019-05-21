@@ -26,7 +26,10 @@ function init_global_vars()
     DFDB_SH_USERNAME=$(whoami)
     DFDB_SH_PASSWORD=""
     DFDB_SH_PORT=5432
-    DFDB_SH_DATA_SETS=(usretailer_35f_1 usretailer_35f_10 usretailer_35f_100 usretailer_35f_1000 usretailer favorita)
+    declare -gA DFDB_SH_DATA_SETS_FULL
+    DFDB_SH_DATA_SETS_FULL=( [usretailer_35f_1]=1 [usretailer_35f_10]=2 [usretailer_35f_100]=3 [usretailer_35f_1000]=4 [usretailer_35f]=5 [favorita]=6 )
+    echo "Idx is:" ${DFDB_SH_DATA_SETS_FULL[usretailer_35f_1]}
+    DFDB_SH_DATA_SETS=("${!DFDB_SH_DATA_SETS_FULL[@]}")
     DFDB_SH_OPS=("svd" "qr")
     DFDB_SH_FEATURES=()
     DFDB_SH_FEATURES_CAT=()
@@ -413,13 +416,18 @@ function main() {
     mv multifaq ..
     cd $DFDB_SH_LA_SCRIPT
 
-    data_set_idx=1
     for data_set in ${DFDB_SH_DATA_SETS[@]}; do
+        data_set_idx=$(( ${DFDB_SH_DATA_SETS_FULL[$data_set]} ))
+        if [[ $data_set_idx == 0 ]]; then
+            echo "Data set" $data_set
+            continue
+        fi
         DFDB_SH_DB=${data_set}
         echo tests for data set "$data_set" are starting;
         data_path=$DFDB_SH_DATA"/"$data_set
         get_features $data_path
 
+        # Necessary in the case if we break script using ctrl + c
         dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
         createdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
         local log_psql=${DFDB_SH_LOG_PATH}/psql/log"${data_set}".txt
@@ -437,8 +445,10 @@ function main() {
             echo "*********${data_op} decomposition**********"
         done
 
-        #dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
-        data_set_idx=$((data_set_idx + 1))
+        # Normal removal of database.
+        dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
+        echo "ds is" $data_set
+
     done
 }
 # Example:  ./runTests.sh --build=n -o=svd -d=usretailer_35f_1 -r=/home/max/LMFAO -f
