@@ -50,8 +50,8 @@ class TimeWorkbook:
             print("saved", meas_times, str(row_idx - n_times + 1), str(row_idx - 1))
             self.save_entry(row_idx, col_idx,
                 '=AVERAGE({}{}:{}{})'.format(
-                    col_letter, "$" + str(row_idx - n_times+1),
-                    col_letter, "$" + str(row_idx-1)))
+                    col_letter,row_idx - n_times + 1,
+                    col_letter,row_idx - 1))
             row_idx += 1
 
 
