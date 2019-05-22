@@ -28,7 +28,6 @@ function init_global_vars()
     DFDB_SH_PORT=5432
     declare -gA DFDB_SH_DATA_SETS_FULL
     DFDB_SH_DATA_SETS_FULL=( [usretailer_35f_1]=1 [usretailer_35f_10]=2 [usretailer_35f_100]=3 [usretailer_35f_1000]=4 [usretailer_35f]=5 [favorita]=6 )
-    echo "Idx is:" ${DFDB_SH_DATA_SETS_FULL[usretailer_35f_1]}
     DFDB_SH_DATA_SETS=("${!DFDB_SH_DATA_SETS_FULL[@]}")
     DFDB_SH_OPS=("svd" "qr")
     DFDB_SH_FEATURES=()
@@ -247,6 +246,7 @@ function update_times()
     local time_test="$1"
     local log_test="$2"
     local data_op="$3"
+    echo "$data_set_idx"
     [[ $DFDB_SH_PERF  == true ]] && {
       echo '*********perf test update**********'
       echo $time_test
@@ -256,7 +256,6 @@ function update_times()
         -op "$data_op" -ds "$data_set" -s "$data_set_idx"
       echo '*********perf test finished**********'
     }
-
 }
 
 
@@ -297,6 +296,7 @@ function build_and_run_tests() {
     data_op=$2
     data_set_idx=$3
 
+    echo "Data set id" $data_set_idx
     local features_out=$(printf "%s," ${DFDB_SH_FEATURES[@]})
     features_out=${features_out::-1}
     echo 'Features: ' ${features_out}
@@ -323,11 +323,13 @@ function build_and_run_tests() {
 
     local comp_madlib=${DFDB_SH_COMP_PATH}/madlib/comp"${data_set}${data_op}"
     local comp_numpy=${DFDB_SH_COMP_PATH}/numpy/comp"${data_set}${data_op}"
+    local comp_eigen=${DFDB_SH_COMP_PATH}/eigen/comp"${data_set}${data_op}"
     local comp_scipy=${DFDB_SH_COMP_PATH}/scipy/comp"${data_set}${data_op}"
     local comp_r=${DFDB_SH_COMP_PATH}/r/comp"${data_set}${data_op}"
 
     local time_lmfao=${DFDB_SH_TIME_PATH}/timelmfao".xlsx"
     local time_madlib=${DFDB_SH_TIME_PATH}/timemadlib".xlsx"
+    local time_eigen=${DFDB_SH_TIME_PATH}/timeigen".xlsx"
     local time_numpy=${DFDB_SH_TIME_PATH}/timenumpy".xlsx"
     local time_scipy=${DFDB_SH_TIME_PATH}/timescipy".xlsx"
     local time_r=${DFDB_SH_TIME_PATH}/timer".xlsx"
@@ -356,7 +358,10 @@ function build_and_run_tests() {
 
     [[ $DFDB_SH_EIGEN  == true ]] && {
         echo '*********Eigen test started**********'
-        (source la_eigen.sh ${data_set} ${data_op} ${features_out} ${features_cat_out} &> ${log_eigen})
+        (source la_eigen.sh ${data_set} ${data_op} ${features_out} ${features_cat_out} \
+                "${DFDB_SH_DUMP}" "${dump_eigen}" "${DFDB_SH_NUM_REP}" &> ${log_eigen})
+        compare_precisions "${dump_eigen}" "${comp_eigen}"
+        update_times "$time_eigen" "$log_eigen" $data_op
         echo '*********Eigen test finished**********'
     }
 
@@ -447,7 +452,6 @@ function main() {
 
         # Normal removal of database.
         dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
-        echo "ds is" $data_set
 
     done
 }

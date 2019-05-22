@@ -35,6 +35,7 @@ class TimeWorkbook:
 
         row_idx = self.row_header + 1
         col_idx = data_set_idx
+        print(data_set_idx)
         for meas_times in measure_times:
             #print(meas_times)
             meas_time = measure_times[meas_times]
