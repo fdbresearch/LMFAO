@@ -7,12 +7,12 @@ from openpyxl.styles import PatternFill
 
 class PrecisionWorkbook:
 
-    def __init__(self, output_file, precision):
+    def __init__(self, output_file, precision, operation):
         self.work_book = Workbook()
         self.work_book.remove_sheet(self.work_book.active)
         self.prec_ws = self.work_book.create_sheet("precision")
         self.lmfao_ws = self.work_book.create_sheet("LMFAO")
-        self.comp_ws = self.work_book.create_sheet("QR")
+        self.comp_ws = self.work_book.create_sheet(operation)
         self.precision = precision
         self.output_file = output_file
 
@@ -48,7 +48,8 @@ if __name__ == "__main__":
 
     abs_err = Decimal(0)
     abs_err_comp = Decimal(0)
-    comp_wb = PrecisionWorkbook(output_file=output_file+".xlsx", precision=precision)
+    comp_wb = PrecisionWorkbook(output_file=output_file+".xlsx", precision=precision,
+                                operation=operation)
     with open(lmfao_path, 'r') as lmfao_file:
         with open(comparison_path, 'r') as comp_file:
             feats_lmfao = lmfao_file.readline().strip().split(" ")

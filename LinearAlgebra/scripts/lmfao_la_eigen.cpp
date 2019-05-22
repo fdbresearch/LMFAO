@@ -6,6 +6,8 @@
 #include <map>
 #include <set>
 #include <chrono>
+#include <limits>
+#include <iomanip>
 #include <Eigen/Dense>
 
 using namespace boost::program_options;
@@ -190,20 +192,41 @@ void getMatrix(const std::string& path, const std::vector<bool>& vIsCat,
     input.close();
 }
 
+void dumpQR(std::ostream& out, const Eigen::MatrixXd& R)
+{
+    out << R.rows() << " " << R.cols();
+    for (unsigned int row = 0; row < R.rows(); row++)
+    {
+        for (unsigned int col = 0; col < R.cols(); col++)
+        {
+            out << R(row, col) << " ";
+        }
+        out << std::endl;
+    }
+}
+
+void dumpSVD(std::ostream& out, const Eigen::BDCSVD<Eigen::MatrixXd>& svdR)
+{
+    out << std::fixed << std::setprecision(std::numeric_limits<double>::digits10 + 1);
+    out << svdR.singularValues().rows() << std::endl;
+    for (unsigned int row = 0; row < svdR.singularValues().rows(); row++)
+    {
+        out << svdR.singularValues()(row) << std::endl;
+    }
+}
+
 int main(int argc, const char *argv[])
 {
     // Arguments passed from the command line.
     //
     std::string path;
-    std::string decomposition;
+    std::string operation;
     std::string strFeats;
     std::string strCatFeats;
+    bool dump = false;
+    std::string dumpPath;
+    std::ofstream out;
 
-
-    std::string line;
-
-    std::stringstream lineStream;
-    std::string cell;
     unsigned int cntLines = 0;
     unsigned int cntFeat = 0;
     // Store feats names.
@@ -211,6 +234,7 @@ int main(int argc, const char *argv[])
     std::vector<std::string> vFeats;
     std::vector<std::string> vCatFeats;
     std::vector<bool> vIsCat;
+    int numIt;
 
     // Stores idx of categorical columns regarding input data.
     //
@@ -226,9 +250,12 @@ int main(int argc, const char *argv[])
         desc.add_options()
           ("help,h", "Help screen")
           ("path,p", value<std::string>(&path), "Path")
-          ("decomposition,d", value<std::string>(&decomposition), "Decomposition")
+          ("operation,o", value<std::string>(&operation), "Operation")
           ("features,f", value<std::string>(&strFeats), "Features")
           ("categorical_features,c", value<std::string>(&strCatFeats), "Categorical features")
+          ("dump", value<bool>(&dump), "Dump")
+          ("dump_path", value<std::string>(&dumpPath), "Dump path")
+          ("num_it,n", value<int>(&numIt), "Number of iterations")
           ;
 
         variables_map vm;
@@ -237,16 +264,23 @@ int main(int argc, const char *argv[])
 
         if (vm.count("help"))
         {
-            std::cout << desc << '\n';
+            std::cout << desc << std::endl;
+        }
+        if (vm.count("dump"))
+        {
+            dump = true;
         }
         if (vm.count("path"))
         {
-            std::cout << "Path: " << path;
+            std::cout << "Path: " << path << std::endl;
         }
-        if (vm.count("decomposition"))
+        if (vm.count("operation"))
         {
-          std::cout << "Decomposition: " << decomposition;
+          std::cout << "Decomposition: " << operation << std::endl;
         }
+        std::cout << "Dump val" << dump << std::endl;
+        std::cout << "Dump path" << dumpPath << std::endl;
+
     }
     catch (const error &ex)
     {
@@ -263,22 +297,41 @@ int main(int argc, const char *argv[])
     getShifts(vIsCat, mCntCatFeats, vShifts);
     getMatrix(path, vIsCat, mCntCatFeats, vShifts, A);
 
-    auto begin_timer = std::chrono::high_resolution_clock::now();
-    if (decomposition.find("qr") != std::string::npos)
+    for (unsigned int it = 0; it < numIt; it ++)
     {
-        Eigen::HouseholderQR<Eigen::MatrixXd> qr(A.rows(), A.cols());
-        qr.compute(A);
-        std::cout << "QR";
-    }
-    else if (decomposition.find("svd") != std::string::npos)
-    {
-        Eigen::BDCSVD<Eigen::MatrixXd> svdR(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
-        std::cout << svdR.singularValues();
-        std::cout << "SVD";
-    }
+        if (dump)
+        {
+            out.open(dumpPath);
+        }
+        auto begin_timer = std::chrono::high_resolution_clock::now();
 
-    auto end_timer = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed_time = end_timer - begin_timer;
-    double time_spent = elapsed_time.count();
-    std::cout << "Time spent " << time_spent << std::endl;
+        if (operation.find("qr") != std::string::npos)
+        {
+            Eigen::HouseholderQR<Eigen::MatrixXd> qr(A.rows(), A.cols());
+            qr.compute(A);
+            std::cout << "QR" << std::endl;
+            if (dump)
+            {
+                //dumpQR(out, qr.R());
+            }
+        }
+        else if (operation.find("svd") != std::string::npos)
+        {
+            Eigen::BDCSVD<Eigen::MatrixXd> svdR(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+            std::cout << "SVD" << std::endl;
+            if (dump)
+            {
+                dumpSVD(out, svdR);
+            }
+        }
+        if (dump)
+        {
+            out.close();
+        }
+
+        auto end_timer = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed_time = end_timer - begin_timer;
+        double time_spent = elapsed_time.count();
+        std::cout << "##LMFAO## LinearAlgebra ## " << time_spent << std::endl;
+    }
 }
