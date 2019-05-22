@@ -12,7 +12,7 @@ class PrecisionWorkbook:
         self.work_book.remove_sheet(self.work_book.active)
         self.prec_ws = self.work_book.create_sheet("precision")
         self.lmfao_ws = self.work_book.create_sheet("LMFAO")
-        self.comp_ws = self.work_book.create_sheet(operation)
+        self.comp_ws = self.work_book.create_sheet(operation.upper())
         self.precision = precision
         self.output_file = output_file
 

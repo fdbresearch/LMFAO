@@ -194,12 +194,32 @@ void getMatrix(const std::string& path, const std::vector<bool>& vIsCat,
 
 void dumpQR(std::ostream& out, const Eigen::MatrixXd& R)
 {
-    out << R.rows() << " " << R.cols();
-    for (unsigned int row = 0; row < R.rows(); row++)
+    Eigen::MatrixXd RPositive(R.cols(), R.cols());
+    Eigen::VectorXd rDiagonal = R.diagonal();
+
+    for (unsigned int idx = 0; idx < rDiagonal.rows(); idx++)
+    {
+        rDiagonal[idx] = (rDiagonal[idx] > 0) ? 1 : -1;
+    }
+    Eigen::DiagonalMatrix<double, Eigen::Dynamic> diagonalM(rDiagonal);
+    std::cout << diagonalM.rows() << " " << diagonalM.cols() << std::endl;
+
+    for (unsigned int row = 0; row < R.cols(); row++)
     {
         for (unsigned int col = 0; col < R.cols(); col++)
         {
-            out << R(row, col) << " ";
+            RPositive(row, col) = R(row, col);
+        }
+    }
+    RPositive = diagonalM * RPositive;
+
+    out << RPositive.rows() << " " << RPositive.cols() << std::endl;
+    out << std::fixed << std::setprecision(std::numeric_limits<double>::digits10 + 1);
+    for (unsigned int row = 0; row < RPositive.cols(); row++)
+    {
+        for (unsigned int col = 0; col < RPositive.cols(); col++)
+        {
+            out << RPositive(row, col) << " ";
         }
         out << std::endl;
     }
@@ -307,18 +327,17 @@ int main(int argc, const char *argv[])
 
         if (operation.find("qr") != std::string::npos)
         {
-            Eigen::HouseholderQR<Eigen::MatrixXd> qr(A.rows(), A.cols());
-            qr.compute(A);
-            std::cout << "QR" << std::endl;
+            Eigen::HouseholderQR<Eigen::MatrixXd> qr(A);
             if (dump)
             {
-                //dumpQR(out, qr.R());
+                //mat.triangularView<Lower>()
+                Eigen::MatrixXd R = qr.matrixQR().triangularView<Eigen::Upper>();
+                dumpQR(out, R);
             }
         }
         else if (operation.find("svd") != std::string::npos)
         {
             Eigen::BDCSVD<Eigen::MatrixXd> svdR(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
-            std::cout << "SVD" << std::endl;
             if (dump)
             {
                 dumpSVD(out, svdR);
