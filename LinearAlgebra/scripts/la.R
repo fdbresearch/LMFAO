@@ -79,7 +79,7 @@ for (it in 1:num_it){
     }
     else if (data_operation == "qr") {
         QR <- qr(dfA)
-        Q <- qr.Q(QR)
+        #Q <- qr.Q(QR)
         R <- qr.R(QR)
         if (dump) {
             sgn <- sign(diag(R))
@@ -99,5 +99,6 @@ for (it in 1:num_it){
        print("No truth found");
     }
     end_time <- Sys.time()
-    cat(paste('##LMFAO##Calculate##', end_time - start_time), '\n')
+    diff <- difftime(end_time, start_time, units='secs')
+    cat(paste('##LMFAO##Calculate##', diff), '\n')
 }
