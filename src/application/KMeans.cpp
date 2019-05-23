@@ -301,7 +301,8 @@ void KMeans::generateCode()
         ofs << "#include \"ComputeGroup"+std::to_string(group)+".h\"\n";
 
     ofs << "\nnamespace lmfao\n{\n\n"
-        << offset(1)+"const size_t k = "+std::to_string(_k)+";\n";
+        << offset(1)+"const size_t k = "+std::to_string(_k)+";\n"
+        << offset(1)+"double size_of_query_result = 0.0;\n";
 
     // if (INCLUDE_EVALUATION)
     //     ofs << genModelEvaluationFunction() << std::endl;
@@ -343,7 +344,6 @@ std::string KMeans::genKMeansFunction()
 
     // Code that initializes the clusters
     returnString += genClusterInitialization(gridViewName);
-
 
     // If we are gcc, we can use openmp to paralellize the computation do loop
     // for KMeans
@@ -523,8 +523,10 @@ std::string KMeans::genKMeansFunction()
         "system_clock::now().time_since_epoch()).count()-startProcess;\n"+
         offset(2)+"std::ofstream ofs(\"times.txt\",std::ofstream::out | "+
         "std::ofstream::app);\n"+
-        offset(2)+"ofs << \"\\t\" << endProcess << \"\\t\" << iteration;\n"+
+        offset(2)+"ofs << \"\\t\" << endInit << \"\\t\" << endProcess << \"\\t\" << iteration;\n"+
         offset(2)+"ofs.close();\n\n"+
+        offset(2)+"std::cout << \"Kmeans Init: \"+"+
+        "std::to_string(endInit)+\"ms.\\n\";\n"+
         offset(2)+"std::cout << \"Run kMeans: \"+"+
         "std::to_string(endProcess)+\"ms.\\n\";\n"+
         offset(2)+"std::cout << \"Number of Iterations: \"+"+
@@ -636,13 +638,21 @@ std::string KMeans::genModelEvaluationFunction()
         precompMeanSum+offset(2)+"}\n"+
         offset(2)+"double distance, error = 0.0, "+
         "min_distance;\n"+
-        offset(2)+"for (Test_tuple& tuple : TestDataset)\n"+offset(2)+"{\n"+
+      offset(2)+"#pragma omp parallel for num_threads(32) private(min_distance,distance) reduction(+:error)\n"+
+      offset(2)+"for (size_t tup = 0; tup < TestDataset.size(); ++tup){\n"+
+      offset(3)+"const Test_tuple &tuple = TestDataset[tup];\n"+
+        // offset(2)+"for (Test_tuple& tuple : TestDataset)\n"+offset(2)+"{\n"+
         offset(3)+"min_distance = std::numeric_limits<double>::max();\n"+
         offset(3)+"for (size_t cluster = 0; cluster < k; ++cluster)\n"+offset(3)+"{\n"+
         offset(4)+"distance = "+numCategVar+"+sum_mean_squared[cluster]"+distance+";\n"+
         offset(4)+"min_distance = std::min(distance, min_distance);\n"+
         offset(3)+"}\n"+offset(3)+"error += min_distance;\n"+
-        offset(2)+"}\n"+offset(2)+
+        offset(2)+"}\n"+
+        offset(2)+"std::ofstream ofs(\"times.txt\",std::ofstream::out | "+
+        "std::ofstream::app);\n"+
+        offset(2)+"ofs << \"\\t\" << error;\n"+
+        offset(2)+"ofs.close();\n\n"+
+        offset(2)+
         "std::cout << \"Within Cluster l2-distance: \" << error << std::endl;\n"+
         offset(1)+"}\n";
 
@@ -694,12 +704,20 @@ std::string KMeans::genClusterTuple()
                     "t < "+origView+".size(); ++t)\n"+
                     offset(5)+attName+"[t] += "+origView+"[t].aggregates[0] * "+
                     "tuple.aggregates[0];\n";
+
+ 		setList += offset(3)+"if (tuple."+attName+" != "+
+                    std::to_string(_dimensionK-1)+")\n"+
+                    offset(4)+attName+"[tuple."+attName+"] = 1;\n"+
+                    offset(3)+"else\n"+
+                    offset(4)+"for (size_t t = "+std::to_string(_dimensionK-1)+"; "+
+                    "t < "+origView+".size(); ++t)\n"+
+                    offset(5)+attName+"[t] = "+origView+"[t].aggregates[0];\n";
                 
-                setList +=
-                    offset(3)+"for (size_t t = 0; t < "+origView+".size(); ++t)\n"+
-                    offset(4)+"if (tuple."+attName+" == "+origView+"[t]."+origAtt+")\n"+
-                    offset(4)+"{\n"+offset(5)+attName+"[t] = 1;\n"+
-                    offset(5)+"break;\n"+offset(4)+"}\n";
+                // setList +=
+                //     offset(3)+"for (size_t t = 0; t < "+origView+".size(); ++t)\n"+
+                //     offset(4)+"if (tuple."+attName+" == "+origView+"[t]."+origAtt+")\n"+
+                //     offset(4)+"{\n"+offset(5)+attName+"[t] = 1;\n"+
+                //     offset(5)+"break;\n"+offset(4)+"}\n";
 
                 categDistList += offset(2)+"dist += distance_to_mean[k*(k*"+
                     std::to_string(categVarIndex)+"+cluster) + tuple."+attName+"];\n";
@@ -874,7 +892,7 @@ std::string KMeans::genComputeGridPointsFunction()
         offset(2)+"int64_t endProcess, endClustering;\n"+
         offset(2)+"int64_t startProcess = duration_cast<milliseconds>("+
         "system_clock::now().time_since_epoch()).count();\n\n"+
-        offset(2)+"double size_of_query_result = "+countViewName+"[0].aggregates[0];\n";
+        offset(2)+"size_of_query_result = "+countViewName+"[0].aggregates[0];\n";
     
     for (auto& varQueryPair : categoricalQueries)
     {        
@@ -1225,11 +1243,21 @@ std::string KMeans::genClusterInitialization(const std::string& gridName)
         
         return offset(2)+"// Initialize the means\n\n"+
             offset(2)+"std::srand (time(NULL));\n\n"+
-            offset(2)+"means[0] += "+gridName+"[rand() % grid_size];\n\n"+
+	  offset(2)+"double randomVal = (double)(rand() % (size_t)size_of_query_result);\n"+
+	  offset(2)+"double count = 0.0;\n"+
+	  offset(2)+"size_t pos = 0;\n"+
+	  offset(2)+"while (randomVal < count)\n"+
+	  offset(2)+"{\n"+
+	  offset(3)+"count += "+gridName+"[pos].aggregates[0];\n"+
+	  offset(3)+"++pos;\n"+
+	  offset(2)+"}\n"+
+	  offset(2)+"means[0] = "+gridName+"[pos];\n"+
+            // offset(2)+"means[0] = "+gridName+"[rand() % grid_size];\n\n"+
             offset(2)+"std::vector<double> distribution(grid_size,0.0);\n"+
             offset(2)+"for (size_t i = 1; i < k; ++i)\n"+offset(2)+"{\n"+
             offset(3)+"computeMeanDistance(&distance_to_mean[0], &means[0]);\n"+
             offset(3)+"double dist_sum = 0.0;\n"+
+	  offset(3)+"#pragma omp parallel for num_threads(32) private(min_dist,dist) shared(distribution) reduction(+:dist_sum)\n"+
             offset(3)+"for (size_t tup = 0; tup < grid_size; ++tup)\n"+
             offset(3)+"{\n"+
             offset(4)+"min_dist = std::numeric_limits<double>::max();\n"+
@@ -1239,6 +1267,7 @@ std::string KMeans::genClusterInitialization(const std::string& gridName)
             "[tup], means[cluster], cluster, &distance_to_mean[0]);\n"+
             offset(5)+"min_dist = std::min(dist, min_dist);\n"+
             offset(4)+"}\n"+
+            offset(4)+"min_dist *= "+gridName+"[tup].aggregates[0];\n"+
             offset(4)+"distribution[tup] = min_dist;\n"+
             offset(4)+"dist_sum += min_dist;\n"+
             offset(3)+"}\n"+
@@ -1253,8 +1282,10 @@ std::string KMeans::genClusterInitialization(const std::string& gridName)
             offset(3)+"size_t pos = 0;\n"+
             offset(3)+"while (distribution[pos] < sampleValue)\n"+
             offset(4)+"pos++;\n"+
-            offset(3)+"means[i] += "+gridName+"[pos];\n"+
-            offset(2)+"}\n";
+            offset(3)+"means[i] = "+gridName+"[pos];\n"+
+            offset(2)+"}\n"+
+	  offset(2)+"int64_t endInit = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count()-startProcess;\n"+
+	  offset(2)+"startProcess = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();\n";
     }
     else
     {
