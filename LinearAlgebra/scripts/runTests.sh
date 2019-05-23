@@ -97,19 +97,15 @@ function get_build_opts()
             DFDB_SH_LMFAO=true
             ;;
             s)
-            DFDB_SH_JOIN=true
             DFDB_SH_SCIPY=true;
             ;;
             e)
-            DFDB_SH_JOIN=true
             DFDB_SH_EIGEN=true
             ;;
             n)
-            DFDB_SH_JOIN=true
             DFDB_SH_NUMPY=true
             ;;
             r)
-            DFDB_SH_JOIN=true
             DFDB_SH_R=true
             ;;
             p)
