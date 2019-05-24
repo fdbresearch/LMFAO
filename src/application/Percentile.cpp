@@ -205,14 +205,11 @@ void Percentile::generateCode()
     std::string printPerc = "", printPercTensorFlow = "";
     
     // Create a query & Aggregate
-    for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+    for (size_t var = 0; var < _td->numberOfAttributes(); ++var)
     {
-        if (!_isFeature[var])
-            continue; 
-
         std::string& attName =  _td->getAttribute(var)->_name;
 
-        if (!_isCategoricalFeature[var])
+        if (_isFeature[var] && !_isCategoricalFeature[var])
         {
             Query* query = varToQuery[var];
             const size_t& viewID = query->_aggregates[0]->_incoming[0].first;
