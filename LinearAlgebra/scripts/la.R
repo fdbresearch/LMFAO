@@ -64,11 +64,15 @@ for (it in 1:num_it){
             }
         }
     }
+    end_time <- Sys.time()
+    diff <- difftime(end_time, start_time, units='secs')
+    cat(paste('##LMFAO##One hot encode##', diff), '\n')
     print(ncol(dfA))
     #dfA[1, 1:ncol(dfA)]
 
+    start_time <-Sys.time()
     if(data_operation == "svd") {
-        dfA.svd <- svd(dfA)
+        dfA.svd <- svd(dfA, LINPACK=FALSE)
         if (dump) {
             file.create(dump_file)
             fprintf("%d\n", length(dfA.svd$d), file=dump_file, append=TRUE)
@@ -78,15 +82,15 @@ for (it in 1:num_it){
         }
     }
     else if (data_operation == "qr") {
-        QR <- qr(dfA)
-        Q <- qr.Q(QR)
+        QR <- qr(dfA, LAPCK=TRUE)
+        #Q <- qr.Q(QR)
         R <- qr.R(QR)
         if (dump) {
             sgn <- sign(diag(R))
             #TODO: Recheck these parts.
             R <- diag(sgn) %*% R
             file.create(dump_file)
-            fprintf("%d\n", nrow(R), ncol(R), file=dump_file, append=TRUE)
+            fprintf("%d %d\n", nrow(R), ncol(R), file=dump_file, append=TRUE)
             for (row in 1:nrow(R)) {
                 for (col in 1:ncol(R)) {
                     fprintf("%.15f ", R[row, col], file=dump_file, append=TRUE)

@@ -37,7 +37,7 @@ function init_global_vars()
 
     DFDB_SH_JOIN=false
     DFDB_SH_LMFAO=false
-    DFDB_SH_JOIN=false
+    DFDB_SH_EIGEN=false
     DFDB_SH_MADLIB=false
     DFDB_SH_R=false
     DFDB_SH_SCIPY=false
@@ -440,15 +440,21 @@ function main() {
             echo '*********Join finished**********'
             update_times "$time_psql" "$log_psql" "_"
         }
+        dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
+        # Needed for MADlib
+        # Even if it remains, it will be empty.
+        createdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
 
         for data_op in ${DFDB_SH_OPS[@]}; do
             echo "*********${data_op} decomposition**********"
             build_and_run_tests $data_set $data_op $data_set_idx
             echo "*********${data_op} decomposition**********"
         done
+        #dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
+
+
 
         # Normal removal of database.
-        dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
 
     done
 }
