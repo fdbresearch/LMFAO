@@ -103,5 +103,6 @@ for (it in 1:num_it){
        print("No truth found");
     }
     end_time <- Sys.time()
-    cat(paste('##LMFAO##Calculate##', end_time - start_time), '\n')
+    diff <- difftime(end_time, start_time, units='secs')
+    cat(paste('##LMFAO##Calculate##', diff), '\n')
 }
