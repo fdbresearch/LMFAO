@@ -4,11 +4,14 @@ function init_global_paths()
 {
     DFDB_SH_ROOT="${1:-/media/popina/test/dfdb/LMFAO}"
     #DFDB_SH_ROOT="/home/popina/Documents/FDB/LMFAO"
-    DFDB_SH_LA="$DFDB_SH_ROOT/LinearAlgebra"
+    DFDB_SH_LA="$DFDB_SH_ROOT/LA-F"
+    DFDB_SH_LMFAO_P="$DFDB_SH_ROOT/LMFAO"
     DFDB_SH_LA_SCRIPT="${DFDB_SH_LA}/scripts"
+    DFDB_SH_LA_BUILD="${DFDB_SH_LA}/build"
+    DFDB_SH_LMFAO_BUILD="${DFDB_SH_LMFAO_P}/build"
     DFDB_SH_DATA="$DFDB_SH_ROOT/data"
-    DFDB_SH_BUILD="$DFDB_SH_ROOT/build"
-    DFDB_SH_RUNTIME="$DFDB_SH_ROOT/runtime"
+    DFDB_SH_BUILD="$DFDB_SH_LMFAO_P/build"
+    DFDB_SH_RUNTIME="$DFDB_SH_LMFAO_P/runtime"
     DFDB_SH_RUNTIME_CPP="$DFDB_SH_RUNTIME/cpp"
     DFDB_SH_RUNTIME_SQL="$DFDB_SH_RUNTIME/sql"
     DFDB_SH_RUNTIME_OUTPUT="$DFDB_SH_RUNTIME_CPP/output"
@@ -401,7 +404,7 @@ function build_and_run_tests() {
 
 }
 
-# TODO: Add everything for Eigen +  QR for Madlib .
+# TODO:  QR for Madlib .
 
 function main() {
     init_global_paths
@@ -412,12 +415,14 @@ function main() {
         return
     fi
 
-    cd $DFDB_SH_BUILD
+    cd "${DFDB_SH_LA_BUILD}"
+    cmake .. -DLMFAO_LIB:BOOL=ON -DLMFAO_RUN:BOOL=OFF -DLMFAO_TEST:BOOL=OFF
+    make -j8
+    cd "${DFDB_SH_LMFAO_BUILD}"
     cmake ..
     make -j8
     mv multifaq ..
     cd $DFDB_SH_LA_SCRIPT
-
     for data_set in ${DFDB_SH_DATA_SETS[@]}; do
         data_set_idx=$(( ${DFDB_SH_DATA_SETS_FULL[$data_set]} ))
         if [[ $data_set_idx == 0 ]]; then
@@ -436,7 +441,7 @@ function main() {
         local time_psql=${DFDB_SH_TIME_PATH}/timepsql".xlsx"
         [[ $DFDB_SH_JOIN  == true ]] && {
             echo '*********Join started**********'
-            #(source generate_join.sh ${data_set}  &> ${log_psql})
+            (source generate_join.sh ${data_set}  &> ${log_psql})
             echo '*********Join finished**********'
             update_times "$time_psql" "$log_psql" "_"
         }
@@ -450,7 +455,7 @@ function main() {
             build_and_run_tests $data_set $data_op $data_set_idx
             echo "*********${data_op} decomposition**********"
         done
-        #dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
+        dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
 
 
 

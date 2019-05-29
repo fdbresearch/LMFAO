@@ -18,8 +18,8 @@ function sort_array_str() {
 
 function generate_madlib_sql() {
     prepare_str_cat_features
-    cd $DFDB_SH_ROOT
-    ./multifaq --path "data/${DFDB_SH_DATA_SET}/" --model covar --codegen sql
+    cd $DFDB_SH_LMFAO_P
+    ./multifaq --path "${DFDB_SH_DATA}/${DFDB_SH_DATA_SET}/" --model covar --codegen sql
     cd ${DFDB_SH_RUNTIME_SQL}
 
     sql_cleanup=$(cat join_cleanup.sql)
