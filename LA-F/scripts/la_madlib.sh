@@ -50,7 +50,9 @@ DROP COLUMN #;
     "
 
     sql_madlib_svd="SELECT madlib.svd( 'joinres_one_hot', 'svd', 'row_id', #, NULL, 'svd_summary_table');"
-    #sql_madlib_svd="SELECT madlib.matrix_qr( 'joinres_one_hot', 'svd', 'row_id', 34, NULL, 'svd_summary_table');"
+    sql_madlib_qr="SELECT madlib.matrix_sparsify('A', 'row=row_id, val=row_vec','A_sparse', 'col=col_id, val=val');\
+    SELECT madlib.matrix_qr('A_sparse', 'row=row_id, col=col_id val=val', 'qr');"
+    echo "${sql_madlib_qr}" > qr_madlib.sql
 }
 
 function clean_up_impl() {
@@ -79,6 +81,8 @@ function run_test_impl() {
         -d ${DFDB_SH_DB} -f join_madlib.sql
     eval_time "OneHotEncode" psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT \
         -d ${DFDB_SH_DB} -f join_one_hot_madlib.sql
+    # To prevent unnecessary memory occupation.
+    psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT -d ${DFDB_SH_DB} -f join_cleanup.sql
 
     #Names of the first categories of columns.
     sql_output=$(psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT -d ${DFDB_SH_DB} -f sql_madlib_feats_list.sql)
@@ -105,17 +109,32 @@ function run_test_impl() {
         sql_madlib_drop_cols+="${sql_madlib_drop_col/\#/${cat_feat}}"
     done
     echo "$sql_madlib_drop_cols" > drop_madlib_cols.sql
-
-    #Compute number of singular values in a matrix, 4 due to dumb output.
-    sing_vals_cnt=$(( ${#sql_output_a[@]} - 4 - ${#cat_feats_rm_a[@]} ))
-    echo "Number of singular values is: $sing_vals_cnt"
-    echo "${sql_madlib_svd/\#/${sing_vals_cnt}}" > svd_madlib.sql
-
     psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT -d ${DFDB_SH_DB} -f drop_madlib_cols.sql
-    eval_time "Linear algebra" psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT \
-            -d ${DFDB_SH_DB} -f svd_madlib.sql
 
-    [[ $DFDB_SH_DUMP == true ]] && dump_s $sing_vals_cnt
+    case $DFDB_SH_DATA_OP in
+    svd)
+        #Compute number of singular values in a matrix, 4 due to dumb output.
+        sing_vals_cnt=$(( ${#sql_output_a[@]} - 4 - ${#cat_feats_rm_a[@]} ))
+        #echo "Number of singular values is: $sing_vals_cnt"
+        echo "${sql_madlib_svd/\#/${sing_vals_cnt}}" > svd_madlib.sql
+        eval_time "Linear algebra" psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT \
+            -d ${DFDB_SH_DB} -f svd_madlib.sql
+        [[ $DFDB_SH_DUMP == true ]] && dump_s $sing_vals_cnt
+    ;;
+    qr)
+        pushd .
+        cd "$DFDB_SH_LA_SCRIPT"
+        python3 madlib_gen_dense_mat.py -jr "$DFDB_SH_JOIN_RES_PATH" \
+          -o "$DFDB_SH_RUNTIME_SQL/madlib_dense_mat.sql"
+        popd
+        psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT -d ${DFDB_SH_DB} -f madlib_dense_mat.sql
+        psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT \
+        -d ${DFDB_SH_DB} -f qr_madlib.sql
+        #TODO: Add dump for QR
+
+    ;;
+    esac
+
  }
 
 DFDB_SH_DATA_SET=$1
@@ -123,6 +142,7 @@ cat_feats_out=$2
 DFDB_SH_DATA_OP=$3
 DFDB_SH_DUMP=$4
 dump_file=$5
+
 
 generate_madlib_sql
 

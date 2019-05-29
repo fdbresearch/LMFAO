@@ -436,7 +436,7 @@ function main() {
         local time_psql=${DFDB_SH_TIME_PATH}/timepsql".xlsx"
         [[ $DFDB_SH_JOIN  == true ]] && {
             echo '*********Join started**********'
-            (source generate_join.sh ${data_set}  &> ${log_psql})
+            #(source generate_join.sh ${data_set}  &> ${log_psql})
             echo '*********Join finished**********'
             update_times "$time_psql" "$log_psql" "_"
         }

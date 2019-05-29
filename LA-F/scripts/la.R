@@ -82,12 +82,15 @@ for (it in 1:num_it){
         }
     }
     else if (data_operation == "qr") {
-        QR <- qr(dfA, LAPCK=TRUE)
+        QR <- qr(dfA, LAPACK=TRUE)
         #Q <- qr.Q(QR)
         R <- qr.R(QR)
+
         if (dump) {
-            sgn <- sign(diag(R))
+            R <- R[, order(QR$pivot)]
+            print(R)
             #TODO: Recheck these parts.
+            sgn <- sign(diag(R))
             R <- diag(sgn) %*% R
             file.create(dump_file)
             fprintf("%d %d\n", nrow(R), ncol(R), file=dump_file, append=TRUE)
