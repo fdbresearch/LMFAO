@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 #include "SVDecomp.h"
-#include "Eigen/Dense"
 
 using namespace LMFAO::LinearAlgebra;
 using namespace std;

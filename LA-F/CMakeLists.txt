@@ -25,6 +25,8 @@ set(CMAKE_BUILD_TYPE Benchmark)
 #set(LMFAO_LIB true)
 set(LMFAO_TEST true)
 
+add_definitions( -DEIGEN_USE_BLAS -DEIGEN_USE_LAPACKE )
+
 if (LMFAO_GPU)
   find_package(CUDA 10.0 REQUIRED)
   set(CUDA_LINK_LIBRARIES_KEYWORD PUBLIC)
@@ -49,7 +51,6 @@ if (LMFAO_GPU)
   add_library(cublas_svd ${SRCCUFILES})
   set(LMFAO_CUDA_LIBS cublas_svd ${CUDA_LINK_LIBRARIES})
 endif()
-
 
 
 if (LMFAO_RUN)
@@ -82,7 +83,7 @@ if (LMFAO_TEST)
   #find_package(LAPACKE REQUIRED)
   #include_directories(${LAPACKE_INCLUDE_DIRS})
 include_directories (/usr/include/)
-  target_link_libraries(lmfaola_test ${LMFAO_CUDA_LIBS} ${Boost_LIBRARIES} ${GTEST_LIBRARIES} -lblas -llapacke -Wl,--verbose)
+  target_link_libraries(lmfaola_test ${LMFAO_CUDA_LIBS} ${Boost_LIBRARIES} ${GTEST_LIBRARIES}  -lopenblas -llapacke -Wl,--verbose)
 endif()
 
 

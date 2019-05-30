@@ -2,10 +2,10 @@
 #include <fstream>
 #include <iomanip>
 #include <limits>
-#include "SVDecomp.h"
-#include "QRDecomp.h"
-//#include "RedSVD.h"
 #include <omp.h>
+
+#include "SVDecomp.h"
+//#include "RedSVD.h"
 
 namespace LMFAO::LinearAlgebra
 {

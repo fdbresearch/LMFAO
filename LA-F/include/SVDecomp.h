@@ -1,7 +1,6 @@
 #ifndef _LMFAO_SVD_DECOMP_H_
 #define _LMFAO_SVD_DECOMP_H_
 
-#include <Eigen/Dense>
 #include "QRDecomp.h"
 
 namespace LMFAO::LinearAlgebra

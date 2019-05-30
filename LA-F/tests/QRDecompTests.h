@@ -1,7 +1,5 @@
 #include <gtest/gtest.h>
 #include "QRDecomp.h"
-#include "Eigen/Dense"
-
 
 using namespace LMFAO::LinearAlgebra;
 using namespace std;

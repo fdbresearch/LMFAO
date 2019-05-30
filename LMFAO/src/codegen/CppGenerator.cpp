@@ -354,6 +354,7 @@ void CppGenerator::genMakeFile()
           +  "-lboost_system "
           +  "-lopenblas "
           +  "-llapacke "
+          + "-DEIGEN_USE_BLAS -DEIGEN_USE_LAPACKE "
           +  " -Wl,--verbose "
           + "-o lmfao\n\n";
 

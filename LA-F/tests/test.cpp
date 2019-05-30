@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include "QRDecompTests.h"
 #include "SVDecompTests.h"
 
