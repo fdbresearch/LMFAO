@@ -1,12 +1,19 @@
 #ifndef _LMFAO_QR_DECOMP_H_
 #define _LMFAO_QR_DECOMP_H_
 
-#include <boost/thread/barrier.hpp>
-#include <Eigen/Dense>
+
+#include <Eigen/SVD>
+// There is a bug because Eigen include C complex.h which has I defined as macro
+// while boost uses I as classname, and thus there is a clash in naming.
+// I is not used anywhere in eigen as a variable except in src/SparseLU/SparseLU_gemm_kernel.h:
+// which doesn't include any files, thus I is not included.
+//
+#undef I
 #include <iostream>
 #include <vector>
 #include <map>
 #include <mutex>
+#include <boost/thread/barrier.hpp>
 
 
 namespace LMFAO::LinearAlgebra
