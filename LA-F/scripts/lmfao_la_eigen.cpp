@@ -1,3 +1,5 @@
+#include <Eigen/Dense>
+#undef I
 #include <boost/program_options.hpp>
 #include <string>
 #include <iostream>
@@ -8,7 +10,6 @@
 #include <chrono>
 #include <limits>
 #include <iomanip>
-#include <Eigen/Dense>
 
 using namespace boost::program_options;
 
@@ -337,6 +338,7 @@ int main(int argc, const char *argv[])
         }
         else if (operation.find("svd") != std::string::npos)
         {
+            std::cout << "SVD" << std::endl;
             Eigen::BDCSVD<Eigen::MatrixXd> svdR(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
             if (dump)
             {
