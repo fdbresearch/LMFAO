@@ -1,11 +1,14 @@
 #ifndef _LMFAO_QR_DECOMP_H_
 #define _LMFAO_QR_DECOMP_H_
 
+#define EIGEN_USE_BLAS
+#define EIGEN_USE_LAPACKE
+
+#include <boost/thread/barrier.hpp>
 #include <Eigen/Dense>
 #include <vector>
 #include <map>
 #include <mutex>
-#include <boost/thread/barrier.hpp>
 #include <iostream>
 
 namespace LMFAO::LinearAlgebra

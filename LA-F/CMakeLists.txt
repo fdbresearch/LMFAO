@@ -22,7 +22,7 @@ set(CMAKE_CXX_FLAGS_BENCHMARK "${CMAKE_CXX_FLAGS_RELEASE} -DBENCH")
 # Set to Debug, Benchmark or Release.
 set(CMAKE_BUILD_TYPE Benchmark)
 #set(LMFAO_RUN true)
-set(LMFAO_LIB true)
+#set(LMFAO_LIB true)
 set(LMFAO_TEST true)
 
 if (LMFAO_GPU)
@@ -77,7 +77,12 @@ if (LMFAO_TEST)
   # Take care of Gtest library.
   find_package(GTest REQUIRED)
   include_directories(${GTEST_INCLUDE_DIRS})
-  target_link_libraries(lmfaola_test ${LMFAO_CUDA_LIBS} ${Boost_LIBRARIES} ${GTEST_LIBRARIES})
+  #find_package( BLAS REQUIRED )
+  #include_directories(${BLAS_INCLUDE_DIR})
+  #find_package(LAPACKE REQUIRED)
+  #include_directories(${LAPACKE_INCLUDE_DIRS})
+include_directories (/usr/include/)
+  target_link_libraries(lmfaola_test ${LMFAO_CUDA_LIBS} ${Boost_LIBRARIES} ${GTEST_LIBRARIES} -lblas -llapacke -Wl,--verbose)
 endif()
 
 
@@ -87,7 +92,7 @@ if (LMFAO_LIB)
   add_library(lmfaolalib STATIC ${SRCFILES} )
   #target_link_libraries(lmfaolalib ${Boost_LIBRARIES})
   if (LMFAO_GPU)
-    target_link_libraries(lmfaolalib ${CUDA_LINK_LIBRARIES})
+    target_link_libraries(lmfaolalib ${CUDA_LINK_LIBRARIES} )
   endif()
 endif()
 

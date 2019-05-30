@@ -350,8 +350,11 @@ void CppGenerator::genMakeFile()
 
     ofs << "lmfao : " + objectList + "\n\t$(CXX) $(CXXFLAG) " +
           objectList + " ../../../LA-F/build/liblmfaolalib.a "
-          + "../../libs/libboost_thread.a "
-          +  "../../libs/libboost_system.a "
+          + "-lboost_thread "
+          +  "-lboost_system "
+          +  "-lopenblas "
+          +  "-llapacke "
+          +  " -Wl,--verbose "
           + "-o lmfao\n\n";
 
     ofs << "main.o : main.cpp\n"
