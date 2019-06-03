@@ -60,7 +60,7 @@ class TreeDecomposition
 
 public:
 
-    TreeDecomposition(std::string filename);
+    TreeDecomposition();
 
     ~TreeDecomposition();
 
@@ -83,7 +83,7 @@ public:
     /**
      * Builds the DTree from a configuration file.
      */
-    void buildFromFile(std::string fileName);
+    void buildFromFile();
 
     /**
      * Get pointer to node for given node ID. 

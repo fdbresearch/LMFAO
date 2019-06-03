@@ -28,8 +28,7 @@ class LinearRegression: public Application
 {
 public:
 
-    LinearRegression(const std::string& pathToFiles,
-                     std::shared_ptr<Launcher> launcher);
+    LinearRegression(std::shared_ptr<Launcher> launcher);
 
     ~LinearRegression();
 
@@ -37,7 +36,7 @@ public:
     
     var_bitset getCategoricalFeatures();
 
-    void generateCode(const std::string& ouputDirectory);
+    void generateCode();
 
 private:
     

@@ -10,12 +10,12 @@
 #include <vector>
 
 #include "RegressionTreeNode.hpp"
-#include "../runtime/cpp/DynamicFunctionsGenerator.hpp"
+#include "RegressionTreeHelper.hpp"
 
 const size_t max_depth = 2;
 const double min_size = 1000.0;
 
-void loadSplit(RegTreeNode* node, double& leftCount, double& rightCount)
+void loadSplit(RegTreeNode* node, double& leftCount, double& rightCount, double& leftPred, double& rightPred)
 {
     std::ifstream input("bestsplit.out");
     if (!input)
@@ -34,8 +34,8 @@ void loadSplit(RegTreeNode* node, double& leftCount, double& rightCount)
     std::stringstream ss(line);
 
     getline(ss, attr, '\t');
-    cost = std::stod(attr);
-    
+    cost = std::stod(attr);    
+
     getline(ss, attr, '\t');
     varID = std::stoi(attr);
 
@@ -52,14 +52,15 @@ void loadSplit(RegTreeNode* node, double& leftCount, double& rightCount)
     rightCount = std::stod(attr);
 
     getline(ss, attr, '\t');
-    leftValue = std::stod(attr);
+    leftPred = std::stod(attr);
     
     getline(ss, attr, '\t');
-    rightValue = std::stod(attr);
+    rightPred = std::stod(attr);
     
     Condition* cond = new Condition();
     node->condition.variable = varID;
     node->condition.threshold = threshold;
+
     if (categorical)
     {
         node->condition.op = "==";
@@ -80,8 +81,18 @@ void splitNode(RegTreeNode* node, std::vector<Condition> conditions, size_t dept
     system("./lmfao");
 
     // Load the new split proposed by LMFAO and the corresponding stats
-    double leftCount, rightCount, leftValue, rightValue;
-    loadSplit(node, leftCount, rightCount, leftValue, rightValue);
+    double leftCount, rightCount, leftPred, rightPred;
+    loadSplit(node, leftCount, rightCount, leftPred, rightPred);
+
+    RegTreeNode* leftNode = new RegTreeNode();
+    leftNode->prediction = leftPred;
+
+    node->lchild = leftNode;
+
+    RegTreeNode* rightNode = new RegTreeNode();
+    rightNode->prediction = rightPred;
+
+    node->rchild = rightNode;
 
     // Check if you continue Splitting left
     if (depth == max_depth)
@@ -94,8 +105,7 @@ void splitNode(RegTreeNode* node, std::vector<Condition> conditions, size_t dept
         std::vector<Condition> left = conditions; 
         left.push_back(node->condition);
 
-        RegTreeNode* leftNode = new RegTreeNode();
-        node->lchild = leftNode;
+        leftNode->isLeaf = false;
 
         splitNode(leftNode, left, depth+1);
     }
@@ -114,19 +124,38 @@ void splitNode(RegTreeNode* node, std::vector<Condition> conditions, size_t dept
 
         right.push_back(rightCondition);
 
-        RegTreeNode* rightNode = new RegTreeNode();
-        node->rchild = rightNode;
+        rightNode->isLeaf = false;
 
         splitNode(rightNode, right, depth+1);
     }
 }
 
+
+void printTree(RegTreeNode* node, int& counter, int depth)
+{
+   std::cout << std::string(depth*3,' ') << "Node: " << counter++ << " Variable: " << node->condition.variable 
+        << " Condition: " << node->condition.threshold << " Predcition: " << node->prediction << std::endl;
+
+   if (!node->isLeaf)
+   {
+     printTree(node->lchild, counter, depth+1);
+     printTree(node->rchild, counter, depth+1);
+   }
+}
+
 int main(int argc, char *argv[])
 {
     RegTreeNode* root = new RegTreeNode();
+    root->isLeaf = false;
+
     std::vector<Condition> conditions;
     
-    splitNode(root, conditions, 1);
+    splitNode(root, conditions, 0);
+
+    int counter = 0; 
+    printTree(root, counter, 0);
+
+    evaluateModel(root);
 
     return 0;
 };

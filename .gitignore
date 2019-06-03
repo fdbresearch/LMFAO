@@ -52,3 +52,6 @@ src/codegen/previous_versions/*
 *#
 compile_commands.json
 compiler-data.out
+
+# ignore script files 
+scripts/*

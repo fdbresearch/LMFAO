@@ -29,14 +29,13 @@ class LinearRegression: public Application
 {
 public:
 
-    LinearRegression(const std::string& pathToFiles,
-                     std::shared_ptr<Launcher> launcher);
+    LinearRegression(std::shared_ptr<Launcher> launcher);
 
     ~LinearRegression();
 
     void run();
 
-    void generateCode(const std::string& outputString);
+    void generateCode();
 
 //    var_bitset getFeatures();
 

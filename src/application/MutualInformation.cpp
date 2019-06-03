@@ -20,15 +20,17 @@ static const char NUMBER_SEPARATOR_CHAR = ',';
 static const char ATTRIBUTE_NAME_CHAR = ':';
 
 using namespace std;
+
 using namespace multifaq::params;
+using namespace multifaq::config;
+using namespace multifaq::dir;
+
 namespace phoenix = boost::phoenix;
 using namespace boost::spirit;
 
 using namespace std;
 
-MutualInformation::MutualInformation(
-    const string& pathToFiles, shared_ptr<Launcher> launcher) :
-    _pathToFiles(pathToFiles)
+MutualInformation::MutualInformation(shared_ptr<Launcher> launcher)
 {
     _compiler = launcher->getCompiler();
     _td = launcher->getTreeDecomposition();
@@ -45,7 +47,7 @@ void MutualInformation::run()
     _compiler->compile();
 }
 
-void MutualInformation::generateCode(const std::string& outputString)
+void MutualInformation::generateCode()
 {}
 
 
@@ -107,11 +109,11 @@ void MutualInformation::loadFeatures()
     _queryRootIndex = new size_t[NUM_OF_VARIABLES]();
     
     /* Load the two-pass variables config file into an input stream. */
-    ifstream input(_pathToFiles + FEATURE_CONF);
+    ifstream input(FEATURE_CONF);
 
     if (!input)
     {
-        ERROR(_pathToFiles + FEATURE_CONF+" does not exist. \n");
+        ERROR(FEATURE_CONF+" does not exist. \n");
         exit(1);
     }
 

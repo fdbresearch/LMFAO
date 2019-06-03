@@ -28,14 +28,13 @@ class MutualInformation: public Application
 {
 public:
 
-    MutualInformation(const std::string& pathToFiles,
-          std::shared_ptr<Launcher> launcher);
+    MutualInformation(std::shared_ptr<Launcher> launcher);
 
     ~MutualInformation();
 
     void run();
 
-    void generateCode(const std::string& outputString);
+    void generateCode();
 
     
 private:

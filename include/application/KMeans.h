@@ -28,15 +28,14 @@ class KMeans: public Application
 {
 public:
 
-    KMeans(const std::string& pathToFiles,
-           std::shared_ptr<Launcher> launcher,
-           const int k);
+    KMeans(std::shared_ptr<Launcher> launcher,
+           const size_t k, const size_t kappa);
 
     ~KMeans();
 
     void run();
     
-    void generateCode(const std::string& outputString);
+    void generateCode();
         
 private:
     
@@ -50,7 +49,7 @@ private:
     std::shared_ptr<TreeDecomposition> _td;
 
     const size_t _k;
-    size_t _dimensionK;
+    const size_t _dimensionK;
 
     size_t numberOfOriginalVariables;
     
