@@ -244,7 +244,22 @@ void CppGenerator::genMainFunction(bool parallelize)
     for (size_t relID = 0; relID < _td->numberOfRelations(); ++relID)
     {
         const std::string& relName = _td->getRelation(relID)->_name;
+        const var_bitset& bag = _td->getRelation(relID)->_bag;
         ofs << offset(1)+"std::vector<"+relName+"_tuple> "+relName+";" << std::endl;
+        if(COLUMNAR_LAYOUT) {
+          ofs << offset(1)+"size_t "+relName+"__size"+";"<<std::endl;
+          for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+          {
+              if (bag[var])
+              {
+                  Attribute* att = _td->getAttribute(var);
+                  ofs << offset(1) + typeToStr(att->_type)+"* " + relName + "_" +att->_name;
+                  // TODO
+                  // Check if this attribute is a constant. 
+                  ofs << ";" << std::endl;
+              }
+          }
+        }
     }
     
     for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
@@ -401,6 +416,37 @@ std::string CppGenerator::genSortFunction(const size_t& rel_id)
         // "std::ofstream::app);\n"+
         // offset(2)+"ofs << \"\\t\" << endProcess;\n"+
         // offset(2)+"ofs.close();\n";
+
+    if(COLUMNAR_LAYOUT) {
+      returnString += "\n"+offset(2)+"int64_t startCstore = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();\n";
+      const var_bitset& bag = relation->_bag;
+      returnString += offset(2)+relName+"__size = " + relName + ".size();\n";
+      for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+      {
+          if (bag[var])
+          {
+              Attribute* att = _td->getAttribute(var);
+              returnString += offset(2) + relName + "_" +att->_name + " = (" + typeToStr(att->_type) + "*)malloc(sizeof("+
+              typeToStr(att->_type)+") * " + relName + "__size)";
+              returnString += ";\n";
+          }
+      }
+      returnString += offset(2) + "for(int i = 0; i<"+relName+"__size; i++) {\n";
+      for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+      {
+          if (bag[var])
+          {
+              Attribute* att = _td->getAttribute(var);
+              returnString += offset(3) + relName + "_" +att->_name + "[i] = " + relName + "[i]."+att->_name;
+              returnString += ";\n";
+          }
+      }
+      returnString += offset(2) + "}\n";
+      returnString += offset(2)+"std::vector<"+relName+"_tuple>().swap("+relName+");\n";
+      returnString += offset(2)+"int64_t endCstore = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count()-startCstore;\n";
+      returnString += offset(2)+"std::cout << \"CStoring Relation "+relName+": \"+"+
+        "std::to_string(endCstore)+\"ms.\\n\";\n\n";    
+    }
     
     return returnString+offset(1)+"}\n";
 }
@@ -773,8 +819,24 @@ std::string CppGenerator::genTupleStructs()
                     tupleStruct += ";\n"+offset(2);
             }
         }
-        tupleStruct += relName+"_tuple(const std::string& tuple);\n"+offset(1)+"};\n\n"+
-            offset(1)+"extern std::vector<"+rel->_name+"_tuple> "+rel->_name+";\n\n";
+        tupleStruct += relName+"_tuple(const std::string& tuple);\n"+offset(1)+"};\n\n";
+        if(COLUMNAR_LAYOUT) {
+          tupleStruct += offset(1)+"extern size_t "+rel->_name+"__size;\n" + offset(1);
+          for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+          {
+              if (bag[var])
+              {
+                  Attribute* att = _td->getAttribute(var);
+                  tupleStruct += "extern " + typeToStr(att->_type)+"* " + rel->_name + "_" +att->_name;
+                  // TODO
+                  // Check if this attribute is a constant. 
+                  tupleStruct += ";\n"+offset(1);
+              }
+          }
+          tupleStruct += "\n";
+        } else {
+          tupleStruct += offset(1)+"extern std::vector<"+rel->_name+"_tuple> "+rel->_name+";\n\n";
+        }
     }
 
     for (size_t viewID = 0; viewID < _qc->numberOfViews(); ++viewID)
@@ -3570,9 +3632,15 @@ std::string CppGenerator::genDependentAggLoopString(
                     offset(3+depth+numOfLoops)+"while(ptr_"+node._name+
                     " <= upperptr_"+node._name+"["+depthString+"])\n"+
                     offset(3+depth+numOfLoops)+"{\n"+
-                    offset(4+depth+numOfLoops)+node._name +
+                    offset(4+depth+numOfLoops);
+                if(COLUMNAR_LAYOUT) {
+                    loopString += "int " + node._name +
+                    "__index = ptr_"+node._name+";\n";
+                } else {
+                    loopString += node._name +
                     "_tuple &"+node._name+"Tuple = "+node._name+
                     "[ptr_"+node._name+"];\n";
+                }
                 
                 closeLoopString = offset(4+depth+numOfLoops)+"++ptr_"+node._name+";\n"+
                     offset(3+depth+numOfLoops)+"}\n"+closeLoopString;
@@ -3703,8 +3771,11 @@ std::string CppGenerator::genDependentAggLoopString(
             {
                 if (node._bag[v])
                 {
-                    viewVars += node._name+"Tuple."+
-                        _td->getAttribute(v)->_name+",";
+                    if(COLUMNAR_LAYOUT && isRelation(node._name)) {
+                      viewVars += relationFieldAccess(node._name, _td->getAttribute(v)->_name, node._name + "__index")+",";
+                    } else {
+                      viewVars += node._name+"Tuple."+ _td->getAttribute(v)->_name+",";
+                    }
                 }
                 else
                 {
@@ -4377,9 +4448,15 @@ std::string CppGenerator::genAggLoopStringCompressed(
                     offset(3+depth+numOfLoops)+"while(ptr_"+node._name+
                     " <= upperptr_"+node._name+"["+depthString+"])\n"+
                     offset(3+depth+numOfLoops)+"{\n"+
-                    offset(4+depth+numOfLoops)+node._name +
+                    offset(4+depth+numOfLoops);
+                if(COLUMNAR_LAYOUT) {
+                    loopString += "int " + node._name +
+                    "__index = ptr_"+node._name+";\n";
+                } else {
+                    loopString += node._name +
                     "_tuple &"+node._name+"Tuple = "+node._name+
                     "[ptr_"+node._name+"];\n";
+                }
                 
                 closeLoopString = offset(4+depth+numOfLoops)+"++ptr_"+node._name+";\n"+
                     offset(3+depth+numOfLoops)+"}\n"+closeLoopString;
@@ -5339,8 +5416,11 @@ std::string CppGenerator::genProductString(
                 {
                     if (node._bag[v])
                     {
-                        freeVarString += node._name+"Tuple."+
-                            _td->getAttribute(v)->_name+",";                            
+                        if(COLUMNAR_LAYOUT && isRelation(node._name)) {
+                          freeVarString += relationFieldAccess(node._name, _td->getAttribute(v)->_name, node._name + "__index")+",";
+                        } else {
+                          freeVarString += node._name+"Tuple."+ _td->getAttribute(v)->_name+",";
+                        }
                     }
                     else
                     {
@@ -5387,7 +5467,32 @@ std::string CppGenerator::genProductString(
     return productString;    
 }
 
+bool CppGenerator::isRelation(std::string relName) {
+    for (size_t relID = 0; relID < _td->numberOfRelations(); ++relID)
+    {
+        TDNode* rel = _td->getRelation(relID);
+        if(rel->_name == relName) {
+            return true;
+        }
+    }
+    return false;
+}
 
+std::string CppGenerator::relationFieldAccess(std::string relName, std::string field, std::string index) {
+  if(COLUMNAR_LAYOUT && isRelation(relName)) {
+    return relName + "_" + field + "[" + index + "]";
+  } else {
+    return relName + "[" + index + "]." + field;
+  }
+}
+
+std::string CppGenerator::relationSize(std::string relName) {
+  if(COLUMNAR_LAYOUT && isRelation(relName)) {
+    return relName + "__size";
+  } else {
+    return relName + ".size()";
+  }
+}
 
 std::string CppGenerator::genGroupGenericJoinCode(
     size_t group_id, const TDNode& node, size_t depth)
@@ -5532,7 +5637,7 @@ std::string CppGenerator::genGroupGenericJoinCode(
         {
             // Set upper = lower and update ranges
             returnString += offset(2+depth)+"max_"+attrName+" = "+
-                relName+"[lowerptr_"+relName+"["+depthString+"]]."+attrName +";\n"+
+                relationFieldAccess(relName, attrName, "lowerptr_"+relName+"["+depthString+"]") +";\n"+
                 offset(4+depth)+"upperptr_"+relName+"["+depthString+"] = "+
                 "lowerptr_"+relName+"["+depthString+"];\n";
             
@@ -5614,8 +5719,14 @@ std::string CppGenerator::genGroupGenericJoinCode(
    
     // We add the definition of the Tuple references and aggregate pointers
     // TODO: This could probably be simplified TODO: TODO: TODO: !!!!!
-    returnString += offset(3+depth)+relName +"_tuple &"+node._name+"Tuple = "+
+    if(COLUMNAR_LAYOUT) {
+      // TODO
+      returnString += offset(3+depth)+"int "+relName +"__index = "+
+        "lowerptr_"+relName+"["+depthString+"];\n";
+    } else {
+      returnString += offset(3+depth)+relName +"_tuple &"+node._name+"Tuple = "+
         relName+"[lowerptr_"+relName+"["+depthString+"]];\n";
+    }
 
     for (const size_t& viewID : incViews)
     {
@@ -5877,14 +5988,16 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
     }
     else
     {
-        std::string factor;        
-        if (viewsPerVar[idx+1] == _qc->numberOfViews())
-            factor = relName;
-        else
-            factor = viewName[viewsPerVar[idx+1]];
+        std::string rhs;        
+        if (viewsPerVar[idx+1] == _qc->numberOfViews()) {
+            rhs = relationFieldAccess(relName, attrName, "0");
+        }
+        else {
+            rhs = viewName[viewsPerVar[idx+1]]+"[0]."+attrName;
+        }
         
         returnString += offset(2+depth)+"max_"+attrName+" = "+
-            factor+"[0]."+attrName+";\n";
+            rhs+";\n";
     }
     
     // Update rel pointers 
@@ -6025,8 +6138,14 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
    
     // We add the definition of the Tuple references and aggregate pointers
     // TODO: This could probably be simplified TODO: TODO: TODO: !!!!!
-    returnString += offset(3+depth)+relName +"_tuple &"+node._name+"Tuple = "+
+    if(COLUMNAR_LAYOUT) {
+      // TODO
+      returnString += offset(3+depth)+"int "+relName +"__index = "+
+        "lowerptr_"+relName+"["+depthString+"];\n";
+    } else {
+      returnString += offset(3+depth)+relName +"_tuple &"+node._name+"Tuple = "+
         relName+"[lowerptr_"+relName+"["+depthString+"]];\n";
+    }
 
     for (const size_t& viewID : incViews)
     {
@@ -6249,8 +6368,9 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
     {
         std::string factor;
         bool parallel;
+        bool isRelation = viewsPerVar[idx+1] == _qc->numberOfViews();
         
-        if (viewsPerVar[idx+1] == _qc->numberOfViews())
+        if (isRelation)
         {
             factor = relName;
             parallel = _parallelizeGroup[group_id];
@@ -6268,9 +6388,15 @@ std::string CppGenerator::genGroupLeapfrogJoinCode(
             // body
             offset(4+depth)+"atEnd["+depthString+"] = true;\n"+
             //else
-            offset(3+depth)+"else\n"+
-            offset(4+depth)+"max_"+attrName+" = "+factor+"[lowerptr_"+factor+"["+
-            depthString+"]]."+attrName+";\n";
+            offset(3+depth)+"else\n";
+
+        if(isRelation)
+            returnString += offset(4+depth)+"max_"+attrName+" = "+
+                relationFieldAccess(relName, attrName, "lowerptr_"+factor+"["+depthString+"]")+ ";\n";
+        else
+            returnString += offset(4+depth)+"max_"+attrName+" = "+factor+"[lowerptr_"+factor+"["+
+                depthString+"]]."+attrName+";\n";
+
     }
 
     // Closing the while loop 
@@ -6306,7 +6432,7 @@ std::string CppGenerator::genGroupRelationOrdering(
         std::string first, firstID;
         if (groupViewsPerVarInfo[group_id][idx+1] == _qc->numberOfViews())
         {    
-            first = rel_name+"[lowerptr_"+rel_name+"["+depthString+"]]."+attr_name;
+            first = relationFieldAccess(rel_name, attr_name, "lowerptr_"+rel_name+"["+depthString+"]");
             firstID = rel_name+"_ID";
         }
         else
@@ -6345,9 +6471,9 @@ std::string CppGenerator::genGroupRelationOrdering(
         size_t off = 1;
         if (groupViewsPerVarInfo[group_id][idx+1] == _qc->numberOfViews())
         {
-            res += "\n"+offset(4+depth)+"std::make_pair("+rel_name+
-                "[lowerptr_"+rel_name+"["+depthString+"]]."+attr_name+", "+
-                rel_name+"_ID),";
+            res += "\n"+offset(4+depth)+"std::make_pair("+
+                relationFieldAccess(rel_name, attr_name, "lowerptr_"+rel_name+"["+depthString+"]") +
+                ", "+rel_name+"_ID),";
             off = 2;
         }
         
@@ -6459,7 +6585,8 @@ std::string CppGenerator::genPointerArrays(const std::string& rel,
     else
         return offset(2)+"size_t lowerptr_"+rel+"["+numOfJoinVars+"] = {}, "+
             "upperptr_"+rel+"["+numOfJoinVars+"] = {}; \n"+
-            offset(2)+"upperptr_"+rel+"[0] = "+rel+".size()-1;\n";
+            offset(2)+"upperptr_"+rel+"[0] = "+
+            relationSize(rel) + "-1;\n";
 }
 
 
@@ -6470,12 +6597,14 @@ std::string CppGenerator::seekValueCase(size_t depth, const std::string& rel_nam
 {
     return offset(4+depth)+"case "+rel_name+"_ID:\n"+
         //if
-        offset(5+depth)+"if("+rel_name+"[lowerptr_"+rel_name+"["+
-        std::to_string(depth)+"]]."+attr_name+" == max_"+attr_name+")\n"+
+        offset(5+depth)+"if("+
+        relationFieldAccess(rel_name, attr_name, "lowerptr_"+rel_name+"["+std::to_string(depth)+"]")+
+        " == max_"+attr_name+")\n"+
         offset(6+depth)+"found["+std::to_string(depth)+"] = true;\n"+
         // else if 
-        offset(5+depth)+"else if(max_"+attr_name+" > "+rel_name+"["+
-        getUpperPointer(rel_name, depth, parallel)+"]."+attr_name+")\n"+
+        offset(5+depth)+"else if(max_"+attr_name+" > "+
+        relationFieldAccess(rel_name, attr_name, getUpperPointer(rel_name, depth, parallel)) + 
+        ")\n"+
         offset(6+depth)+"atEnd["+std::to_string(depth)+"] = true;\n"+
         //else 
         offset(5+depth)+"else\n"+offset(5+depth)+"{\n"+
@@ -6484,8 +6613,9 @@ std::string CppGenerator::seekValueCase(size_t depth, const std::string& rel_nam
         // offset(6+depth)+"findUpperBound("+rel_name+",&"+rel_name+"_tuple::"+
         // attr_name+", max_"+attr_name+",lowerptr_"+rel_name+"["+
         // std::to_string(depth)+"],"+getUpperPointer(rel_name,depth,parallel)+");\n"+
-        offset(6+depth)+"max_"+attr_name+" = "+rel_name+"[lowerptr_"+
-        rel_name+"["+std::to_string(depth)+"]]."+attr_name+";\n"+
+        offset(6+depth)+"max_"+attr_name+" = "+
+        relationFieldAccess(rel_name, attr_name, "lowerptr_"+rel_name+"["+std::to_string(depth)+"]")+
+        ";\n"+
         offset(6+depth)+"rel["+std::to_string(depth)+"] = (rel["+
         std::to_string(depth)+"]+1) % numOfRel["+std::to_string(depth)+"];\n"+
         offset(5+depth)+"}\n"+
@@ -6505,7 +6635,7 @@ std::string CppGenerator::seekValueGenericJoin(
         offset(5+depth)+"leap = 1;\n"+
         offset(5+depth)+"high = lowerptr_"+rel_name+"["+depthString+"];\n"+
         offset(5+depth)+"while (high <= "+
-        upperPointer+" && "+rel_name+"[high]."+attr_name+" < max_"+attr_name+")\n"+
+        upperPointer+" && "+relationFieldAccess(rel_name,attr_name,"high")+" < max_"+attr_name+")\n"+
         offset(5+depth)+"{\n"+
         offset(6+depth)+"high += leap;\n"+
         offset(6+depth)+"leap *= 2;\n"+
@@ -6530,9 +6660,9 @@ std::string CppGenerator::seekValueGenericJoin(
         // offset(9+depth)+"lowerptr_"+rel_name+"["+depthString+"] = mid;\n"+
         // offset(9+depth)+"high = mid - 1;\n"+
         // offset(8+depth)+"}\n"+
-        offset(6+depth)+"if (max_"+attr_name+" < "+rel_name+"[mid]."+attr_name+")\n"+
+        offset(6+depth)+"if (max_"+attr_name+" < "+relationFieldAccess(rel_name, attr_name, "mid")+")\n"+
         offset(7+depth)+"high = mid - 1;\n"+
-        offset(6+depth)+"else if(max_"+attr_name+" > "+rel_name+"[mid]."+attr_name+")\n"+
+        offset(6+depth)+"else if(max_"+attr_name+" > "+relationFieldAccess(rel_name, attr_name, "mid")+")\n"+
         offset(7+depth)+"low = mid + 1;\n"+
         offset(6+depth)+"else if  (low != mid)\n"+offset(7+depth)+"high = mid;\n"+
         offset(6+depth)+"else\n"+offset(7+depth)+"break;\n"+
@@ -6551,14 +6681,14 @@ std::string CppGenerator::seekValueGenericJoin(
     if (firstFactor)
     {
         resetMaxVal = offset(4+depth)+"max_"+attr_name+" = "+
-            rel_name+"[lowerptr_"+rel_name+"["+depthString+"]]."+attr_name+";\n";
+            relationFieldAccess(rel_name, attr_name, "lowerptr_"+rel_name+"["+depthString+"]")+";\n";
     }
     else
     {
         resetMaxVal = offset(4+depth)+"if (max_"+attr_name+" < "+
-            rel_name+"[lowerptr_"+rel_name+"["+depthString+"]]."+attr_name+")\n"+
+            relationFieldAccess(rel_name, attr_name, "lowerptr_"+rel_name+"["+depthString+"]")+")\n"+
             offset(4+depth)+"{\n"+offset(5+depth)+"max_"+attr_name+" = "+
-            rel_name+"[lowerptr_"+rel_name+"["+depthString+"]]."+attr_name+";\n"+
+            relationFieldAccess(rel_name, attr_name, "lowerptr_"+rel_name+"["+depthString+"]")+";\n"+            
             offset(5+depth)+"found["+depthString+"] = false;\n"+
             offset(5+depth)+"continue;\n"+
             offset(4+depth)+"}\n";
@@ -6569,16 +6699,17 @@ std::string CppGenerator::seekValueGenericJoin(
         std::to_string(depth)+"]]."+attr_name+" == max_"+attr_name+")\n"+
         offset(5+depth)+"found["+depthString+"] = true;\n"+*/
         // else if 
-        offset(4+depth)+"if(max_"+attr_name+" > "+rel_name+"["+
-        getUpperPointer(rel_name, depth, parallel)+"]."+attr_name+")\n"+
+        offset(4+depth)+"if(max_"+attr_name+" > "+
+        relationFieldAccess(rel_name, attr_name, getUpperPointer(rel_name, depth, parallel))+
+        ")\n"+
         offset(4+depth)+"{\n"+offset(5+depth)+"atEnd["+depthString+"] = true;\n"+
         offset(5+depth)+"break;\n"+offset(4+depth)+"}\n"+
         //else 
         offset(4+depth)+"else if (max_"+attr_name+" > "+
-        rel_name+"[lowerptr_"+rel_name+"["+depthString+"]]."+attr_name+")\n"+
+        relationFieldAccess(rel_name, attr_name, "lowerptr_"+rel_name+"["+depthString+"]")+")\n"+
         offset(4+depth)+"{\n"+findUpperBound+
-        offset(5+depth)+"if (max_"+attr_name+" > "+rel_name+"[lowerptr_"+
-        rel_name+"["+depthString+"]]."+attr_name+")\n"+
+        offset(5+depth)+"if (max_"+attr_name+" > "+
+        relationFieldAccess(rel_name, attr_name, "lowerptr_"+rel_name+"["+depthString+"]")+")\n"+
         offset(6+depth)+"std::cout << \"ERROR: max_"+attr_name+" > "+
         rel_name+"[lowerptr_"+rel_name+"["+depthString+"]]."+attr_name+"\\n\";\n"+
         offset(4+depth)+"}\n"+
@@ -6600,8 +6731,8 @@ std::string CppGenerator::updateMaxCase(size_t depth, const std::string& rel_nam
         offset(5+depth)+"atEnd["+std::to_string(depth)+"] = true;\n"+
         //else
         offset(4+depth)+"else\n"+offset(4+depth)+"{\n"+
-        offset(5+depth)+"max_"+attr_name+" = "+rel_name+"[lowerptr_"+
-        rel_name+"["+std::to_string(depth)+"]]."+attr_name+";\n"+
+        offset(5+depth)+"max_"+attr_name+" = "+
+        relationFieldAccess(rel_name, attr_name, "lowerptr_"+rel_name+"["+std::to_string(depth)+"]")+";\n"+
         offset(5+depth)+"rel["+std::to_string(depth)+"] = (rel["+
         std::to_string(depth)+"]+ 1) % numOfRel["+std::to_string(depth)+"];\n"+
         offset(4+depth)+"}\n"+offset(4+depth)+"break;\n";
@@ -6614,7 +6745,7 @@ std::string CppGenerator::getUpperPointer(const std::string rel_name, size_t dep
     if (depth == 0 && parallelize)
         return "upperptr";
     if (depth == 0)
-        return rel_name+".size()-1";
+        return relationSize(rel_name) + "-1";
     return "upperptr_"+rel_name+"["+std::to_string(depth-1)+"]";
 }
 
@@ -6633,8 +6764,8 @@ std::string CppGenerator::updateRanges(size_t depth, const std::string& rel_name
         //while statementnd
         "while(upperptr_"+rel_name+"["+depthString+"]<"+
         getUpperPointer(rel_name, depth, parallel)+" && "+
-        rel_name+"[upperptr_"+rel_name+"["+depthString+"]+1]."+
-        attr_name+" == max_"+attr_name+")\n"+
+        relationFieldAccess(rel_name, attr_name, "upperptr_"+rel_name+"["+depthString+"]+1")+
+        " == max_"+attr_name+")\n"+
         //body
         offset(3+depth)+"{\n"+
         offset(4+depth)+"++upperptr_"+rel_name+"["+depthString+"];\n"+
@@ -6808,7 +6939,7 @@ std::string CppGenerator::genFindUpperBound(const std::string& rel_name,
     const std::string upperPointer = getUpperPointer(rel_name,depth,parallel);
     
     std::string returnString = offset(6+depth)+"min_"+attrName+" = "+
-        rel_name+"[lowerptr_"+rel_name+"["+depthString+"]]."+attrName +";\n"+
+        relationFieldAccess(rel_name, attrName, "lowerptr_"+rel_name+"["+depthString+"]") + ";\n"+
         offset(6+depth)+"size_t leap = 1;\n"+
         offset(6+depth)+"while (min_"+attrName+" < max_"+attrName+" && "+
         "lowerptr_"+rel_name+"["+depthString+"] <= "+upperPointer+")\n"+
@@ -6817,8 +6948,8 @@ std::string CppGenerator::genFindUpperBound(const std::string& rel_name,
         offset(7+depth)+"leap *= 2;\n"+
         offset(7+depth)+"if(lowerptr_"+rel_name+"["+depthString+
         "] < "+upperPointer+")\n"+offset(7+depth)+"{\n"+
-        offset(8+depth)+"min_"+attrName+" = "+rel_name+"[lowerptr_"+rel_name+"["+
-        depthString+"]]."+attrName+";\n"+
+        offset(8+depth)+"min_"+attrName+" = "+
+        relationFieldAccess(rel_name, attrName, "lowerptr_"+rel_name+"["+depthString+"]") + ";\n"+
         offset(7+depth)+"}\n"+offset(7+depth)+"else\n"+offset(7+depth)+"{\n"+
         offset(8+depth)+"lowerptr_"+rel_name+"["+depthString+"] = "+upperPointer+";\n"+
         offset(8+depth)+"break;\n"+
@@ -6830,23 +6961,25 @@ std::string CppGenerator::genFindUpperBound(const std::string& rel_name,
      * use binary search to backtrack.
      */ 
     returnString += offset(6+depth)+"/* Backtrack with binary search */\n"+
-        offset(6+depth)+"if (leap > 2 && max_"+attrName+" <= "+rel_name+
-        "[lowerptr_"+rel_name+"["+depthString+"]]."+attrName+")\n"+offset(6+depth)+"{\n"+
+        offset(6+depth)+"if (leap > 2 && max_"+attrName+" <= "+
+        relationFieldAccess(rel_name, attrName, "lowerptr_"+rel_name+"["+depthString+"]") +
+        ")\n"+offset(6+depth)+"{\n"+
         offset(7+depth)+"leap /= 2;\n"+
         offset(7+depth)+"size_t high = lowerptr_"+rel_name+"["+depthString+"], low = "+
         "lowerptr_"+rel_name+"["+depthString+"] - leap, mid = 0;\n"+
         offset(7+depth)+"while (high > low && high != low)\n"+offset(7+depth)+"{\n"+
         offset(8+depth)+"mid = (high + low) / 2;\n"+
-        offset(8+depth)+"if (max_"+attrName+" > "+rel_name+"[mid - 1]."+attrName+" && "+
-        "max_"+attrName+" <= "+rel_name+"[mid]."+attrName+")\n"+offset(8+depth)+"{\n"+
+        offset(8+depth)+"if (max_"+attrName+" > "+
+        relationFieldAccess(rel_name, attrName, "mid - 1") + " && "+
+        "max_"+attrName+" <= "+relationFieldAccess(rel_name, attrName, "mid")+")\n"+offset(8+depth)+"{\n"+
         offset(9+depth)+"lowerptr_"+rel_name+"["+depthString+"] = mid;\n"+
         offset(9+depth)+"break;\n"+offset(8+depth)+"}\n"+
-        offset(8+depth)+"else if (max_"+attrName+" <= "+rel_name+"[mid]."+attrName+")\n"+
+        offset(8+depth)+"else if (max_"+attrName+" <= "+relationFieldAccess(rel_name, attrName, "mid")+")\n"+
         offset(9+depth)+"high = mid - 1;\n"+
         offset(8+depth)+"else \n"+offset(9+depth)+"low = mid + 1;\n"+
         offset(7+depth)+"}\n"+
         offset(7+depth)+"mid = (high + low) / 2;\n"+
-        offset(7+depth)+"if ("+rel_name+"[mid-1]."+attrName+" >= max_"+attrName+")\n"+
+        offset(7+depth)+"if ("+relationFieldAccess(rel_name, attrName, "mid - 1")+" >= max_"+attrName+")\n"+
         offset(8+depth)+"mid -= 1;\n"+
         offset(7+depth)+"lowerptr_"+rel_name+"["+depthString+"] = mid;\n"+
         offset(6+depth)+"}\n";

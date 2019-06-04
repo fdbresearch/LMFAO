@@ -648,6 +648,12 @@ private:
         const boost::dynamic_bitset<>& contributingViews,
         const size_t numOfOutViewLoops, std::string& resetString);
 
+    bool isRelation(std::string relName);
+
+    std::string relationFieldAccess(std::string relName, std::string field, std::string index);
+
+    std::string relationSize(std::string relName);
+
 #ifdef OLD
     // TODO: RENAME 
     std::vector<size_t>* viewsPerVarInfo = nullptr;

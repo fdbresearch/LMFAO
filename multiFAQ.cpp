@@ -70,6 +70,8 @@ int main(int argc, char *argv[])
        /* Option to turn off compression of aggregates operator. */
        ("compress", boost::program_options::value<bool>()->default_value("1"),
         "turn compression of aggregates on (default)/off")
+       /* Option to turn on the columnar layout. */
+       ("column", "changes the data layout into a columnar one rather than the default row layout")
        /* Option to turn off mutlti output operator. */
        ("resort", "enables resorting of views / relations, requires multiout off.")
        /* Option to turn off mutlti output operator. */

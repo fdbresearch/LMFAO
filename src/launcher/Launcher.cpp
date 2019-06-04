@@ -27,6 +27,7 @@ std::string multifaq::config::TREEDECOMP_CONF = "";
 std::string multifaq::config::SCHEMA_CONF = "";
 
 bool multifaq::cppgen::MULTI_OUTPUT;
+bool multifaq::cppgen::COLUMNAR_LAYOUT;
 bool multifaq::cppgen::RESORT_RELATIONS;
 bool multifaq::cppgen::MICRO_BENCH;
 bool multifaq::cppgen::COMPRESS_AGGREGATES;
@@ -105,6 +106,8 @@ int Launcher::launch(boost::program_options::variables_map& vm)
     else if (parallel.compare("none") != 0)
         ERROR("ERROR - We only support task and/or domain parallelism. "<<
               "We continue single threaded.\n\n");
+
+    multifaq::cppgen::COLUMNAR_LAYOUT = vm.count("column");
 
     multifaq::cppgen::RESORT_RELATIONS = vm.count("resort");
 

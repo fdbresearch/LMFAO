@@ -79,6 +79,8 @@ namespace multifaq
 
         extern bool BENCH_INDIVIDUAL;
 
+        extern bool COLUMNAR_LAYOUT;
+
 
         enum PARALLELIZATION_TYPE
         {
