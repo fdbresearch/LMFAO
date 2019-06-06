@@ -37,16 +37,16 @@ namespace LMFAO::LinearAlgebra
 
     void svdCuda(const Eigen::MatrixXd &a);
 
-    typedef std::tuple<unsigned int, unsigned int,
+    typedef std::tuple<uint32_t, uint32_t,
                            double> Triple;
-    typedef std::tuple<unsigned int, double> Pair;
+    typedef std::tuple<uint32_t, double> Pair;
 
-    typedef std::map<std::pair<unsigned int, unsigned int>,
+    typedef std::map<std::pair<uint32_t, uint32_t>,
                      double> MapMatrixAggregate;
     class QRDecomposition
     {
-        void formMatrix(const MapMatrixAggregate &, unsigned int numFeatsExp,
-                        unsigned int mNumFeats, unsigned int mNumFeatsCont,
+        void formMatrix(const MapMatrixAggregate &, uint32_t numFeatsExp,
+                        uint32_t mNumFeats, uint32_t mNumFeatsCont,
                         const std::vector<bool>& vIsCat);
         void readMatrix(const std::string &path);
         void rearrangeMatrix(const std::vector<bool> &vIsCat);
@@ -64,17 +64,17 @@ namespace LMFAO::LinearAlgebra
 
         // Number of features (categorical + continuous) in sigma matrix.
         //
-        unsigned int mNumFeats = 0;
+        uint32_t mNumFeats = 0;
         // Number of real valued values in the expanded sigma matrix
         // without linearly dependent columns.
         //
-        unsigned int mNumFeatsExp = 0;
+        uint32_t mNumFeatsExp = 0;
         // Number of continuous features in sigma matrix.
         //
-        unsigned int mNumFeatsCont = 0;
+        uint32_t mNumFeatsCont = 0;
         // Number of categorical features in sigma matrix.
         //
-        unsigned int mNumFeatsCat;
+        uint32_t mNumFeatsCat;
         // Controls whether linearly independent columns are allowed.
         // When they are allowed this can lead to numerical instability.
         // Use it with caution!!!
@@ -91,8 +91,8 @@ namespace LMFAO::LinearAlgebra
         {
             readMatrix(path);
         }
-        QRDecomposition(const MapMatrixAggregate& mMatrix, unsigned int numFeatsExp,
-                        unsigned int numFeats, unsigned int numFeatsCont,
+        QRDecomposition(const MapMatrixAggregate& mMatrix, uint32_t numFeatsExp,
+                        uint32_t numFeats, uint32_t numFeatsCont,
                         const std::vector<bool>& vIsCat, const bool isLinDepAllowed=false):
         mIsLinDepAllowed(isLinDepAllowed)
         {
@@ -108,8 +108,8 @@ namespace LMFAO::LinearAlgebra
     public:
         QRDecompositionNaive(const std::string &path, const bool isLinDepAllowed=false) :
             QRDecomposition(path, isLinDepAllowed) {}
-        QRDecompositionNaive(const MapMatrixAggregate &mMatrix, unsigned int numFeatsExp,
-                            unsigned int numFeats, unsigned int numFeatsCont,
+        QRDecompositionNaive(const MapMatrixAggregate &mMatrix, uint32_t numFeatsExp,
+                            uint32_t numFeats, uint32_t numFeatsCont,
                             const std::vector<bool>& vIsCat, const bool isLinDepAllowed=false) :
             QRDecomposition(mMatrix, numFeatsExp, numFeats, numFeatsCont, vIsCat, isLinDepAllowed) {}
         ~QRDecompositionNaive() {}
@@ -128,8 +128,8 @@ namespace LMFAO::LinearAlgebra
     public:
         QRDecompositionSingleThreaded(const std::string &path, const bool isLinDepAllowed=false)
         : QRDecomposition(path, isLinDepAllowed) {}
-        QRDecompositionSingleThreaded(const MapMatrixAggregate &mMatrix, unsigned int numFeatsExp,
-                            unsigned int numFeats, unsigned int numFeatsCont,
+        QRDecompositionSingleThreaded(const MapMatrixAggregate &mMatrix, uint32_t numFeatsExp,
+                            uint32_t numFeats, uint32_t numFeatsCont,
                             const std::vector<bool>& vIsCat, const bool isLinDepAllowed=false) :
          QRDecomposition(mMatrix, numFeatsExp, numFeats, numFeatsCont, vIsCat, isLinDepAllowed) {}
 
@@ -147,21 +147,21 @@ namespace LMFAO::LinearAlgebra
     // Phi; Categorical cofactors as list of lists
     std::vector<std::vector<Pair>> mCofactorPerFeature;
 
-    const unsigned int mNumThreads = 8;
+    const uint32_t mNumThreads = 8;
     boost::barrier mBarrier{mNumThreads};
     std::mutex mMutex;
     public:
         QRDecompositionMultiThreaded(const std::string &path, const bool isLinDepAllowed=false) :
         QRDecomposition(path, isLinDepAllowed) {}
-        QRDecompositionMultiThreaded(const MapMatrixAggregate &mMatrix, unsigned int numFeatsExp,
-                            unsigned int numFeats, unsigned int numFeatsCont,
+        QRDecompositionMultiThreaded(const MapMatrixAggregate &mMatrix, uint32_t numFeatsExp,
+                            uint32_t numFeats, uint32_t numFeatsCont,
                             const std::vector<bool>& vIsCat, const bool isLinDepAllowed=false) :
         QRDecomposition(mMatrix, numFeatsExp, numFeats, numFeatsCont, vIsCat, isLinDepAllowed) {}
 
         ~QRDecompositionMultiThreaded() {}
         virtual void decompose(void) override;
         void processCofactors(void);
-        void calculateCR(unsigned int threadId);
+        void calculateCR(uint32_t threadId);
     };
 }
 

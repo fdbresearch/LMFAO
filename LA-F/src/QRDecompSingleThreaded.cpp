@@ -12,9 +12,9 @@ namespace LMFAO::LinearAlgebra
         mCofactorPerFeature.resize(mNumFeatsExp - mNumFeatsCont);
         for (const Triple &triple : mCatVals)
         {
-            unsigned int row = std::get<0>(triple);
-            unsigned int col = std::get<1>(triple);
-            unsigned int minIdx, maxIdx;
+            uint32_t row = std::get<0>(triple);
+            uint32_t col = std::get<1>(triple);
+            uint32_t minIdx, maxIdx;
             double aggregate = std::get<2>(triple);
             minIdx = std::min(row, col);
             maxIdx = std::max(row, col);
@@ -30,10 +30,10 @@ namespace LMFAO::LinearAlgebra
 
         // Sort cofactorList (Sigma) colexicographically
         sort(begin(mCofactorList), end(mCofactorList), [](const Triple &a, const Triple &b) -> bool {
-            unsigned int a_max = std::max(std::get<0>(a), std::get<1>(a));
-            unsigned int a_min = std::min(std::get<0>(a), std::get<1>(a));
-            unsigned int b_max = std::max(std::get<0>(b), std::get<1>(b));
-            unsigned int b_min = std::min(std::get<0>(b), std::get<1>(b));
+            uint32_t a_max = std::max(std::get<0>(a), std::get<1>(a));
+            uint32_t a_min = std::min(std::get<0>(a), std::get<1>(a));
+            uint32_t b_max = std::max(std::get<0>(b), std::get<1>(b));
+            uint32_t b_min = std::min(std::get<0>(b), std::get<1>(b));
 
             return std::tie(a_max, a_min) < std::tie(b_max, b_min);
         });
@@ -49,24 +49,24 @@ namespace LMFAO::LinearAlgebra
     void QRDecompositionSingleThreaded::calculateCR(void)
     {
         // R(0,0) = Cofactor[1,1] (Note that the first row and column contain the label's aggregates)
-        unsigned int T = mNumFeatsCont;
-        unsigned int N = mNumFeatsExp;
+        uint32_t T = mNumFeatsCont;
+        uint32_t N = mNumFeatsExp;
         std::vector<double> sigmaExpanded(T * T);
 
         expandSigma(sigmaExpanded, false /*isNaive*/);
 
         mR[0] = sigmaExpanded[0];
 
-        // We skip k=0 since the ineer loops don't iterate over it. 
-        for (unsigned int k = 1; k < N; k++)
+        // We skip k=0 since the ineer loops don't iterate over it.
+        for (uint32_t k = 1; k < N; k++)
         {
-            unsigned int idxRCol = N * k;
+            uint32_t idxRCol = N * k;
 
             if (k < T)
             {
-                for (unsigned int i = 0; i <= k - 1; i++)
+                for (uint32_t i = 0; i <= k - 1; i++)
                 {
-                    for (unsigned int l = 0; l <= i; l++)
+                    for (uint32_t l = 0; l <= i; l++)
                     {
                         mR[idxRCol + i] += mC[expIdx(l, i, N)] * sigmaExpanded[expIdx(l, k, T)];
                         // R(i,k) += mC(l, i) * Cofactor(l, k);
@@ -75,11 +75,11 @@ namespace LMFAO::LinearAlgebra
             }
             else
             {
-                for (unsigned int i = 0; i <= k - 1; i++)
+                for (uint32_t i = 0; i <= k - 1; i++)
                 {
                     for (Pair tl : mCofactorPerFeature[k - T])
                     {
-                        unsigned int l = std::get<0>(tl);
+                        uint32_t l = std::get<0>(tl);
 
                         if (unlikely(l > i))
                             break;
@@ -90,12 +90,12 @@ namespace LMFAO::LinearAlgebra
                 }
             }
 
-            for (unsigned int j = 0; j <= k - 1; j++)
+            for (uint32_t j = 0; j <= k - 1; j++)
             {
-                unsigned int rowIdx = N * j;
+                uint32_t rowIdx = N * j;
 
                 // note that $i in \{ j, ..., k-1 \} -- i.e. mC is upper triangular
-                for (unsigned int i = j; i <= k - 1; i++)
+                for (uint32_t i = j; i <= k - 1; i++)
                 {
                     if (!mIsLinDepAllowed || fabs((mR[expIdx(i, i, N)]) >= mcPrecisionError))
                     {
@@ -106,7 +106,7 @@ namespace LMFAO::LinearAlgebra
             }
             // Sum of sigma submatrix for continuous values.
             double D_k = 0; // stores R'(k,k)
-            for (unsigned int l = 0; l <= std::min(k, T - 1); l++)
+            for (uint32_t l = 0; l <= std::min(k, T - 1); l++)
             {
                 double res = 0;
                 for (unsigned p = 0; p <= std::min(k, T - 1); p++)
@@ -124,15 +124,15 @@ namespace LMFAO::LinearAlgebra
 
                 for (const Triple& tl: mCofactorList)
                 {
-                    unsigned int p = std::get<0>(tl);
-                    unsigned int l = std::get<1>(tl);
+                    uint32_t p = std::get<0>(tl);
+                    uint32_t l = std::get<1>(tl);
 
                     double agg = std::get<2>(tl);
 
                     if (unlikely(p > k || l > k))
                         break;
 
-                    unsigned int factor = (p != l) ? 2 : 1;
+                    uint32_t factor = (p != l) ? 2 : 1;
 
                     D_k += factor * mC[expIdx(l, k, N)] * mC[expIdx(p, k, N)] * agg;
                     // D_k += mC(l, k) * mC(p, k) * Cofactor(l, p);
@@ -150,13 +150,13 @@ namespace LMFAO::LinearAlgebra
     {
         // We omit the first column of each categorical column matrix because they are linearly
         // among themselves (for specific column).
-        unsigned int N = mNumFeatsExp;
+        uint32_t N = mNumFeatsExp;
 
         processCofactors();
 
         // Used to store constants (A = ACR), initialises mC = Identity[N,N]
         mC.resize(N * N);
-        for (unsigned int row = 0; row < N; row++)
+        for (uint32_t row = 0; row < N; row++)
         {
             mC[expIdx(row, row, N)] = 1;
         }
@@ -165,7 +165,7 @@ namespace LMFAO::LinearAlgebra
         calculateCR();
 
         // Normalise R' to obtain R
-        for (unsigned int row = 0; row < N; row++)
+        for (uint32_t row = 0; row < N; row++)
         {
             //std::cout << "Norm" << mR[row * N + row] << std::endl;
             double norm = 1;;
@@ -173,7 +173,7 @@ namespace LMFAO::LinearAlgebra
             {
                 norm = sqrt(mR[row * N + row]);
             }
-            for (unsigned int col = row; col < N; col++)
+            for (uint32_t col = row; col < N; col++)
             {
                 //std::cout << row << " " << col << mR[col * N + row] << std::endl;
                 mR[col * N + row] /= norm;

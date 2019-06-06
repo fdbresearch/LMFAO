@@ -85,7 +85,7 @@ namespace LMFAO::LinearAlgebra
         //RedSVD::RedSVD<Eigen::MatrixXd> testSVD(mR);
         /*
         auto t = testSVD.singularValues();
-        for (unsigned int idx = 0; idx < t.rows(); idx ++)
+        for (uint32_t idx = 0; idx < t.rows(); idx ++)
         {
             std::cout << t(idx) << std::endl;
         }
@@ -109,7 +109,7 @@ namespace LMFAO::LinearAlgebra
     void SVDecomp::getSingularValues(Eigen::VectorXd& vSingularValues)
     {
         vSingularValues.resize(svdR.singularValues().rows());
-        for (unsigned int idx = 0; idx < svdR.singularValues().rows(); idx ++)
+        for (uint32_t idx = 0; idx < svdR.singularValues().rows(); idx ++)
         {
             vSingularValues(idx) = svdR.singularValues()(idx);
         }
@@ -117,11 +117,11 @@ namespace LMFAO::LinearAlgebra
 
     std::ostream& operator<<(std::ostream& out, const SVDecomp& svdDecomp)
     {
-        unsigned int N = svdDecomp.svdR.singularValues().rows();
+        uint32_t N = svdDecomp.svdR.singularValues().rows();
         out << N << std::endl;
         out << std::fixed << std::setprecision(std::numeric_limits<double>::digits10 + 1);
 
-        for (unsigned int idx = 0; idx < N; idx ++)
+        for (uint32_t idx = 0; idx < N; idx ++)
         {
             out << svdDecomp.svdR.singularValues()(idx) << std::endl;
         }

@@ -18,9 +18,9 @@ namespace LMFAO::LinearAlgebra
         Eigen::BDCSVD<Eigen::MatrixXd> svdR;
         const std::string mPath;
         const LMFAO::LinearAlgebra::MapMatrixAggregate* mpmapMatAgg = nullptr;
-        unsigned int mNumFeatsExp;
-        unsigned int mNumFeatsCont;
-        unsigned int mNumFeats;
+        uint32_t mNumFeatsExp;
+        uint32_t mNumFeatsCont;
+        uint32_t mNumFeats;
         std::vector<bool> mvIsCat;
         public : SVDecomp(const std::string &path, DecompType decompType) : mDecompType(decompType), mPath(path)
         {
@@ -28,8 +28,8 @@ namespace LMFAO::LinearAlgebra
         }
         // !!! ASSUMPTION, mapMatAgg lives in the same block as SVDDEcomp.
         SVDecomp(DecompType decompType, const MapMatrixAggregate &mapMatAgg,
-                 unsigned int numFeatsExp, unsigned int numFeats,
-                 unsigned int numFeatsCont,
+                 uint32_t numFeatsExp, uint32_t numFeats,
+                 uint32_t numFeatsCont,
                  const std::vector<bool> &vIsCat) : mDecompType(decompType),
                  mNumFeatsExp(numFeatsExp), mNumFeatsCont(numFeatsCont),
                  mNumFeats(numFeats)

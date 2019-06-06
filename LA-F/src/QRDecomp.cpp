@@ -9,7 +9,7 @@ namespace LMFAO::LinearAlgebra
     void QRDecomposition::readMatrix(const std::string& path)
     {
         std::ifstream f(path);
-        unsigned int row, col;
+        uint32_t row, col;
         bool isCategorical;
         double val;
         f >> mNumFeatsExp;
@@ -25,7 +25,7 @@ namespace LMFAO::LinearAlgebra
         mNumFeatsExp = mNumFeatsExp;
         mNumFeatsCat = mNumFeats - mNumFeatsCont;
 
-        for (unsigned int idx = 0; idx < mNumFeatsExp; idx ++)
+        for (uint32_t idx = 0; idx < mNumFeatsExp; idx ++)
         {
             f >> isCategorical;
             vIsCat[idx] = isCategorical;
@@ -42,11 +42,11 @@ namespace LMFAO::LinearAlgebra
     }
 
     void QRDecomposition::formMatrix(const MapMatrixAggregate &matrixAggregate,
-                                     unsigned int numFeatsExp, unsigned int numFeats,
-                                     unsigned int numFeatsCont,
+                                     uint32_t numFeatsExp, uint32_t numFeats,
+                                     uint32_t numFeatsCont,
                                      const std::vector<bool>& vIsCat)
     {
-        unsigned int row, col;
+        uint32_t row, col;
         // We exclued intercept column passed from LMFAO.
         //
         mNumFeatsExp = numFeatsExp - 1;
@@ -79,21 +79,21 @@ namespace LMFAO::LinearAlgebra
         // Number of categorical columns up to that column, excluding it.
         // In a range [0, idx)
         //
-        std::vector<unsigned int> cntCat(mNumFeatsExp, 0);
-        std::vector<unsigned int> cntCont(mNumFeatsExp, 0);
-        for (unsigned int idx = 1; idx < mNumFeatsExp; idx++)
+        std::vector<uint32_t> cntCat(mNumFeatsExp, 0);
+        std::vector<uint32_t> cntCont(mNumFeatsExp, 0);
+        for (uint32_t idx = 1; idx < mNumFeatsExp; idx++)
         {
             //std::cout << vIsCat[idx-1] << std::endl;
             cntCat[idx] = cntCat[idx - 1] + vIsCat[idx - 1];
             cntCont[idx] = cntCont[idx - 1] + !vIsCat[idx - 1];
         }
 
-        for (unsigned int row = 0; row < mNumFeatsExp; row++)
+        for (uint32_t row = 0; row < mNumFeatsExp; row++)
         {
-            for (unsigned int col = 0; col < mNumFeatsExp; col++)
+            for (uint32_t col = 0; col < mNumFeatsExp; col++)
             {
-                unsigned int row_idx = vIsCat[row] ? (row - cntCont[row] + mNumFeatsCont) : (row - cntCat[row]);
-                unsigned int col_idx = vIsCat[col] ? (col - cntCont[col] + mNumFeatsCont) : (col - cntCat[col]);
+                uint32_t row_idx = vIsCat[row] ? (row - cntCont[row] + mNumFeatsCont) : (row - cntCat[row]);
+                uint32_t col_idx = vIsCat[col] ? (col - cntCont[col] + mNumFeatsCont) : (col - cntCat[col]);
                 if (vIsCat[row] || (vIsCat[col]))
                 {
                     mNaiveCatVals.push_back(std::make_tuple(row_idx, col_idx, mSigma(row, col)));
@@ -110,16 +110,16 @@ namespace LMFAO::LinearAlgebra
         }
         for (const Triple &triple : mNaiveCatVals)
         {
-            unsigned int row = std::get<0>(triple);
-            unsigned int col = std::get<1>(triple);
+            uint32_t row = std::get<0>(triple);
+            uint32_t col = std::get<1>(triple);
             double aggregate = std::get<2>(triple);
             mSigma(row, col) = aggregate;
         }
         //std::cout << "Matrix" << std::endl;
         /*
-        for (unsigned int row = 0; row < mNumFeatsExp; row++)
+        for (uint32_t row = 0; row < mNumFeatsExp; row++)
         {
-            for (unsigned int col = 0; col < mNumFeatsExp; col++)
+            for (uint32_t col = 0; col < mNumFeatsExp; col++)
             {
                 cout << row << " " << col << " " << mSigma(row, col) << endl;
             }
@@ -130,10 +130,10 @@ namespace LMFAO::LinearAlgebra
 
     void QRDecomposition::expandSigma(std::vector<double> &sigmaExpanded, bool isNaive)
     {
-        unsigned int numRows = isNaive ?  mNumFeatsExp : mNumFeatsCont;
-        for (unsigned int row = 0; row < numRows; row ++)
+        uint32_t numRows = isNaive ?  mNumFeatsExp : mNumFeatsCont;
+        for (uint32_t row = 0; row < numRows; row ++)
         {
-            for (unsigned int col = 0; col < numRows; col ++)
+            for (uint32_t col = 0; col < numRows; col ++)
             {
                 sigmaExpanded[expIdx(row, col, numRows)] = mSigma(row, col);
             }
@@ -142,14 +142,14 @@ namespace LMFAO::LinearAlgebra
 
     void QRDecomposition::getR(Eigen::MatrixXd &rEigen)
     {
-        unsigned int N = mNumFeatsExp;
+        uint32_t N = mNumFeatsExp;
 
         rEigen.resize(N, N);
         rEigen = Eigen::MatrixXd::Zero(rEigen.rows(), rEigen.cols());
 
-        for (unsigned int row = 0; row < N; row++)
+        for (uint32_t row = 0; row < N; row++)
         {
-            for (unsigned int col = row; col < N; col++)
+            for (uint32_t col = row; col < N; col++)
             {
                 rEigen(row, col) = mR[col * N + row];
             }
@@ -158,17 +158,17 @@ namespace LMFAO::LinearAlgebra
 
     std::ostream& operator<<(std::ostream& out, const QRDecomposition& qrDecomp)
     {
-        unsigned int N = qrDecomp.mNumFeatsExp;
+        uint32_t N = qrDecomp.mNumFeatsExp;
         out << N << " " << N << std::fixed << std::setprecision(2) << std::endl;
         out << std::fixed << std::setprecision(std::numeric_limits<double>::digits10 + 1);
 
-        for (unsigned int row = 0; row < N; row++)
+        for (uint32_t row = 0; row < N; row++)
         {
-            for (unsigned int col = 0; col < row; col++)
+            for (uint32_t col = 0; col < row; col++)
             {
                 out << "0 ";
             }
-            for (unsigned int col = row; col < N; col++)
+            for (uint32_t col = row; col < N; col++)
             {
                 out << qrDecomp.mR[col * N + row] << " ";
             }
