@@ -30,7 +30,7 @@ function init_global_vars()
     DFDB_SH_PASSWORD=""
     DFDB_SH_PORT=5432
     declare -gA DFDB_SH_DATA_SETS_FULL
-    DFDB_SH_DATA_SETS_FULL=( [usretailer_35f_1]=1 [usretailer_35f_10]=2 [usretailer_35f_100]=3 [usretailer_35f_1000]=4 [usretailer_35f]=5 [favorita]=6 )
+    DFDB_SH_DATA_SETS_FULL=( [usretailer_35f_1]=1 [usretailer_35f_10]=2 [usretailer_35f_100]=3 [usretailer_35f_1000]=4 [usretailer_35f]=5 [favorita]=6 [favorita_6f]=7 )
     DFDB_SH_DATA_SETS=("${!DFDB_SH_DATA_SETS_FULL[@]}")
     echo "Skupovi" ${DFDB_SH_DATA_SETS[@]}
     DFDB_SH_OPS=("svd" "qr")
