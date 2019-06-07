@@ -1,10 +1,15 @@
-#ifndef _LMFAO_SVD_DECOMP_H_
-#define _LMFAO_SVD_DECOMP_H_
+#ifndef _LMFAO_LA_SVD_DECOMP_H_
+#define _LMFAO_LA_SVD_DECOMP_H_
 
 #include "QRDecomp.h"
 
 namespace LMFAO::LinearAlgebra
 {
+    class SVDecompBase
+    {
+
+    };
+
     class SVDecomp
     {
     public:

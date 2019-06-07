@@ -1,56 +1,19 @@
-#ifndef _LMFAO_QR_DECOMP_H_
-#define _LMFAO_QR_DECOMP_H_
+#ifndef _LMFAO_LA_QR_DECOMP_H_
+#define _LMFAO_LA_QR_DECOMP_H_
 
+#include "Utils.h"
 
-#include <Eigen/SVD>
-// There is a bug because Eigen include C complex.h which has I defined as macro
-// while boost uses I as classname, and thus there is a clash in naming.
-// I is not used anywhere in eigen as a variable except in src/SparseLU/SparseLU_gemm_kernel.h:
-// which doesn't include any files, thus I is not included.
-//
-#undef I
 #include <iostream>
 #include <vector>
 #include <map>
 #include <mutex>
 #include <boost/thread/barrier.hpp>
 
-
 namespace LMFAO::LinearAlgebra
 {
-    template <typename T>
-    T inline expIdx(T row, T col, T numCols)
-    {
-        return row * numCols + col;
-    }
-
-    /**
-     * Used to help the compiler make branching predictions.
-     */
-    #ifdef __GNUC__
-    #define likely(x) __builtin_expect((x),1)
-    #define unlikely(x) __builtin_expect((x),0)
-    #else
-    #define likely(x) x
-    #define unlikely(x) x
-    #endif
-
-    void svdCuda(const Eigen::MatrixXd &a);
-
-    typedef std::tuple<uint32_t, uint32_t,
-                           double> Triple;
-    typedef std::tuple<uint32_t, double> Pair;
-
-    typedef std::map<std::pair<uint32_t, uint32_t>,
-                     double> MapMatrixAggregate;
     class QRDecomposition
     {
-        void formMatrix(const MapMatrixAggregate &, uint32_t numFeatsExp,
-                        uint32_t mNumFeats, uint32_t mNumFeatsCont,
-                        const std::vector<bool>& vIsCat);
-        void readMatrix(const std::string &path);
-        void rearrangeMatrix(const std::vector<bool> &vIsCat);
-    protected :
+     protected:
         Eigen::MatrixXd mSigma;
         // R is  stored column-wise to exploit cache locality.
         // C is stored row-wise look at the line 112 -> cache locality in each thread important.
@@ -89,14 +52,30 @@ namespace LMFAO::LinearAlgebra
         QRDecomposition(const std::string& path, const bool isLinDepAllowed=false) :
         mIsLinDepAllowed(isLinDepAllowed)
         {
-            readMatrix(path);
+            FeatDim oFeatDim;
+            LMFAO::LinearAlgebra::readMatrix(path, oFeatDim, mSigma,
+                                 mCatVals, mNaiveCatVals);
+            mNumFeats = oFeatDim.num;
+            mNumFeatsExp = oFeatDim.numExp;
+            mNumFeatsCont = oFeatDim.numCont;
+            mNumFeatsCat = oFeatDim.numCat;
         }
         QRDecomposition(const MapMatrixAggregate& mMatrix, uint32_t numFeatsExp,
                         uint32_t numFeats, uint32_t numFeatsCont,
                         const std::vector<bool>& vIsCat, const bool isLinDepAllowed=false):
         mIsLinDepAllowed(isLinDepAllowed)
         {
-            formMatrix(mMatrix, numFeatsExp, numFeats, numFeatsCont, vIsCat);
+            FeatDim featDim;
+            FeatDim oFeatDim;
+            featDim.num = numFeats;
+            featDim.numExp = numFeatsExp;
+            featDim.numCont = numFeatsCont;
+            LMFAO::LinearAlgebra::formMatrix(mMatrix, vIsCat, featDim, oFeatDim, mSigma,
+                                             mCatVals, mNaiveCatVals);
+            mNumFeats = oFeatDim.num;
+            mNumFeatsExp = oFeatDim.numExp;
+            mNumFeatsCont = oFeatDim.numCont;
+            mNumFeatsCat = oFeatDim.numCat;
         }
         virtual ~QRDecomposition() {}
         void getR(Eigen::MatrixXd &rEigen);
