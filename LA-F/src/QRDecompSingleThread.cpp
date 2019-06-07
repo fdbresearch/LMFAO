@@ -1,10 +1,10 @@
 //#include <fstream>
 //#include <iostream>
-#include "QRDecomp.h"
+#include "QRDecompSingleThread.h"
 
 namespace LMFAO::LinearAlgebra
 {
-    void QRDecompositionSingleThreaded::processCofactors(void)
+    void QRDecompSingleThread::processCofactors(void)
     {
         if (mNumFeatsCat < 1)
             return;
@@ -46,7 +46,7 @@ namespace LMFAO::LinearAlgebra
     }
 
 
-    void QRDecompositionSingleThreaded::calculateCR(void)
+    void QRDecompSingleThread::calculateCR(void)
     {
         // R(0,0) = Cofactor[1,1] (Note that the first row and column contain the label's aggregates)
         uint32_t T = mNumFeatsCont;
@@ -146,7 +146,7 @@ namespace LMFAO::LinearAlgebra
         }
     }
 
-    void QRDecompositionSingleThreaded::decompose(void)
+    void QRDecompSingleThread::decompose(void)
     {
         // We omit the first column of each categorical column matrix because they are linearly
         // among themselves (for specific column).

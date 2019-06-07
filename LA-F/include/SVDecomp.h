@@ -7,15 +7,15 @@ namespace LMFAO::LinearAlgebra
 {
     class SVDecompBase
     {
-
+        virtual void decompose(void) = 0;
     };
 
-    class SVDecomp
+    class SVDecompQR : public SVDecompBase
     {
     public:
         enum class DecompType
         {
-            NAIVE, SINGLE_THREAD, MULTI_THREAD, TRIANGLE
+            NAIVE, SINGLE_THREAD, MULTI_THREAD
         };
     private:
         DecompType mDecompType;
@@ -27,12 +27,12 @@ namespace LMFAO::LinearAlgebra
         uint32_t mNumFeatsCont;
         uint32_t mNumFeats;
         std::vector<bool> mvIsCat;
-        public : SVDecomp(const std::string &path, DecompType decompType) : mDecompType(decompType), mPath(path)
-        {
-
-        }
+    public:
+        SVDecompQR(const std::string &path, DecompType decompType) :
+                mDecompType(decompType), mPath(path)
+        {}
         // !!! ASSUMPTION, mapMatAgg lives in the same block as SVDDEcomp.
-        SVDecomp(DecompType decompType, const MapMatrixAggregate &mapMatAgg,
+        SVDecompQR(DecompType decompType, const MapMatrixAggregate &mapMatAgg,
                  uint32_t numFeatsExp, uint32_t numFeats,
                  uint32_t numFeatsCont,
                  const std::vector<bool> &vIsCat) : mDecompType(decompType),
@@ -42,12 +42,22 @@ namespace LMFAO::LinearAlgebra
                     mpmapMatAgg = &mapMatAgg;
                     mvIsCat = vIsCat;
                  }
-        void decompose();
+        virtual void decompose(void) override;
 
         void getSingularValues(Eigen::VectorXd& vSingularValues);
-        friend std::ostream& operator<<(std::ostream& os, const SVDecomp& svdDecomp);
+        friend std::ostream& operator<<(std::ostream& os, const SVDecompQR& svdDecomp);
+
     };
 
+    class SVDecompEigDec : public SVDecompBase
+    {
+
+    };
+
+    class SVDecompAltMin : public SVDecompBase
+    {
+
+    };
 
 }
 #endif

@@ -8,7 +8,7 @@ constexpr double SVD_TEST_PRECISION_ERROR = 1e-10;
 
 TEST(SVDNaive, 2SizeCntMatrix) {
     static const string FILE_INPUT = "tests/data/test1/test.in";
-    SVDecomp svdDecomp(FILE_INPUT, SVDecomp::DecompType::NAIVE);
+    SVDecompQR svdDecomp(FILE_INPUT, SVDecompQR::DecompType::NAIVE);
     svdDecomp.decompose();
     Eigen::VectorXd singularValues;
     svdDecomp.decompose();
@@ -19,7 +19,7 @@ TEST(SVDNaive, 2SizeCntMatrix) {
 
 TEST(SVDSingleThreaded, 2SizeCntMatrix) {
     static const string FILE_INPUT = "tests/data/test1/test.in";
-    SVDecomp svdDecomp(FILE_INPUT, SVDecomp::DecompType::SINGLE_THREAD);
+    SVDecompQR svdDecomp(FILE_INPUT, SVDecompQR::DecompType::SINGLE_THREAD);
     svdDecomp.decompose();
     Eigen::VectorXd singularValues;
     svdDecomp.decompose();
@@ -30,7 +30,7 @@ TEST(SVDSingleThreaded, 2SizeCntMatrix) {
 
 TEST(SVDMultiThreaded, 2SizeCntMatrix) {
     static const string FILE_INPUT = "tests/data/test1/test.in";
-    SVDecomp svdDecomp(FILE_INPUT, SVDecomp::DecompType::MULTI_THREAD);
+    SVDecompQR svdDecomp(FILE_INPUT, SVDecompQR::DecompType::MULTI_THREAD);
     svdDecomp.decompose();
     Eigen::VectorXd singularValues;
     svdDecomp.decompose();

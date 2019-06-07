@@ -9,47 +9,47 @@
 
 namespace LMFAO::LinearAlgebra
 {
-    void SVDecomp::decompose()
+    void SVDecompQR::decompose()
     {
         auto begin_t_copying = std::chrono::high_resolution_clock::now();
-        QRDecomposition *pQRDecomp = nullptr;
+        QRDecompBase *pQRDecomp = nullptr;
         switch (mDecompType)
         {
             case DecompType::NAIVE:
                 if (nullptr == mpmapMatAgg)
                 {
-                    pQRDecomp = new QRDecompositionNaive(mPath);
+                    pQRDecomp = new QRDecompNaive(mPath);
                 }
                 else
                 {
-                    pQRDecomp = new QRDecompositionNaive(*mpmapMatAgg, mNumFeatsExp,
-                                                         mNumFeats, mNumFeatsCont,
-                                                         mvIsCat);
+                    pQRDecomp = new QRDecompNaive(*mpmapMatAgg, mNumFeatsExp,
+                                                  mNumFeats, mNumFeatsCont,
+                                                  mvIsCat);
                 }
 
             break;
             case DecompType::SINGLE_THREAD:
                 if (nullptr == mpmapMatAgg)
                 {
-                    pQRDecomp = new QRDecompositionSingleThreaded(mPath);
+                    pQRDecomp = new QRDecompSingleThread(mPath);
                 }
                 else
                 {
-                    pQRDecomp = new QRDecompositionSingleThreaded(*mpmapMatAgg, mNumFeatsExp,
-                                                                  mNumFeats, mNumFeatsCont,
-                                                                  mvIsCat);
+                    pQRDecomp = new QRDecompSingleThread(*mpmapMatAgg, mNumFeatsExp,
+                                                          mNumFeats, mNumFeatsCont,
+                                                          mvIsCat);
                 }
                 break;
             case DecompType::MULTI_THREAD:
                 if (nullptr == mpmapMatAgg)
                 {
-                    pQRDecomp = new QRDecompositionMultiThreaded(mPath);
+                    pQRDecomp = new QRDecompMultiThread(mPath);
                 }
                 else
                 {
-                    pQRDecomp = new QRDecompositionMultiThreaded(*mpmapMatAgg, mNumFeatsExp,
-                                                                  mNumFeats, mNumFeatsCont,
-                                                                  mvIsCat);
+                    pQRDecomp = new QRDecompMultiThread(*mpmapMatAgg, mNumFeatsExp,
+                                                         mNumFeats, mNumFeatsCont,
+                                                         mvIsCat);
                 }
             default:
                 break;
@@ -106,7 +106,7 @@ namespace LMFAO::LinearAlgebra
         */
     }
 
-    void SVDecomp::getSingularValues(Eigen::VectorXd& vSingularValues)
+    void SVDecompQR::getSingularValues(Eigen::VectorXd& vSingularValues)
     {
         vSingularValues.resize(svdR.singularValues().rows());
         for (uint32_t idx = 0; idx < svdR.singularValues().rows(); idx ++)
@@ -115,7 +115,7 @@ namespace LMFAO::LinearAlgebra
         }
     }
 
-    std::ostream& operator<<(std::ostream& out, const SVDecomp& svdDecomp)
+    std::ostream& operator<<(std::ostream& out, const SVDecompQR& svdDecomp)
     {
         uint32_t N = svdDecomp.svdR.singularValues().rows();
         out << N << std::endl;

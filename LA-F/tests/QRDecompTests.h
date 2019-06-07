@@ -8,7 +8,7 @@ constexpr double QR_TEST_PRECISION_ERROR = 1e-10;
 
 TEST(QRNaive, 2SizeCntMatrix) {
     static const string FILE_INPUT = "tests/data/test1/test.in";
-    QRDecompositionNaive qrDecomp(FILE_INPUT);
+    QRDecompNaive qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R;
     qrDecomp.getR(R);
@@ -21,7 +21,7 @@ TEST(QRNaive, 2SizeCntMatrix) {
 TEST(QRSingleThreaded, 2SizeCntMatrix)
 {
     static const string FILE_INPUT = "tests/data/test1/test.in";
-    QRDecompositionSingleThreaded qrDecomp(FILE_INPUT);
+    QRDecompSingleThread qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R;
     qrDecomp.getR(R);
@@ -34,7 +34,7 @@ TEST(QRSingleThreaded, 2SizeCntMatrix)
 TEST(QRMultiThreaded, 2SizeCntMatrix)
 {
     static const string FILE_INPUT = "tests/data/test1/test.in";
-    QRDecompositionMultiThreaded qrDecomp(FILE_INPUT);
+    QRDecompMultiThread qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R;
     qrDecomp.getR(R);
@@ -48,7 +48,7 @@ TEST(QRMultiThreaded, 2SizeCntMatrix)
 TEST(QRNaive, 3SizeCntMatrix)
 {
     static const string FILE_INPUT = "tests/data/test2/test.in";
-    QRDecompositionNaive qrDecomp(FILE_INPUT);
+    QRDecompNaive qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R;
     qrDecomp.getR(R);
@@ -64,7 +64,7 @@ TEST(QRNaive, 3SizeCntMatrix)
 TEST(QRSingleThreaded, 3SizeCntMatrix)
 {
     static const string FILE_INPUT = "tests/data/test2/test.in";
-    QRDecompositionSingleThreaded qrDecomp(FILE_INPUT);
+    QRDecompSingleThread qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R;
     qrDecomp.getR(R);
@@ -80,7 +80,7 @@ TEST(QRSingleThreaded, 3SizeCntMatrix)
 TEST(QRMultiThreaded, 3SizeCntMatrix)
 {
     static const string FILE_INPUT = "tests/data/test2/test.in";
-    QRDecompositionMultiThreaded qrDecomp(FILE_INPUT);
+    QRDecompMultiThread qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R;
     qrDecomp.getR(R);
@@ -96,7 +96,7 @@ TEST(QRMultiThreaded, 3SizeCntMatrix)
 TEST(QRNaive, 3Size2Cnt1Cat2atrix)
 {
     static const string FILE_INPUT = "tests/data/test3/test.in";
-    QRDecompositionNaive qrDecomp(FILE_INPUT);
+    QRDecompNaive qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R;
     qrDecomp.getR(R);
@@ -113,7 +113,7 @@ TEST(QRNaive, 3Size2Cnt1Cat2atrix)
 TEST(QRSingleThreaded, 3Size2Cnt1Cat2Matrix)
 {
     static const string FILE_INPUT = "tests/data/test3/test.in";
-    QRDecompositionSingleThreaded qrDecomp(FILE_INPUT);
+    QRDecompSingleThread qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R;
     qrDecomp.getR(R);
@@ -130,7 +130,7 @@ TEST(QRSingleThreaded, 3Size2Cnt1Cat2Matrix)
 TEST(QRMultiThreaded, 3Size2Cnt1Cat2Matrix)
 {
     static const string FILE_INPUT = "tests/data/test3/test.in";
-    QRDecompositionMultiThreaded qrDecomp(FILE_INPUT);
+    QRDecompMultiThread qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R;
     qrDecomp.getR(R);
@@ -147,7 +147,7 @@ TEST(QRMultiThreaded, 3Size2Cnt1Cat2Matrix)
 TEST(QRNaive, 3Size2Cnt1Cat3Matrix)
 {
     static const string FILE_INPUT = "tests/data/test4/test.in";
-    QRDecompositionNaive qrDecomp(FILE_INPUT);
+    QRDecompNaive qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R;
     qrDecomp.getR(R);
@@ -167,7 +167,7 @@ TEST(QRNaive, 3Size2Cnt1Cat3Matrix)
 TEST(QRSingleThreaded, 3Size2Cnt1Cat3Matrix)
 {
     static const string FILE_INPUT = "tests/data/test4/test.in";
-    QRDecompositionSingleThreaded qrDecomp(FILE_INPUT);
+    QRDecompSingleThread qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R;
     qrDecomp.getR(R);
@@ -187,7 +187,7 @@ TEST(QRSingleThreaded, 3Size2Cnt1Cat3Matrix)
 TEST(QRMultiThreaded, 3Size2Cnt1Cat3Matrix)
 {
     static const string FILE_INPUT = "tests/data/test4/test.in";
-    QRDecompositionMultiThreaded qrDecomp(FILE_INPUT);
+    QRDecompMultiThread qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R;
     qrDecomp.getR(R);
@@ -207,7 +207,7 @@ TEST(QRMultiThreaded, 3Size2Cnt1Cat3Matrix)
 TEST(QRNaive, 3Size2Cnt2Cat33Matrix)
 {
     static const string FILE_INPUT = "tests/data/test5/test.in";
-    QRDecompositionNaive qrDecomp(FILE_INPUT);
+    QRDecompNaive qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R;
     qrDecomp.getR(R);
@@ -238,7 +238,7 @@ TEST(QRNaive, 3Size2Cnt2Cat33Matrix)
 TEST(QRSingleThreaded, 3Size2Cnt1Cat33Matrix)
 {
     static const string FILE_INPUT = "tests/data/test5/test.in";
-    QRDecompositionSingleThreaded qrDecomp(FILE_INPUT);
+    QRDecompSingleThread qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R;
     qrDecomp.getR(R);
@@ -269,7 +269,7 @@ TEST(QRSingleThreaded, 3Size2Cnt1Cat33Matrix)
 TEST(QRMultiThreaded, 3Size2Cnt1Cat33Matrix)
 {
     static const string FILE_INPUT = "tests/data/test5/test.in";
-    QRDecompositionMultiThreaded qrDecomp(FILE_INPUT);
+    QRDecompMultiThread qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R;
     qrDecomp.getR(R);
@@ -301,7 +301,7 @@ TEST(QRMultiThreaded, 3Size2Cnt1Cat33Matrix)
 TEST(QRNaive, 3SizeCntZeroMatrix)
 {
     static const string FILE_INPUT = "tests/data/test6/test.in";
-    QRDecompositionNaive qrDecomp(FILE_INPUT, true /*isLinDepAllowed*/);
+    QRDecompNaive qrDecomp(FILE_INPUT, true /*isLinDepAllowed*/);
     qrDecomp.decompose();
     Eigen::MatrixXd R;
     qrDecomp.getR(R);
@@ -317,7 +317,7 @@ TEST(QRNaive, 3SizeCntZeroMatrix)
 TEST(QRSingleThreaded, 3SizeCntZeroMatrix)
 {
     static const string FILE_INPUT = "tests/data/test6/test.in";
-    QRDecompositionSingleThreaded qrDecomp(FILE_INPUT, true /*isLinDepAllowed*/);
+    QRDecompSingleThread qrDecomp(FILE_INPUT, true /*isLinDepAllowed*/);
     qrDecomp.decompose();
     Eigen::MatrixXd R;
     qrDecomp.getR(R);
@@ -334,7 +334,7 @@ TEST(QRSingleThreaded, 3SizeCntZeroMatrix)
 TEST(QRMultiThreaded, 3SizeCntZeroMatrix)
 {
     static const string FILE_INPUT = "tests/data/test6/test.in";
-    QRDecompositionMultiThreaded qrDecomp(FILE_INPUT, true /*isLinDepAllowed*/);
+    QRDecompMultiThread qrDecomp(FILE_INPUT, true /*isLinDepAllowed*/);
     qrDecomp.decompose();
     Eigen::MatrixXd R;
     qrDecomp.getR(R);

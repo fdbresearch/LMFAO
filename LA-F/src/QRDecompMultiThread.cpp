@@ -4,11 +4,11 @@
 #include <cmath>
 #include <limits>
 #include <thread>
-#include "QRDecomp.h"
+#include "QRDecompMultiThread.h"
 
 namespace LMFAO::LinearAlgebra
 {
-    void QRDecompositionMultiThreaded::processCofactors(void)
+    void QRDecompMultiThread::processCofactors(void)
     {
         if (mNumFeatsCat < 1)
             return;
@@ -50,7 +50,7 @@ namespace LMFAO::LinearAlgebra
     }
 
 
-    void QRDecompositionMultiThreaded::calculateCR(uint32_t threadId)
+    void QRDecompMultiThread::calculateCR(uint32_t threadId)
     {
         // R(0,0) = Cofactor[1,1] (Note that the first row and column contain the label's aggregates)
         uint32_t T = mNumFeatsCont;
@@ -174,7 +174,7 @@ namespace LMFAO::LinearAlgebra
         //std::cout << "Time spent: " << time_spent << std::endl;
     }
 
-    void QRDecompositionMultiThreaded::decompose(void)
+    void QRDecompMultiThread::decompose(void)
     {
         // We omit the first column of each categorical column matrix because they are linearly
         // among themselves (for specific column).
@@ -194,7 +194,7 @@ namespace LMFAO::LinearAlgebra
 
         for (uint32_t idx = 0; idx < mNumThreads; idx++)
         {
-            threadsCR[idx] =  std::thread(&QRDecompositionMultiThreaded::calculateCR,
+            threadsCR[idx] =  std::thread(&QRDecompMultiThread::calculateCR,
                                           this, idx);
         }
 

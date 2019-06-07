@@ -2,11 +2,11 @@
 #include <iostream>
 #include <iomanip>
 #include <limits>
-#include "QRDecomp.h"
+#include "QRDecompBase.h"
 
 namespace LMFAO::LinearAlgebra
 {
-    void QRDecomposition::expandSigma(std::vector<double> &sigmaExpanded, bool isNaive)
+    void QRDecompBase::expandSigma(std::vector<double> &sigmaExpanded, bool isNaive)
     {
         uint32_t numRows = isNaive ?  mNumFeatsExp : mNumFeatsCont;
         for (uint32_t row = 0; row < numRows; row ++)
@@ -18,7 +18,7 @@ namespace LMFAO::LinearAlgebra
         }
     }
 
-    void QRDecomposition::getR(Eigen::MatrixXd &rEigen)
+    void QRDecompBase::getR(Eigen::MatrixXd &rEigen)
     {
         uint32_t N = mNumFeatsExp;
 
@@ -34,7 +34,7 @@ namespace LMFAO::LinearAlgebra
         }
     }
 
-    std::ostream& operator<<(std::ostream& out, const QRDecomposition& qrDecomp)
+    std::ostream& operator<<(std::ostream& out, const QRDecompBase& qrDecomp)
     {
         uint32_t N = qrDecomp.mNumFeatsExp;
         out << N << " " << N << std::fixed << std::setprecision(2) << std::endl;

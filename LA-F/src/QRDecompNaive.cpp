@@ -1,10 +1,10 @@
 //#include <fstream>
 #include <iostream>
-#include "QRDecomp.h"
+#include "QRDecompNaive.h"
 
 namespace LMFAO::LinearAlgebra
 {
-    void QRDecompositionNaive::calculateCR(void)
+    void QRDecompNaive::calculateCR(void)
     {
         std::vector<double> sigmaExpanded(mNumFeatsExp * mNumFeatsExp);
         uint32_t N = mNumFeatsExp;
@@ -49,7 +49,7 @@ namespace LMFAO::LinearAlgebra
         }
     }
 
-    void QRDecompositionNaive::decompose(void)
+    void QRDecompNaive::decompose(void)
     {
         uint32_t N = mNumFeatsExp;
         mC.resize(N * N);

@@ -53,13 +53,13 @@ std::string QRDecompApp::getCodeOfDecomposition()
     std::cout << "linDep "  << strUseLinearDependencyCheck << std::endl;
     std::cout << "outputDecomp "  << mOutputDecomp << std::endl;
     std::cout << "dumpFile "  << mDumpFile << std::endl;
-    std::string strDecompCode = ""+ offset(0) + "\n"+ offset(2) + "QRDecompositionMultiThreaded qrDecomp(mSigma, LA_NUM_FEATURES +  vDomainSize.back(), LA_NUM_FEATURES,\n"+ offset(15) + "LA_NUM_FEATURES - vCatFeatCount.back(), vIsCat, "+ strUseLinearDependencyCheck + ");\n" + offset(2) + "//auto finish = std::chrono::high_resolution_clock::now();\n"+ offset(2) + "//std::chrono::duration<double> elapsed = finish - begin;\n"+ offset(2) + "//double time_spent = elapsed.count();\n"+ offset(2) + "//std::cout << \"Time in preparation: \" << time_spent << std::endl;\n"+ offset(2) + "qrDecomp.decompose();\n";
+    std::string strDecompCode = ""+ offset(0) + "\n"+ offset(2) + "QRDecompMultiThread qrDecomp(mSigma, LA_NUM_FEATURES +  vDomainSize.back(), LA_NUM_FEATURES,\n"+ offset(15) + "LA_NUM_FEATURES - vCatFeatCount.back(), vIsCat, "+ strUseLinearDependencyCheck + ");\n" + offset(2) + "//auto finish = std::chrono::high_resolution_clock::now();\n"+ offset(2) + "//std::chrono::duration<double> elapsed = finish - begin;\n"+ offset(2) + "//double time_spent = elapsed.count();\n"+ offset(2) + "//std::cout << \"Time in preparation: \" << time_spent << std::endl;\n"+ offset(2) + "qrDecomp.decompose();\n";
     if (mOutputDecomp)
     {
         strDecompCode += offset(2) + "std::ofstream outFile(\"" + mDumpFile + "\");\n" + offset(2) + "outFile << qrDecomp;\n" + offset(2) + "outFile.close();\n";
     }
     return strDecompCode;
-    //return ""+ offset(0) + "\n"+ offset(2) + "QRDecompositionNaive qrDecomp(mSigma, LA_NUM_FEATURES +  vDomainSize.back(), LA_NUM_FEATURES,\n"+ offset(15) + "LA_NUM_FEATURES - vCatFeatCount.back(), vIsCat);\n" + offset(2) + "auto finish = std::chrono::high_resolution_clock::now();\n"+ offset(2) + "std::chrono::duration<double> elapsed = finish - begin;\n"+ offset(2) + "double time_spent = elapsed.count();\n"+ offset(2) + "std::cout << \"Time in preparation: \" << time_spent << std::endl;\n"+ offset(2) + "qrDecomp.decompose();\n";
+    //return ""+ offset(0) + "\n"+ offset(2) + "QRDecompNaive qrDecomp(mSigma, LA_NUM_FEATURES +  vDomainSize.back(), LA_NUM_FEATURES,\n"+ offset(15) + "LA_NUM_FEATURES - vCatFeatCount.back(), vIsCat);\n" + offset(2) + "auto finish = std::chrono::high_resolution_clock::now();\n"+ offset(2) + "std::chrono::duration<double> elapsed = finish - begin;\n"+ offset(2) + "double time_spent = elapsed.count();\n"+ offset(2) + "std::cout << \"Time in preparation: \" << time_spent << std::endl;\n"+ offset(2) + "qrDecomp.decompose();\n";
 }
 
 std::string QRDecompApp::getCodeOfRunAppFun()
