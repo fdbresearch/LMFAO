@@ -1,4 +1,5 @@
 #include "Utils.h"
+#include "Logger.h"
 
 #include <iostream>
 #include <fstream>
@@ -7,7 +8,7 @@ namespace LMFAO::LinearAlgebra
 {
     void readMatrix(const std::string& sPath, FeatDim& rFtDim,
                     Eigen::MatrixXd& rmACont, std::vector <Triple>& rvCatVals,
-                    std::vector <Triple>& rvNaiveCatVals)
+                    std::vector <Triple>* pvNaiveCatVals)
     {
         std::ifstream f(sPath);
         uint32_t row, col;
@@ -16,6 +17,8 @@ namespace LMFAO::LinearAlgebra
         f >> rFtDim.numExp;
         f >> rFtDim.num;
         f >> rFtDim.numCont;
+        LMFAO_LOG_MSG_INFO("Number expanded features:", rFtDim.numExp, "Number features: ", rFtDim.num,
+                          "Number continuous:", rFtDim.numCont);
 
         std::vector<bool> vIsCat(rFtDim.numExp, false);
         rmACont = Eigen::MatrixXd::Zero(rFtDim.numExp, rFtDim.numExp);
@@ -30,14 +33,14 @@ namespace LMFAO::LinearAlgebra
         {
             rmACont(row, col) = val;
         }
-        rearrangeMatrix(vIsCat, rFtDim, rmACont, rvCatVals, rvNaiveCatVals);
+        rearrangeMatrix(vIsCat, rFtDim, rmACont, rvCatVals, pvNaiveCatVals);
     }
 
     void formMatrix(const MapMatrixAggregate &matrixAggregate,
                     const std::vector<bool>& vIsCat,
                     const FeatDim& ftDim, FeatDim& rFtDim,
                     Eigen::MatrixXd& rmACont, std::vector <Triple>& rvCatVals,
-                    std::vector <Triple>& rvNaiveCatVals)
+                    std::vector <Triple> *pvNaiveCatVals)
     {
         uint32_t row, col;
         // We exclued intercept column passed from LMFAO.
@@ -45,8 +48,6 @@ namespace LMFAO::LinearAlgebra
         rFtDim.numExp = ftDim.numExp - 1;
         rFtDim.num = ftDim.num - 1;
         rFtDim.numCont = ftDim.numCont - 1;
-        //std::cout << rFtDim.numExp << " " << rFtDim.numExp << " " <<
-        //    mNumFeatsCont << std::endl;
         rFtDim.numCat = ftDim.num - ftDim.numCont;
         rmACont = Eigen::MatrixXd::Zero(rFtDim.numExp, rFtDim.numExp);
 
@@ -64,12 +65,12 @@ namespace LMFAO::LinearAlgebra
         //std::cout << vIsCat.size() << std::endl;
         const_cast<std::vector<bool>&>(vIsCat).erase(vIsCat.begin());
         //std::cout << vIsCat.size() << std::endl;
-        rearrangeMatrix(vIsCat, rFtDim, rmACont, rvCatVals, rvNaiveCatVals);
+        rearrangeMatrix(vIsCat, rFtDim, rmACont, rvCatVals, pvNaiveCatVals);
     }
 
     void rearrangeMatrix(const std::vector<bool>& vIsCat, const FeatDim& ftDim,
                          Eigen::MatrixXd& rmACont, std::vector <Triple>& rvCatVals,
-                         std::vector <Triple>& rvNaiveCatVals)
+                         std::vector <Triple>* pvNaiveCatVals)
     {
         // Number of categorical columns up to that column, excluding it.
         // In a range [0, idx)
@@ -91,7 +92,10 @@ namespace LMFAO::LinearAlgebra
                 uint32_t colIdx = vIsCat[col] ? (col - cntCont[col] + ftDim.numCont) : (col - cntCat[col]);
                 if (vIsCat[row] || (vIsCat[col]))
                 {
-                    rvNaiveCatVals.push_back(std::make_tuple(rowIdx, colIdx, rmACont(row, col)));
+                    if (pvNaiveCatVals)
+                    {
+                        pvNaiveCatVals->push_back(std::make_tuple(rowIdx, colIdx, rmACont(row, col)));
+                    }
                     if ((rmACont(row, col) != 0))
                     {
                         rvCatVals.push_back(std::make_tuple(rowIdx, colIdx, rmACont(row, col)));
@@ -103,16 +107,19 @@ namespace LMFAO::LinearAlgebra
                 }
             }
         }
-        // TODO: Remove this initialization for non naive part.
-        // 1) Remove naive completely.
-        // 2) For all non continuous values, set everything to zero.
-        // 3) Just iterate over categorical values to update values.
-        for (const Triple &triple : rvNaiveCatVals)
+        // In the case of naive approach just add categorical values to
+        // the continuous case.
+        //
+        if (pvNaiveCatVals)
         {
-            uint32_t row = std::get<0>(triple);
-            uint32_t col = std::get<1>(triple);
-            double aggregate = std::get<2>(triple);
-            rmACont(row, col) = aggregate;
+            auto& rvNaiveCatVals = *pvNaiveCatVals;
+            for (const Triple &triple : rvNaiveCatVals)
+            {
+                uint32_t row = std::get<0>(triple);
+                uint32_t col = std::get<1>(triple);
+                double aggregate = std::get<2>(triple);
+                rmACont(row, col) = aggregate;
+            }
         }
         //std::cout << "Matrix" << std::endl;
         /*

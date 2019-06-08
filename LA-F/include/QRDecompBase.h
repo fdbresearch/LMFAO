@@ -44,22 +44,24 @@ namespace LMFAO::LinearAlgebra
 
         void expandSigma(std::vector <double> &sigmaExpanded, bool isNaive);
 
-    public:
-        virtual void decompose(void) = 0;
-        QRDecompBase(const std::string& path, const bool isLinDepAllowed=false) :
+    protected:
+        QRDecompBase(const std::string& path, bool initNaiveVect, const bool isLinDepAllowed=false) :
         mIsLinDepAllowed(isLinDepAllowed)
         {
             FeatDim oFeatDim;
+            std::vector <Triple>* pvNaiveCatVals =
+                initNaiveVect ? &mNaiveCatVals : nullptr;
             LMFAO::LinearAlgebra::readMatrix(path, oFeatDim, mSigma,
-                                 mCatVals, mNaiveCatVals);
+                                 mCatVals, pvNaiveCatVals);
             mNumFeats = oFeatDim.num;
             mNumFeatsExp = oFeatDim.numExp;
             mNumFeatsCont = oFeatDim.numCont;
             mNumFeatsCat = oFeatDim.numCat;
         }
         QRDecompBase(const MapMatrixAggregate& mMatrix, uint32_t numFeatsExp,
-                        uint32_t numFeats, uint32_t numFeatsCont,
-                        const std::vector<bool>& vIsCat, const bool isLinDepAllowed=false):
+                     uint32_t numFeats, uint32_t numFeatsCont,
+                     const std::vector<bool>& vIsCat, bool initNaiveVect,
+                     const bool isLinDepAllowed=false):
         mIsLinDepAllowed(isLinDepAllowed)
         {
             FeatDim featDim;
@@ -67,13 +69,17 @@ namespace LMFAO::LinearAlgebra
             featDim.num = numFeats;
             featDim.numExp = numFeatsExp;
             featDim.numCont = numFeatsCont;
+            std::vector <Triple>* pvNaiveCatVals =
+                initNaiveVect ? &mNaiveCatVals : nullptr;
             LMFAO::LinearAlgebra::formMatrix(mMatrix, vIsCat, featDim, oFeatDim, mSigma,
-                                             mCatVals, mNaiveCatVals);
+                                             mCatVals, pvNaiveCatVals);
             mNumFeats = oFeatDim.num;
             mNumFeatsExp = oFeatDim.numExp;
             mNumFeatsCont = oFeatDim.numCont;
             mNumFeatsCat = oFeatDim.numCat;
         }
+    public:
+        virtual void decompose(void) = 0;
         virtual ~QRDecompBase() {}
         void getR(Eigen::MatrixXd &rEigen);
         friend std::ostream& operator<<(std::ostream& os, const QRDecompBase& qrDecomp);

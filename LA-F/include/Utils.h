@@ -34,7 +34,7 @@ namespace LMFAO::LinearAlgebra
     //void svdCuda(const Eigen::MatrixXd &a);
 
     typedef std::tuple<uint32_t, uint32_t,
-                           double> Triple;
+                       double> Triple;
     typedef std::tuple<uint32_t, double> Pair;
 
     typedef std::map<std::pair<uint32_t, uint32_t>,
@@ -59,17 +59,17 @@ namespace LMFAO::LinearAlgebra
 
     void readMatrix(const std::string& sPath, FeatDim& rFtDim,
                     Eigen::MatrixXd& rmACont, std::vector <Triple>& rvCatVals,
-                    std::vector <Triple>& rvNaiveCatVals);
+                    std::vector <Triple>* pvNaiveCatVals);
 
     void formMatrix(const MapMatrixAggregate &matrixAggregate,
                     const std::vector<bool>& vIsCat,
                     const FeatDim& ftDim, FeatDim& rFtDim,
                     Eigen::MatrixXd& rmACont, std::vector <Triple>& rvCatVals,
-                    std::vector <Triple>& rvNaiveCatVals);
+                    std::vector <Triple>* pvNaiveCatVals);
 
     void rearrangeMatrix(const std::vector<bool>& vIsCat, const FeatDim& ftDim,
                          Eigen::MatrixXd& rmACont, std::vector <Triple>& rvCatVals,
-                         std::vector <Triple>& rvNaiveCatVals);
+                         std::vector <Triple>* pvNaiveCatVals);
 }
 
 #endif

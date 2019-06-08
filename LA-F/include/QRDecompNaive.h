@@ -9,11 +9,12 @@ namespace LMFAO::LinearAlgebra
     {
     public:
         QRDecompNaive(const std::string &path, const bool isLinDepAllowed=false) :
-            QRDecompBase(path, isLinDepAllowed) {}
+            QRDecompBase(path, true, isLinDepAllowed) {}
         QRDecompNaive(const MapMatrixAggregate &mMatrix, uint32_t numFeatsExp,
                             uint32_t numFeats, uint32_t numFeatsCont,
                             const std::vector<bool>& vIsCat, const bool isLinDepAllowed=false) :
-            QRDecompBase(mMatrix, numFeatsExp, numFeats, numFeatsCont, vIsCat, isLinDepAllowed) {}
+            QRDecompBase(mMatrix, numFeatsExp, numFeats, numFeatsCont,
+                         vIsCat, true, isLinDepAllowed) {}
         ~QRDecompNaive() {}
         virtual void decompose(void) override;
         void calculateCR(void);
