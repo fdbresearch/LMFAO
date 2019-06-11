@@ -18,7 +18,7 @@ namespace LMFAO::LinearAlgebra
         }
     }
 
-    void QRDecompBase::getR(Eigen::MatrixXd &rEigen)
+    void QRDecompBase::getR(Eigen::MatrixXd &rEigen) const
     {
         uint32_t N = mNumFeatsExp;
 

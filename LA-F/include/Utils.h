@@ -1,7 +1,7 @@
 #ifndef _LMFAO_LA_UTILS_H_
 #define _LMFAO_LA_UTILS_H_
 
-#include <Eigen/SVD>
+#include <Eigen/Dense>
 // There is a bug because Eigen include C complex.h which has I defined as macro
 // while boost uses I as classname, and thus there is a clash in naming.
 // I is not used anywhere in eigen as a variable except in src/SparseLU/SparseLU_gemm_kernel.h:
@@ -57,19 +57,29 @@ namespace LMFAO::LinearAlgebra
         uint32_t numCat = 0;
     };
 
+
     void readMatrix(const std::string& sPath, FeatDim& rFtDim,
-                    Eigen::MatrixXd& rmACont, std::vector <Triple>& rvCatVals,
-                    std::vector <Triple>* pvNaiveCatVals);
+                    Eigen::MatrixXd& rmACont, std::vector <Triple>* pvCatVals,
+                    bool isNaive);
 
     void formMatrix(const MapMatrixAggregate &matrixAggregate,
                     const std::vector<bool>& vIsCat,
                     const FeatDim& ftDim, FeatDim& rFtDim,
-                    Eigen::MatrixXd& rmACont, std::vector <Triple>& rvCatVals,
-                    std::vector <Triple>* pvNaiveCatVals);
+                    Eigen::MatrixXd& rmACont, std::vector <Triple>* pvCatVals,
+                    bool isNaive);
 
     void rearrangeMatrix(const std::vector<bool>& vIsCat, const FeatDim& ftDim,
-                         Eigen::MatrixXd& rmACont, std::vector <Triple>& rvCatVals,
-                         std::vector <Triple>* pvNaiveCatVals);
+                         Eigen::MatrixXd& rmACont, std::vector <Triple>* pvCatVals,
+                         bool isNaive);
+
+   // Reads matrix from wile @p sPath where in the first line are matrix dimenstions.
+    // In the following lines, matrix rows are written separated by space.
+    //
+    void readMatrixDense(const std::string& sPath, Eigen::MatrixXd& rmA, char sep=' ');
+    // Reads vector from wile @p sPath where in the first line are vector dimenstions.
+    // In the following line, are written the components of vector.
+    //
+    void readVector(const std::string& sPath, Eigen::VectorXd& rvV, char sep=' ');
 }
 
 #endif

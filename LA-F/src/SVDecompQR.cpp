@@ -1,10 +1,12 @@
 #include <iostream>
+#include <chrono>
 #include <fstream>
 #include <iomanip>
 #include <limits>
 #include <omp.h>
 
-#include "SVDecomp.h"
+#include "QRDecomp.h"
+#include "SVDecompQR.h"
 //#include "RedSVD.h"
 
 namespace LMFAO::LinearAlgebra
@@ -106,26 +108,12 @@ namespace LMFAO::LinearAlgebra
         */
     }
 
-    void SVDecompQR::getSingularValues(Eigen::VectorXd& vSingularValues)
+    void SVDecompQR::getSingularValues(Eigen::VectorXd& vSingularValues) const
     {
         vSingularValues.resize(svdR.singularValues().rows());
         for (uint32_t idx = 0; idx < svdR.singularValues().rows(); idx ++)
         {
             vSingularValues(idx) = svdR.singularValues()(idx);
         }
-    }
-
-    std::ostream& operator<<(std::ostream& out, const SVDecompQR& svdDecomp)
-    {
-        uint32_t N = svdDecomp.svdR.singularValues().rows();
-        out << N << std::endl;
-        out << std::fixed << std::setprecision(std::numeric_limits<double>::digits10 + 1);
-
-        for (uint32_t idx = 0; idx < N; idx ++)
-        {
-            out << svdDecomp.svdR.singularValues()(idx) << std::endl;
-        }
-
-        return out;
     }
 }

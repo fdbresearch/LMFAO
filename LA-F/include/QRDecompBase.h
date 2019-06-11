@@ -20,7 +20,6 @@ namespace LMFAO::LinearAlgebra
         std::vector <double> mC;
         std::vector <double> mR;
         std::vector <Triple> mCatVals;
-        std::vector <Triple> mNaiveCatVals;
 
         // Number of features (categorical + continuous) in sigma matrix.
         //
@@ -49,10 +48,8 @@ namespace LMFAO::LinearAlgebra
         mIsLinDepAllowed(isLinDepAllowed)
         {
             FeatDim oFeatDim;
-            std::vector <Triple>* pvNaiveCatVals =
-                initNaiveVect ? &mNaiveCatVals : nullptr;
             LMFAO::LinearAlgebra::readMatrix(path, oFeatDim, mSigma,
-                                 mCatVals, pvNaiveCatVals);
+                                 &mCatVals, initNaiveVect);
             mNumFeats = oFeatDim.num;
             mNumFeatsExp = oFeatDim.numExp;
             mNumFeatsCont = oFeatDim.numCont;
@@ -69,10 +66,8 @@ namespace LMFAO::LinearAlgebra
             featDim.num = numFeats;
             featDim.numExp = numFeatsExp;
             featDim.numCont = numFeatsCont;
-            std::vector <Triple>* pvNaiveCatVals =
-                initNaiveVect ? &mNaiveCatVals : nullptr;
             LMFAO::LinearAlgebra::formMatrix(mMatrix, vIsCat, featDim, oFeatDim, mSigma,
-                                             mCatVals, pvNaiveCatVals);
+                                             &mCatVals, initNaiveVect);
             mNumFeats = oFeatDim.num;
             mNumFeatsExp = oFeatDim.numExp;
             mNumFeatsCont = oFeatDim.numCont;
@@ -81,7 +76,7 @@ namespace LMFAO::LinearAlgebra
     public:
         virtual void decompose(void) = 0;
         virtual ~QRDecompBase() {}
-        void getR(Eigen::MatrixXd &rEigen);
+        void getR(Eigen::MatrixXd &rEigen) const;
         friend std::ostream& operator<<(std::ostream& os, const QRDecompBase& qrDecomp);
     };
 }
