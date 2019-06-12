@@ -6,7 +6,7 @@ using multifaq::params::NUM_OF_VARIABLES;
 std::string QRDecompApp::getCodeOfIncludes()
 {
     std::string includeStr = "";
-    includeStr += ""+ offset(0) + "#include \"../../../LA-F/include/SVDecomp.h\"\n"+ offset(0) + "#include <map>\n"+ offset(0) + "#include <set>\n"+ offset(0) + "#include <unordered_map>\n"+ offset(0) + "\n"+ "#include <iostream>\n" + "#include <fstream>\n"+  offset(0) + "typedef std::map< std::tuple<uint32_t, double, double>, double> DomainAggregate;\n"+ offset(0) + "typedef std::vector<DomainAggregate> VectorOffset;\n"+ offset(0) + "typedef std::map<uint32_t, VectorOffset> MapView;\n"+ offset(0) + "\n"+ offset(0) + "typedef std::set<uint32_t> MapCategory;\n"+ offset(0) + "typedef std::vector<MapCategory> VectorDomain;\n"+ offset(0) + "\n"+ offset(0) + "typedef std::vector<std::unordered_map<uint32_t, uint32_t> > VectorShift;\n"+ offset(0) + "\n"+ offset(0) + "using namespace LMFAO::LinearAlgebra;\n";
+    includeStr += ""+ offset(0) + "#include \"../../../LA-F/include/QRDecomp.h\"\n"+ ""+ offset(0) + "#include \"../../../LA-F/include/SVDecomp.h\"\n" + offset(0) + "#include <map>\n"+ offset(0) + "#include <set>\n"+ offset(0) + "#include <unordered_map>\n"+ offset(0) + "\n"+ "#include <iostream>\n" + "#include <fstream>\n"+  offset(0) + "typedef std::map< std::tuple<uint32_t, double, double>, double> DomainAggregate;\n"+ offset(0) + "typedef std::vector<DomainAggregate> VectorOffset;\n"+ offset(0) + "typedef std::map<uint32_t, VectorOffset> MapView;\n"+ offset(0) + "\n"+ offset(0) + "typedef std::set<uint32_t> MapCategory;\n"+ offset(0) + "typedef std::vector<MapCategory> VectorDomain;\n"+ offset(0) + "\n"+ offset(0) + "typedef std::vector<std::unordered_map<uint32_t, uint32_t> > VectorShift;\n"+ offset(0) + "\n"+ offset(0) + "using namespace LMFAO::LinearAlgebra;\n";
     return includeStr;
 }
 
@@ -53,7 +53,16 @@ std::string QRDecompApp::getCodeOfDecomposition()
     std::cout << "linDep "  << strUseLinearDependencyCheck << std::endl;
     std::cout << "outputDecomp "  << mOutputDecomp << std::endl;
     std::cout << "dumpFile "  << mDumpFile << std::endl;
-    std::string strDecompCode = ""+ offset(0) + "\n"+ offset(2) + "QRDecompMultiThread qrDecomp(mSigma, LA_NUM_FEATURES +  vDomainSize.back(), LA_NUM_FEATURES,\n"+ offset(15) + "LA_NUM_FEATURES - vCatFeatCount.back(), vIsCat, "+ strUseLinearDependencyCheck + ");\n" + offset(2) + "//auto finish = std::chrono::high_resolution_clock::now();\n"+ offset(2) + "//std::chrono::duration<double> elapsed = finish - begin;\n"+ offset(2) + "//double time_spent = elapsed.count();\n"+ offset(2) + "//std::cout << \"Time in preparation: \" << time_spent << std::endl;\n"+ offset(2) + "qrDecomp.decompose();\n";
+    std::string strDecompCode;
+    switch (mQrType)
+    {
+        case QrType::QR_MULTI_THREAD:
+            strDecompCode = ""+ offset(0) + "\n"+ offset(2) + "QRDecompMultiThread qrDecomp(mSigma, LA_NUM_FEATURES +  vDomainSize.back(), LA_NUM_FEATURES,\n"+ offset(15) + "LA_NUM_FEATURES - vCatFeatCount.back(), vIsCat, "+ strUseLinearDependencyCheck + ");\n" + offset(2) + "//auto finish = std::chrono::high_resolution_clock::now();\n"+ offset(2) + "//std::chrono::duration<double> elapsed = finish - begin;\n"+ offset(2) + "//double time_spent = elapsed.count();\n"+ offset(2) + "//std::cout << \"Time in preparation: \" << time_spent << std::endl;\n"+ offset(2) + "qrDecomp.decompose();\n";
+            break;
+        case QrType::QR_CHOL:
+            strDecompCode = ""+ offset(0) + "\n"+ offset(2) + "QRDecompCholesky qrDecomp(mSigma, LA_NUM_FEATURES +  vDomainSize.back(), LA_NUM_FEATURES,\n"+ offset(15) + "LA_NUM_FEATURES - vCatFeatCount.back(), vIsCat, "+ strUseLinearDependencyCheck + ");\n" + offset(2) + "//auto finish = std::chrono::high_resolution_clock::now();\n"+ offset(2) + "//std::chrono::duration<double> elapsed = finish - begin;\n"+ offset(2) + "//double time_spent = elapsed.count();\n"+ offset(2) + "//std::cout << \"Time in preparation: \" << time_spent << std::endl;\n"+ offset(2) + "qrDecomp.decompose();\n";
+            break;
+    }
     if (mOutputDecomp)
     {
         strDecompCode += offset(2) + "std::ofstream outFile(\"" + mDumpFile + "\");\n" + offset(2) + "outFile << qrDecomp;\n" + offset(2) + "outFile.close();\n";

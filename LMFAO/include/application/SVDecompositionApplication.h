@@ -21,7 +21,7 @@ class SVDecompApp: public QRDecompApp
 public:
     enum class SvdType
     {
-        SVD_QR, SVD_EIG_DEC, SVD_ALT_MIN
+        SVD_QR, SVD_QR_CHOL, SVD_EIG_DEC, SVD_ALT_MIN
     };
 private:
     SvdType mSvdType;
@@ -31,8 +31,8 @@ public:
         bool useLinearDependencyCheck,
         bool outputDecomp, const std::string& dumpFile,
         SvdType svdType) :
-    QRDecompApp(pathToFiles, launcher, useLinearDependencyCheck, outputDecomp, dumpFile),
-    mSvdType(svdType){}
+    QRDecompApp(pathToFiles, launcher, useLinearDependencyCheck, outputDecomp, dumpFile,
+                QRDecompApp::QrType::QR_DUMMY), mSvdType(svdType){}
     virtual ~SVDecompApp() override {}
 protected:
     virtual std::string getCodeOfDecomposition() override;

@@ -189,7 +189,8 @@ namespace LMFAO::LinearAlgebra
             mC[expIdx(row, row, N)] = 1;
         }
         // R is stored column-major
-        mR.resize(N * N);
+        //mR.resize(N * N);
+        mR = Eigen::VectorXd::Zero(N * N);
         std::thread threadsCR[mNumThreads];
 
         for (uint32_t idx = 0; idx < mNumThreads; idx++)

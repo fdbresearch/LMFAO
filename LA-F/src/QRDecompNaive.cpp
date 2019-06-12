@@ -53,12 +53,14 @@ namespace LMFAO::LinearAlgebra
     {
         uint32_t N = mNumFeatsExp;
         mC.resize(N * N);
+
         for (uint32_t row = 0; row < N; row++)
         {
             mC[expIdx(row, row, N)] = 1;
         }
 
-        mR.resize(N * N);
+        // mR.resize(N * N);
+        mR = Eigen::VectorXd::Zero(N * N);
         calculateCR();
 
         // Normalise R

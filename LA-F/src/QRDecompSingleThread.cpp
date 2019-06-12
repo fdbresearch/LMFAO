@@ -161,7 +161,8 @@ namespace LMFAO::LinearAlgebra
             mC[expIdx(row, row, N)] = 1;
         }
         // R is stored column-major
-        mR.resize(N * N);
+        //mR.resize(N * N);
+        mR = Eigen::VectorXd::Zero(N * N);
         calculateCR();
 
         // Normalise R' to obtain R

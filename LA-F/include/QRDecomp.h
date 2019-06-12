@@ -4,5 +4,6 @@
 #include "QRDecompNaive.h"
 #include "QRDecompSingleThread.h"
 #include "QRDecompMultiThread.h"
+#include "QRDecompCholesky.h"
 
 #endif

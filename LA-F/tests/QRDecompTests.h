@@ -62,6 +62,17 @@ TEST(QRMultiThreaded, 2SizeCntMatrix)
     compareR(R, expR);
 }
 
+TEST(QRCholesky, 2SizeCntMatrix)
+{
+    static const string FILE_INPUT = getTestPath(1) + TEST_FILE_IN;
+    static const string FILE_INPUT_EXP = getTestPath(1) + R_COMP_FILE_NAME;
+    QRDecompCholesky qrDecomp(FILE_INPUT);
+    qrDecomp.decompose();
+    Eigen::MatrixXd R, expR;
+    qrDecomp.getR(R);
+    readMatrixDense(FILE_INPUT_EXP, expR);
+    compareR(R, expR);
+}
 
 TEST(QRNaive, 3SizeCntMatrix)
 {
@@ -92,6 +103,18 @@ TEST(QRMultiThreaded, 3SizeCntMatrix)
     static const string FILE_INPUT = getTestPath(2) + TEST_FILE_IN;
     static const string FILE_INPUT_EXP = getTestPath(2) + R_COMP_FILE_NAME;
     QRDecompMultiThread qrDecomp(FILE_INPUT);
+    qrDecomp.decompose();
+    Eigen::MatrixXd R, expR;
+    qrDecomp.getR(R);
+    readMatrixDense(FILE_INPUT_EXP, expR);
+    compareR(R, expR);
+}
+
+TEST(QRCholesky, 3SizeCntMatrix)
+{
+    static const string FILE_INPUT = getTestPath(2) + TEST_FILE_IN;
+    static const string FILE_INPUT_EXP = getTestPath(2) + R_COMP_FILE_NAME;
+    QRDecompCholesky qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
@@ -135,6 +158,18 @@ TEST(QRMultiThreaded, 3Size2Cnt1Cat2Matrix)
     compareR(R, expR, false, true);
 }
 
+TEST(QRCholesky, 3Size2Cnt1Cat2Matrix)
+{
+    static const string FILE_INPUT = getTestPath(3) + TEST_FILE_IN;
+    static const string FILE_INPUT_EXP = getTestPath(3) + R_COMP_FILE_NAME;
+    QRDecompCholesky qrDecomp(FILE_INPUT);
+    qrDecomp.decompose();
+    Eigen::MatrixXd R, expR;
+    qrDecomp.getR(R);
+    readMatrixDense(FILE_INPUT_EXP, expR);
+    compareR(R, expR, false, true);
+}
+
 TEST(QRNaive, 3Size2Cnt1Cat3Matrix)
 {
     static const string FILE_INPUT = getTestPath(4) + TEST_FILE_IN;
@@ -171,6 +206,18 @@ TEST(QRMultiThreaded, 3Size2Cnt1Cat3Matrix)
     compareR(R, expR);
 }
 
+TEST(QRCholesky, 3Size2Cnt1Cat3Matrix)
+{
+    static const string FILE_INPUT = getTestPath(4) + TEST_FILE_IN;
+    static const string FILE_INPUT_EXP = getTestPath(4) + R_COMP_FILE_NAME;
+    QRDecompCholesky qrDecomp(FILE_INPUT);
+    qrDecomp.decompose();
+    Eigen::MatrixXd R, expR;
+    qrDecomp.getR(R);
+    readMatrixDense(FILE_INPUT_EXP, expR);
+    compareR(R, expR);
+}
+
 TEST(QRNaive, 3Size2Cnt2Cat33Matrix)
 {
     static const string FILE_INPUT = getTestPath(5) + TEST_FILE_IN;
@@ -200,6 +247,18 @@ TEST(QRMultiThreaded, 3Size2Cnt1Cat33Matrix)
     static const string FILE_INPUT = getTestPath(5) + TEST_FILE_IN;
     static const string FILE_INPUT_EXP = getTestPath(5) + R_COMP_FILE_NAME;
     QRDecompMultiThread qrDecomp(FILE_INPUT);
+    qrDecomp.decompose();
+    Eigen::MatrixXd R, expR;
+    qrDecomp.getR(R);
+    readMatrixDense(FILE_INPUT_EXP, expR);
+    compareR(R, expR, false, true);
+}
+
+TEST(QRCholesky, 3Size2Cnt1Cat33Matrix)
+{
+    static const string FILE_INPUT = getTestPath(5) + TEST_FILE_IN;
+    static const string FILE_INPUT_EXP = getTestPath(5) + R_COMP_FILE_NAME;
+    QRDecompCholesky qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
@@ -245,6 +304,24 @@ TEST(QRMultiThreaded, 3SizeCntZeroMatrix)
 {
     static const string FILE_INPUT = getTestPath(6) + TEST_FILE_IN;
     QRDecompMultiThread qrDecomp(FILE_INPUT, true /*isLinDepAllowed*/);
+    qrDecomp.decompose();
+    Eigen::MatrixXd R;
+    qrDecomp.getR(R);
+    EXPECT_NEAR(R(0, 0), 3.74165738677, QR_TEST_PRECISION_ERROR);
+    EXPECT_NEAR(R(0, 1), 7.48331477355, QR_TEST_PRECISION_ERROR);
+    EXPECT_NEAR(R(0, 2), 11.2249721603, QR_TEST_PRECISION_ERROR);
+    EXPECT_NEAR(R(1, 0), 0, QR_TEST_PRECISION_ERROR);
+    EXPECT_NEAR(R(1, 1), 0, QR_TEST_PRECISION_ERROR);
+    EXPECT_NEAR(R(1, 2), 0, QR_TEST_PRECISION_ERROR);
+    EXPECT_NEAR(R(2, 2), 0, QR_TEST_PRECISION_ERROR);
+}
+
+// Cholesky is instable if we have linearly dependent columns
+//
+TEST(QRCholesky, DISABLED_3SizeCntZeroMatrix)
+{
+    static const string FILE_INPUT = getTestPath(6) + TEST_FILE_IN;
+    QRDecompCholesky qrDecomp(FILE_INPUT, true /*isLinDepAllowed*/);
     qrDecomp.decompose();
     Eigen::MatrixXd R;
     qrDecomp.getR(R);

@@ -51,6 +51,17 @@ TEST(SVDMultiThreaded, 2SizeCntMatrix) {
     compareSinVals(singularValues, expSinVals);
 }
 
+TEST(SVDCholesky, 2SizeCntMatrix) {
+    static const string FILE_INPUT = getTestPath(1) + TEST_FILE_IN;
+    static const string FILE_INPUT_EXP = getTestPath(1) + SVD_COMP_FILE_NAME;
+
+    Eigen::VectorXd singularValues, expSinVals;
+    SVDecompQR svdDecomp(FILE_INPUT, SVDecompQR::DecompType::CHOLESKY);
+    svdDecomp.decompose();
+    svdDecomp.getSingularValues(singularValues);
+    readVector(FILE_INPUT_EXP, expSinVals);
+    compareSinVals(singularValues, expSinVals);
+}
 
 TEST(SVDEigenDecomp, 2SizeCntMatrix) {
     static const string FILE_INPUT = getTestPath(1) + TEST_FILE_IN;
@@ -100,6 +111,18 @@ TEST(SVDMultiThreaded, 3SizeCntMatrix) {
     compareSinVals(singularValues, expSinVals);
 }
 
+TEST(SVDCholesky, 3SizeCntMatrix) {
+    static const string FILE_INPUT = getTestPath(2) + TEST_FILE_IN;
+    static const string FILE_INPUT_EXP = getTestPath(2) + SVD_COMP_FILE_NAME;
+
+    Eigen::VectorXd singularValues, expSinVals;
+    SVDecompQR svdDecomp(FILE_INPUT, SVDecompQR::DecompType::CHOLESKY);
+    svdDecomp.decompose();
+    svdDecomp.getSingularValues(singularValues);
+    readVector(FILE_INPUT_EXP, expSinVals);
+    compareSinVals(singularValues, expSinVals);
+}
+
 
 TEST(SVDEigenDecomp, 3SizeCntMatrix) {
     static const string FILE_INPUT = getTestPath(2) + TEST_FILE_IN;
@@ -113,7 +136,6 @@ TEST(SVDEigenDecomp, 3SizeCntMatrix) {
     compareSinVals(singularValues, expSinVals);
 }
 
-
 TEST(SVDEigenDecomp, 3Size2Cnt1Cat2atrix) {
     static const string FILE_INPUT = getTestPath(3) + TEST_FILE_IN;
     static const string FILE_INPUT_EXP = getTestPath(3) + SVD_COMP_FILE_NAME;
@@ -123,7 +145,6 @@ TEST(SVDEigenDecomp, 3Size2Cnt1Cat2atrix) {
     svdDecomp.decompose();
     svdDecomp.getSingularValues(singularValues);
     readVector(FILE_INPUT_EXP, expSinVals);
-    printVector(std::cout, expSinVals);
     compareSinVals(singularValues, expSinVals);
 }
 
@@ -163,6 +184,17 @@ TEST(SVDMultiThreaded, 3Size2Cnt1Cat3Matrix) {
     compareSinVals(singularValues, expSinVals);
 }
 
+TEST(SVDCholesky, 3Size2Cnt1Cat3Matrix) {
+    static const string FILE_INPUT = getTestPath(4) + TEST_FILE_IN;
+    static const string FILE_INPUT_EXP = getTestPath(4) + SVD_COMP_FILE_NAME;
+
+    Eigen::VectorXd singularValues, expSinVals;
+    SVDecompQR svdDecomp(FILE_INPUT, SVDecompQR::DecompType::CHOLESKY);
+    svdDecomp.decompose();
+    svdDecomp.getSingularValues(singularValues);
+    readVector(FILE_INPUT_EXP, expSinVals);
+    compareSinVals(singularValues, expSinVals);
+}
 
 TEST(SVDEigenDecomp, 3Size2Cnt1Cat3Matrix) {
     static const string FILE_INPUT = getTestPath(4) + TEST_FILE_IN;
@@ -182,6 +214,30 @@ TEST(SVDEigenDecomp, 3Size2Cnt1Cat33Matrix) {
 
     Eigen::VectorXd singularValues, expSinVals;
     SVDecompEigDec svdDecomp(FILE_INPUT);
+    svdDecomp.decompose();
+    svdDecomp.getSingularValues(singularValues);
+    readVector(FILE_INPUT_EXP, expSinVals);
+    compareSinVals(singularValues, expSinVals);
+}
+
+TEST(SVDCholesky, 3Size2Cnt1Cat33Matrix) {
+    static const string FILE_INPUT = getTestPath(5) + TEST_FILE_IN;
+    static const string FILE_INPUT_EXP = getTestPath(5) + SVD_COMP_FILE_NAME;
+
+    Eigen::VectorXd singularValues, expSinVals;
+    SVDecompQR svdDecomp(FILE_INPUT, SVDecompQR::DecompType::CHOLESKY);
+    svdDecomp.decompose();
+    svdDecomp.getSingularValues(singularValues);
+    readVector(FILE_INPUT_EXP, expSinVals);
+    compareSinVals(singularValues, expSinVals);
+}
+
+TEST(SVDCholesky, DISABLED_3SizeCntZeroMatrix) {
+    static const string FILE_INPUT = getTestPath(6) + TEST_FILE_IN;
+    static const string FILE_INPUT_EXP = getTestPath(6) + SVD_COMP_FILE_NAME;
+
+    Eigen::VectorXd singularValues, expSinVals;
+    SVDecompQR svdDecomp(FILE_INPUT, SVDecompQR::DecompType::CHOLESKY);
     svdDecomp.decompose();
     svdDecomp.getSingularValues(singularValues);
     readVector(FILE_INPUT_EXP, expSinVals);

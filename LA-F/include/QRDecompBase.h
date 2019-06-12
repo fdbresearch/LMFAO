@@ -18,7 +18,8 @@ namespace LMFAO::LinearAlgebra
         // code runs 40% faster.
         //
         std::vector <double> mC;
-        std::vector <double> mR;
+        //std::vector <double> mR;
+        Eigen::VectorXd mR;
         std::vector <Triple> mCatVals;
 
         // Number of features (categorical + continuous) in sigma matrix.

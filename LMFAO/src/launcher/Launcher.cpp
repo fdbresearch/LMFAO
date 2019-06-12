@@ -122,11 +122,20 @@ int Launcher::launch(const string& model, const string& codeGenerator,
             new CovarianceMatrix(_pathToFiles, shared_from_this()));
         hasApplicationHandler = true;
     }
-    else if (model.compare("qrdecomp") == 0)
+    else if (model.compare("qrdecomp_mul_t") == 0)
     {
         _application.reset(
             new QRDecompApp(_pathToFiles, shared_from_this(),
-                            useLinearDependencyCheck, outputDecomp, dumpFile));
+                            useLinearDependencyCheck, outputDecomp, dumpFile,
+                            QRDecompApp::QrType::QR_MULTI_THREAD));
+        hasApplicationHandler = true;
+    }
+    else if (model.compare("qrdecomp_chol") == 0)
+    {
+        _application.reset(
+            new QRDecompApp(_pathToFiles, shared_from_this(),
+                            useLinearDependencyCheck, outputDecomp, dumpFile,
+                            QRDecompApp::QrType::QR_CHOL));
         hasApplicationHandler = true;
     }
     else if (model.compare("svdecomp_qr") == 0)
@@ -135,6 +144,14 @@ int Launcher::launch(const string& model, const string& codeGenerator,
             new SVDecompApp(_pathToFiles, shared_from_this(),
                             useLinearDependencyCheck, outputDecomp, dumpFile,
                             SVDecompApp::SvdType::SVD_QR));
+        hasApplicationHandler = true;
+    }
+    else if (model.compare("svdecomp_qr_chol") == 0)
+    {
+        _application.reset(
+            new SVDecompApp(_pathToFiles, shared_from_this(),
+                            useLinearDependencyCheck, outputDecomp, dumpFile,
+                            SVDecompApp::SvdType::SVD_QR_CHOL));
         hasApplicationHandler = true;
     }
     else if (model.compare("svdecomp_eig_dec") == 0)

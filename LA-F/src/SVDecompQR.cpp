@@ -15,6 +15,11 @@ namespace LMFAO::LinearAlgebra
     {
         auto begin_t_copying = std::chrono::high_resolution_clock::now();
         QRDecompBase *pQRDecomp = nullptr;
+        Eigen::MatrixXd mSigma;
+
+        Eigen::setNbThreads(8);
+        omp_set_num_threads(8);
+
         switch (mDecompType)
         {
             case DecompType::NAIVE:
@@ -53,30 +58,43 @@ namespace LMFAO::LinearAlgebra
                                                          mNumFeats, mNumFeatsCont,
                                                          mvIsCat);
                 }
+            case DecompType::CHOLESKY:
+                if (nullptr == mpmapMatAgg)
+                {
+                    pQRDecomp = new QRDecompCholesky(mPath);
+                }
+                else
+                {
+                    pQRDecomp = new QRDecompCholesky(*mpmapMatAgg, mNumFeatsExp,
+                                                     mNumFeats, mNumFeatsCont,
+                                                     mvIsCat);
+                }
             default:
                 break;
         }
-        //auto finish_t_copying = std::chrono::high_resolution_clock::now();
-        //std::chrono::duration<double> elapsed_copying = finish_t_copying - begin_t_copying;
-        //double time_spent = elapsed_copying.count();
-        //std::cout << "Time copying is: " << time_spent << std::endl;
+        if (pQRDecomp){
+            //auto finish_t_copying = std::chrono::high_resolution_clock::now();
+            //std::chrono::duration<double> elapsed_copying = finish_t_copying - begin_t_copying;
+            //double time_spent = elapsed_copying.count();
+            //std::cout << "Time copying is: " << time_spent << std::endl;
 
-        //auto begin_t_qr = std::chrono::high_resolution_clock::now();
-        pQRDecomp->decompose();
-        //auto finish_t_qr = std::chrono::high_resolution_clock::now();
-        //std::chrono::duration<double> elapsed_qr = finish_t_qr - begin_t_qr;
-        //time_spent = elapsed_qr.count();
-        //std::cout << "Time qr is: " << time_spent << std::endl;
+            //auto begin_t_qr = std::chrono::high_resolution_clock::now();
 
-        //auto begin_t_copying_back = std::chrono::high_resolution_clock::now();
-        pQRDecomp->getR(mR);
-        delete pQRDecomp;
-        //auto finish_t_copying_back = std::chrono::high_resolution_clock::now();
-        //std::chrono::duration<double> elapsed_copying_b = finish_t_copying_back - begin_t_copying_back;
-        //time_spent = elapsed_copying_b.count();
-        //std::cout << "Time copying back is: " << time_spent << std::endl;
-        Eigen::setNbThreads(8);
-        omp_set_num_threads(8);
+            pQRDecomp->decompose();
+            //auto finish_t_qr = std::chrono::high_resolution_clock::now();
+            //std::chrono::duration<double> elapsed_qr = finish_t_qr - begin_t_qr;
+            //time_spent = elapsed_qr.count();
+            //std::cout << "Time qr is: " << time_spent << std::endl;
+
+            //auto begin_t_copying_back = std::chrono::high_resolution_clock::now();
+            pQRDecomp->getR(mR);
+            delete pQRDecomp;
+            //auto finish_t_copying_back = std::chrono::high_resolution_clock::now();
+            //std::chrono::duration<double> elapsed_copying_b = finish_t_copying_back - begin_t_copying_back;
+            //time_spent = elapsed_copying_b.count();
+            //std::cout << "Time copying back is: " << time_spent << std::endl;
+        }
+
         //cusolverDnHandle_t solver_handle;
         //cusolverDnCreate(&solver_handle);
         //svdCuda(mR);

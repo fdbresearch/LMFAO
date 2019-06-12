@@ -11,7 +11,7 @@ namespace LMFAO::LinearAlgebra
     public:
         enum class DecompType
         {
-            NAIVE, SINGLE_THREAD, MULTI_THREAD
+            NAIVE, SINGLE_THREAD, MULTI_THREAD, CHOLESKY
         };
     private:
         DecompType mDecompType;

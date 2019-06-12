@@ -13,6 +13,10 @@ case $DFDB_SH_DATA_OP in
     ./multifaq --path "${DFDB_SH_DATA}/${DFDB_SH_DATA_SET}/" --model svdecomp_qr \
                --parallel both "${dump}" --dumpFile "${dump_file}"
     ;;
+    svd_qr_chol)
+    ./multifaq --path "${DFDB_SH_DATA}/${DFDB_SH_DATA_SET}/" --model svdecomp_qr_chol \
+               --parallel both "${dump}" --dumpFile "${dump_file}"
+    ;;
     svd_eig_dec)
     ./multifaq --path "${DFDB_SH_DATA}/${DFDB_SH_DATA_SET}/" --model svdecomp_eig_dec \
                --parallel both "${dump}" --dumpFile "${dump_file}"
@@ -21,8 +25,12 @@ case $DFDB_SH_DATA_OP in
     ./multifaq --path "${DFDB_SH_DATA}/${DFDB_SH_DATA_SET}/" --model svdecomp_alt_min \
                --parallel both "${dump}" --dumpFile "${dump_file}"
     ;;
-    qr)
-    ./multifaq --path "${DFDB_SH_DATA}/${DFDB_SH_DATA_SET}/" --model qrdecomp  \
+    qr_mul_t)
+    ./multifaq --path "${DFDB_SH_DATA}/${DFDB_SH_DATA_SET}/" --model qrdecomp_mul_t  \
+               --parallel both "${dump}" --dumpFile "${dump_file}"
+    ;;
+    qr_chol)
+    ./multifaq --path "${DFDB_SH_DATA}/${DFDB_SH_DATA_SET}/" --model qrdecomp_chol  \
                --parallel both "${dump}" --dumpFile "${dump_file}"
     ;;
 esac

@@ -19,13 +19,23 @@
 class QRDecompApp: public CovarianceMatrix
 {
 public:
+    enum class QrType
+    {
+        QR_NAIVE, QR_SINGLE_THREAD, QR_MULTI_THREAD, QR_CHOL,
+        QR_DUMMY
+    };
+private:
+    QrType mQrType;
+public:
     QRDecompApp(const std::string& pathToFiles,
         std::shared_ptr<Launcher> launcher,
         bool useLinearDependencyCheck,
-        bool outputDecomp, const std::string& dumpFile) :
+        bool outputDecomp, const std::string& dumpFile,
+        QrType qrType) :
             CovarianceMatrix(pathToFiles, launcher),
             mUseLinearDependencyCheck(useLinearDependencyCheck),
-            mOutputDecomp(outputDecomp), mDumpFile(dumpFile)            {}
+            mOutputDecomp(outputDecomp), mDumpFile(dumpFile),
+            mQrType(qrType)            {}
     virtual ~QRDecompApp() override {}
 protected:
     virtual std::string getCodeOfIncludes() override;

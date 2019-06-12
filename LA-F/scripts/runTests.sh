@@ -32,7 +32,7 @@ function init_global_vars()
     declare -gA DFDB_SH_DATA_SETS_FULL
     DFDB_SH_DATA_SETS_FULL=( [usretailer_35f_1]=1 [usretailer_35f_10]=2 [usretailer_35f_100]=3 [usretailer_35f_1000]=4 [usretailer_35f]=5 [favorita]=6 [favorita_6f]=7 )
     DFDB_SH_DATA_SETS=("${!DFDB_SH_DATA_SETS_FULL[@]}")
-    DFDB_SH_OPS=("svd_qr" "svd_eig_dec" "svd_alt_mit" "sin_vals" "qr" )
+    DFDB_SH_OPS=("svd_qr" "svd_qr_chol" "svd_eig_dec" "svd_alt_mit" "sin_vals" "qr_chol" "qr_mul_t" )
     DFDB_SH_FEATURES=()
     DFDB_SH_FEATURES_CAT=()
     DFDB_SH_POSITIONAL=()
@@ -342,6 +342,7 @@ function build_and_run_tests() {
     echo 'Number of categorical feats: '${#DFDB_SH_FEATURES_CAT[@]}
     local data_op_rec=$data_op
     [[ $data_op == svd* ]] && data_op="svd"
+    [[ $data_op == qr* ]] && data_op="qr"
 
     local log_lmfao=${DFDB_SH_LOG_PATH}/lmfao/log"${data_set}${data_op}".txt
     local log_madlib=${DFDB_SH_LOG_PATH}/madlib/log"${data_set}${data_op}".txt
@@ -381,7 +382,7 @@ function build_and_run_tests() {
         update_times $time_lmfao $log_lmfao $data_op $data_set $data_set_idx
     }
 
-    [[ $data_op == svd* ]] && data_op="svd"
+
     [[ $DFDB_SH_MADLIB  == true ]] && {
         echo '*********Madlib test started**********'
         (source la_madlib.sh ${data_set} ${features_cat_out} ${data_op} \
