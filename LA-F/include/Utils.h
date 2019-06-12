@@ -11,6 +11,7 @@
 
 #include <vector>
 #include <map>
+#include <iostream>
 
 namespace LMFAO::LinearAlgebra
 {
@@ -72,14 +73,19 @@ namespace LMFAO::LinearAlgebra
                          Eigen::MatrixXd& rmACont, std::vector <Triple>* pvCatVals,
                          bool isNaive);
 
-   // Reads matrix from wile @p sPath where in the first line are matrix dimenstions.
-    // In the following lines, matrix rows are written separated by space.
-    //
-    void readMatrixDense(const std::string& sPath, Eigen::MatrixXd& rmA, char sep=' ');
     // Reads vector from wile @p sPath where in the first line are vector dimenstions.
     // In the following line, are written the components of vector.
     //
     void readVector(const std::string& sPath, Eigen::VectorXd& rvV, char sep=' ');
+
+    // Reads matrix from wile @p sPath where in the first line are matrix dimenstions.
+    // In the following lines, matrix rows are written separated by space.
+    //
+    void readMatrixDense(const std::string& sPath, Eigen::MatrixXd& rmA, char sep=' ');
+
+    std::ostream& printMatrixDense(std::ostream& out, const Eigen::MatrixXd& crmA, char sep=' ');
+
+    std::ostream& printVector(std::ostream& out, const Eigen::VectorXd& crvV, char sep=' ');
 }
 
 #endif

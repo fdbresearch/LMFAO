@@ -7,9 +7,13 @@
 // 3 - Warning
 // 4 - Error
 
-#define LMFAO_LOG_LEVEL 1
+#define LMFAO_LOG_LEVEL 0
 
 #include <iostream>
+
+// TODO:
+// 1) __FUNCTION__, __FILE__, __LINE__ flag for debugging
+// 2) Add module definition for benchmark
 
 template<typename Arg1, typename Arg2, typename ...Args>
 void lmfaoLogStd(Arg1&& severity, Arg2&& arg, Args&& ...args)
@@ -17,6 +21,13 @@ void lmfaoLogStd(Arg1&& severity, Arg2&& arg, Args&& ...args)
     std::cout << severity << " ";
     std::cout << arg;
     ((std::cout << " " << std::forward<Args>(args)), ...) << std::endl;
+}
+
+template<typename Arg1, typename Arg2>
+void lmfaoLogStd(Arg1&& severity, Arg2&& arg)
+{
+    std::cout << severity << " ";
+    std::cout << arg << std::endl;
 }
 
 template<typename Arg, typename ...Args>

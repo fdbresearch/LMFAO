@@ -19,7 +19,6 @@ namespace LMFAO::LinearAlgebra
         f >> rFtDim.numCont;
         LMFAO_LOG_MSG_INFO("Number expanded features:", rFtDim.numExp, "Number features: ", rFtDim.num,
                           "Number continuous:", rFtDim.numCont);
-
         std::vector<bool> vIsCat(rFtDim.numExp, false);
         rmACont = Eigen::MatrixXd::Zero(rFtDim.numExp, rFtDim.numExp);
 
@@ -33,6 +32,7 @@ namespace LMFAO::LinearAlgebra
         {
             rmACont(row, col) = val;
         }
+        LMFAO_LOG_MSG_DBG("Finished reading content of file");
         rearrangeMatrix(vIsCat, rFtDim, rmACont, pvCatVals, isNaive);
     }
 
@@ -86,7 +86,7 @@ namespace LMFAO::LinearAlgebra
             cntCont[idx] = cntCont[idx - 1] + !vIsCat[idx - 1];
         }
 
-
+        LMFAO_LOG_MSG_DBG( "Finished expanding");
         for (uint32_t row = 0; row < ftDim.numExp; row++)
         {
             for (uint32_t col = 0; col < ftDim.numExp; col++)
@@ -116,6 +116,7 @@ namespace LMFAO::LinearAlgebra
                 }
             }
         }
+        LMFAO_LOG_MSG_DBG(__FUNCTION__, __FILE__, __LINE__, "Finished shuffling");
         // In the case of naive approach just add categorical values to
         // the continuous case.
         //
@@ -140,6 +141,39 @@ namespace LMFAO::LinearAlgebra
         }
         std::cout << "******************" << std::endl;
         */
+    }
+
+    void readVector(const std::string& sPath, Eigen::VectorXd& rvV, char sep)
+    {
+
+        std::ifstream input(sPath);
+        std::stringstream lineStream;
+        std::string line;
+        std::string cell;
+        uint32_t rowNum = 0;
+        uint32_t row = 0;
+
+        input >> rowNum;
+        getline(input, line);
+        LMFAO_LOG_MSG_DBG("RowNum:", rowNum);
+        rvV.resize(rowNum);
+
+        getline(input, line);
+        lineStream << line;
+        row = 0;
+        // Iterates column by column in search for values
+        // separated by sep.
+        //
+        while (std::getline(lineStream, cell, sep))
+        {
+            double val = std::stod(cell);
+            LMFAO_LOG_MSG_DBG("RowNum:", row, "Val:", val);
+            rvV(row) = val;
+            row ++;
+        }
+        lineStream.clear();
+        row ++;
+        input.close();
     }
 
     void readMatrixDense(const std::string& sPath, Eigen::MatrixXd& rmA, char sep)
@@ -177,36 +211,48 @@ namespace LMFAO::LinearAlgebra
         input.close();
     }
 
-    void readVector(const std::string& sPath, Eigen::VectorXd& rvV, char sep)
+    std::ostream& printVector(std::ostream& out, const Eigen::VectorXd& crvV, char sep)
     {
-
-        std::ifstream input(sPath);
-        std::stringstream lineStream;
-        std::string line;
-        std::string cell;
         uint32_t rowNum = 0;
         uint32_t row = 0;
 
-        input >> rowNum;
-        getline(input, line);
-        LMFAO_LOG_MSG_DBG("RowNum:", rowNum);
-        rvV.resize(rowNum);
-
-        getline(input, line);
-        lineStream << line;
-        row = 0;
+        out << crvV.rows() << std::endl;
         // Iterates column by column in search for values
         // separated by sep.
         //
-        while (std::getline(lineStream, cell, sep))
+        for (uint32_t row = 0; row < crvV.rows(); row ++)
         {
-            double val = std::stod(cell);
-            LMFAO_LOG_MSG_DBG("RowNum:", row, "Val:", val);
-            rvV(row) = val;
-            row ++;
+            out << crvV(row);
+            if (row != (crvV.rows() - 1))
+            {
+                out << sep;
+            }
         }
-        lineStream.clear();
-        row ++;
-        input.close();
+        return out;
     }
+
+    std::ostream& printMatrixDense(std::ostream& out, const Eigen::MatrixXd& crmA, char sep)
+    {
+        uint32_t rowNum = 0;
+        uint32_t colNum = 0;
+        uint32_t row = 0;
+        uint32_t col = 0;
+
+        out <<  crmA.rows() << " " << crmA.cols() << std::endl;
+        for (uint32_t row = 0; row < crmA.rows(); row ++)
+        {
+            for (uint32_t col = 0; col < crmA.cols(); col++)
+            {
+
+                out << crmA(row, col);
+                if (col != (crmA.cols() - 1))
+                {
+                    out << sep;
+                }
+            }
+            out << std::endl;
+        }
+        return out;
+    }
+
 }

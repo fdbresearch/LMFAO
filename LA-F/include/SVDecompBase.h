@@ -14,7 +14,8 @@ namespace LMFAO::LinearAlgebra
         uint32_t mNumFeatsCat;
 
         const std::string mPath;
-        Eigen::MatrixXd mSigma;
+        // TODO: Change this to pointer.
+        //
         std::vector<bool> mvIsCat;
 
         const LMFAO::LinearAlgebra::MapMatrixAggregate* mpmapMatAgg = nullptr;

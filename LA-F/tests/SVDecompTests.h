@@ -4,7 +4,7 @@
 using namespace LMFAO::LinearAlgebra;
 using namespace std;
 
-constexpr double SVD_TEST_PRECISION_ERROR = 1e-10;
+constexpr double SVD_TEST_PRECISION_ERROR = 1e-8;
 const std::string SVD_COMP_FILE_NAME="testExpSinVals.in";
 
 void compareSinVals(Eigen::VectorXd& sinVals, Eigen::VectorXd& expSinVals)
@@ -64,7 +64,7 @@ TEST(SVDEigenDecomp, 2SizeCntMatrix) {
     compareSinVals(singularValues, expSinVals);
 }
 
-TEST(SVDNaive, DISABLED_3SizeCntMatrix) {
+TEST(SVDNaive, 3SizeCntMatrix) {
     static const string FILE_INPUT = getTestPath(2) + TEST_FILE_IN;
     static const string FILE_INPUT_EXP = getTestPath(2) + SVD_COMP_FILE_NAME;
 
@@ -76,7 +76,7 @@ TEST(SVDNaive, DISABLED_3SizeCntMatrix) {
     compareSinVals(singularValues, expSinVals);
 }
 
-TEST(SVDSingleThreaded, DISABLED_3SizeCntMatrix) {
+TEST(SVDSingleThreaded, 3SizeCntMatrix) {
     static const string FILE_INPUT = getTestPath(2) + TEST_FILE_IN;
     static const string FILE_INPUT_EXP = getTestPath(2) + SVD_COMP_FILE_NAME;
 
@@ -88,7 +88,7 @@ TEST(SVDSingleThreaded, DISABLED_3SizeCntMatrix) {
     compareSinVals(singularValues, expSinVals);
 }
 
-TEST(SVDMultiThreaded, DISABLED_3SizeCntMatrix) {
+TEST(SVDMultiThreaded, 3SizeCntMatrix) {
         static const string FILE_INPUT = getTestPath(2) + TEST_FILE_IN;
     static const string FILE_INPUT_EXP = getTestPath(2) + SVD_COMP_FILE_NAME;
 
@@ -101,9 +101,84 @@ TEST(SVDMultiThreaded, DISABLED_3SizeCntMatrix) {
 }
 
 
-TEST(SVDEigenDecomp, DISABLED_3SizeCntMatrix) {
+TEST(SVDEigenDecomp, 3SizeCntMatrix) {
     static const string FILE_INPUT = getTestPath(2) + TEST_FILE_IN;
     static const string FILE_INPUT_EXP = getTestPath(2) + SVD_COMP_FILE_NAME;
+
+    Eigen::VectorXd singularValues, expSinVals;
+    SVDecompEigDec svdDecomp(FILE_INPUT);
+    svdDecomp.decompose();
+    svdDecomp.getSingularValues(singularValues);
+    readVector(FILE_INPUT_EXP, expSinVals);
+    compareSinVals(singularValues, expSinVals);
+}
+
+
+TEST(SVDEigenDecomp, 3Size2Cnt1Cat2atrix) {
+    static const string FILE_INPUT = getTestPath(3) + TEST_FILE_IN;
+    static const string FILE_INPUT_EXP = getTestPath(3) + SVD_COMP_FILE_NAME;
+
+    Eigen::VectorXd singularValues, expSinVals;
+    SVDecompEigDec svdDecomp(FILE_INPUT);
+    svdDecomp.decompose();
+    svdDecomp.getSingularValues(singularValues);
+    readVector(FILE_INPUT_EXP, expSinVals);
+    printVector(std::cout, expSinVals);
+    compareSinVals(singularValues, expSinVals);
+}
+
+TEST(SVDNaive, 3Size2Cnt1Cat3Matrix) {
+    static const string FILE_INPUT = getTestPath(4) + TEST_FILE_IN;
+    static const string FILE_INPUT_EXP = getTestPath(4) + SVD_COMP_FILE_NAME;
+
+    Eigen::VectorXd singularValues, expSinVals;
+    SVDecompQR svdDecomp(FILE_INPUT, SVDecompQR::DecompType::NAIVE);
+    svdDecomp.decompose();
+    svdDecomp.getSingularValues(singularValues);
+    readVector(FILE_INPUT_EXP, expSinVals);
+    compareSinVals(singularValues, expSinVals);
+}
+
+TEST(SVDSingleThreaded, 3Size2Cnt1Cat3Matrix) {
+    static const string FILE_INPUT = getTestPath(4) + TEST_FILE_IN;
+    static const string FILE_INPUT_EXP = getTestPath(4) + SVD_COMP_FILE_NAME;
+
+    Eigen::VectorXd singularValues, expSinVals;
+    SVDecompQR svdDecomp(FILE_INPUT, SVDecompQR::DecompType::SINGLE_THREAD);
+    svdDecomp.decompose();
+    svdDecomp.getSingularValues(singularValues);
+    readVector(FILE_INPUT_EXP, expSinVals);
+    compareSinVals(singularValues, expSinVals);
+}
+
+TEST(SVDMultiThreaded, 3Size2Cnt1Cat3Matrix) {
+        static const string FILE_INPUT = getTestPath(4) + TEST_FILE_IN;
+    static const string FILE_INPUT_EXP = getTestPath(4) + SVD_COMP_FILE_NAME;
+
+    Eigen::VectorXd singularValues, expSinVals;
+    SVDecompQR svdDecomp(FILE_INPUT, SVDecompQR::DecompType::MULTI_THREAD);
+    svdDecomp.decompose();
+    svdDecomp.getSingularValues(singularValues);
+    readVector(FILE_INPUT_EXP, expSinVals);
+    compareSinVals(singularValues, expSinVals);
+}
+
+
+TEST(SVDEigenDecomp, 3Size2Cnt1Cat3Matrix) {
+    static const string FILE_INPUT = getTestPath(4) + TEST_FILE_IN;
+    static const string FILE_INPUT_EXP = getTestPath(4) + SVD_COMP_FILE_NAME;
+
+    Eigen::VectorXd singularValues, expSinVals;
+    SVDecompEigDec svdDecomp(FILE_INPUT);
+    svdDecomp.decompose();
+    svdDecomp.getSingularValues(singularValues);
+    readVector(FILE_INPUT_EXP, expSinVals);
+    compareSinVals(singularValues, expSinVals);
+}
+
+TEST(SVDEigenDecomp, 3Size2Cnt1Cat33Matrix) {
+    static const string FILE_INPUT = getTestPath(5) + TEST_FILE_IN;
+    static const string FILE_INPUT_EXP = getTestPath(5) + SVD_COMP_FILE_NAME;
 
     Eigen::VectorXd singularValues, expSinVals;
     SVDecompEigDec svdDecomp(FILE_INPUT);
