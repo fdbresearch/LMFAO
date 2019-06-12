@@ -60,8 +60,8 @@ namespace LMFAO::LinearAlgebra
         for (uint32_t i = 0; i < mSigma.rows(); ++i) {
             current += Diag(i, i) * Diag(i, i);
             rankK = std::max(rankK, i + 1);
-            if (current + EPS >= accuracy * sum)
-              break;
+            //if (current + EPS >= accuracy * sum)
+            //  break;
         }
 
         //cerr << "Chosen rank: " << rankK << std::endl;

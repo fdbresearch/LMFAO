@@ -129,11 +129,28 @@ int Launcher::launch(const string& model, const string& codeGenerator,
                             useLinearDependencyCheck, outputDecomp, dumpFile));
         hasApplicationHandler = true;
     }
-    else if (model.compare("svdecomp") == 0)
+    else if (model.compare("svdecomp_qr") == 0)
     {
         _application.reset(
             new SVDecompApp(_pathToFiles, shared_from_this(),
-                            useLinearDependencyCheck, outputDecomp, dumpFile));
+                            useLinearDependencyCheck, outputDecomp, dumpFile,
+                            SVDecompApp::SvdType::SVD_QR));
+        hasApplicationHandler = true;
+    }
+    else if (model.compare("svdecomp_eig_dec") == 0)
+    {
+        _application.reset(
+            new SVDecompApp(_pathToFiles, shared_from_this(),
+                            useLinearDependencyCheck, outputDecomp, dumpFile,
+                            SVDecompApp::SvdType::SVD_EIG_DEC));
+        hasApplicationHandler = true;
+    }
+    else if (model.compare("svdecomp_alt_min") == 0)
+    {
+        _application.reset(
+            new SVDecompApp(_pathToFiles, shared_from_this(),
+                            useLinearDependencyCheck, outputDecomp, dumpFile,
+                            SVDecompApp::SvdType::SVD_ALT_MIN));
         hasApplicationHandler = true;
     }
     else if (model.compare("count") == 0)

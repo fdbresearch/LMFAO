@@ -9,8 +9,16 @@ dump_file=$4
 [[ $DFDB_SH_DUMP == true ]] && dump="--outputDecomp" || dump=""
 cd $DFDB_SH_LMFAO_P
 case $DFDB_SH_DATA_OP in
-    svd)
-    ./multifaq --path "${DFDB_SH_DATA}/${DFDB_SH_DATA_SET}/" --model svdecomp \
+    svd_qr)
+    ./multifaq --path "${DFDB_SH_DATA}/${DFDB_SH_DATA_SET}/" --model svdecomp_qr \
+               --parallel both "${dump}" --dumpFile "${dump_file}"
+    ;;
+    svd_eig_dec)
+    ./multifaq --path "${DFDB_SH_DATA}/${DFDB_SH_DATA_SET}/" --model svdecomp_eig_dec \
+               --parallel both "${dump}" --dumpFile "${dump_file}"
+    ;;
+    svd_alt_min)
+    ./multifaq --path "${DFDB_SH_DATA}/${DFDB_SH_DATA_SET}/" --model svdecomp_alt_min \
                --parallel both "${dump}" --dumpFile "${dump_file}"
     ;;
     qr)

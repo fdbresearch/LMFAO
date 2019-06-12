@@ -7,7 +7,7 @@
 // 3 - Warning
 // 4 - Error
 
-#define LMFAO_LOG_LEVEL 0
+#define LMFAO_LOG_LEVEL 3
 
 #include <iostream>
 

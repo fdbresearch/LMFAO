@@ -32,11 +32,11 @@ function init_global_vars()
     declare -gA DFDB_SH_DATA_SETS_FULL
     DFDB_SH_DATA_SETS_FULL=( [usretailer_35f_1]=1 [usretailer_35f_10]=2 [usretailer_35f_100]=3 [usretailer_35f_1000]=4 [usretailer_35f]=5 [favorita]=6 [favorita_6f]=7 )
     DFDB_SH_DATA_SETS=("${!DFDB_SH_DATA_SETS_FULL[@]}")
-    echo "Skupovi" ${DFDB_SH_DATA_SETS[@]}
-    DFDB_SH_OPS=("svd" "qr")
+    DFDB_SH_OPS=("svd_qr" "svd_eig_dec" "svd_alt_mit" "sin_vals" "qr" )
     DFDB_SH_FEATURES=()
     DFDB_SH_FEATURES_CAT=()
     DFDB_SH_POSITIONAL=()
+    DFDB_SH_CONF_ERROR=false
 
     DFDB_SH_JOIN=false
     DFDB_SH_LMFAO=false
@@ -47,6 +47,7 @@ function init_global_vars()
     DFDB_SH_NUMPY=false
     DFDB_SH_PRECISION=false
     DFDB_SH_PERF=false
+    DFDB_SH_SIN_VALS_ONLY=false
 
     DFDB_SH_DUMP=false
     DFDB_SH_NUM_REP=1
@@ -123,14 +124,44 @@ function get_build_opts()
     done
 }
 
+array_contains () {
+    local search_el=$1;
+    local exist="false"
+    for element in "${@:2}"; do
+        if [[ $element == $search_el ]]; then
+            exist="true"
+            break
+        fi
+    done
+    echo "${exist}"
+}
+
 function get_data_sets()
 {
-    IFS=', ' read -r -a DFDB_SH_DATA_SETS <<< "$1"
+    local data_sets_tmp=()
+    IFS=', ' read -r -a data_sets_tmp <<< "$1"
+    for data_set in "${data_sets_tmp[@]}"; do
+        cont=$(array_contains $data_set ${DFDB_SH_DATA_SETS[@]})
+        if [[ $cont != true ]]; then
+            DFDB_SH_CONF_ERROR=true
+            echo "Data set \"$data_set\" does not exist " 1>&2
+        fi
+    done
+    DFDB_SH_DATA_SETS=("${data_sets_tmp[@]}")
 }
 
 function get_data_operations()
 {
-    IFS=', ' read -r -a DFDB_SH_OPS <<< "$1"
+    local ops_tmp=()
+    IFS=', ' read -r -a ops_tmp <<< "$1"
+    for data_op in "${ops_tmp[@]}"; do
+        cont=$(array_contains $data_op ${DFDB_SH_OPS[@]})
+        if [[ $cont != true ]]; then
+            DFDB_SH_CONF_ERROR=true
+            echo "Data op \"$data_op\" does not exist " 1>&2
+        fi
+    done
+    DFDB_SH_OPS=("${ops_tmp[@]}")
 }
 
 function get_str_args()
@@ -223,11 +254,12 @@ function get_features()
     DFDB_SH_FEATURES_CAT=(${features_cat[@]})
 }
 
-# TODO: Refactor this properly.
 function compare_precisions()
 {
     local dump_test="$1"
     local path_comp="$2"
+    local dump_lmfao="$3"
+    local data_op="$4"
     [[ $DFDB_SH_PRECISION  == true ]] && {
       echo '*********comparison test started**********'
       echo $dump_test
@@ -246,7 +278,8 @@ function update_times()
     local time_test="$1"
     local log_test="$2"
     local data_op="$3"
-    echo "$data_set_idx"
+    local data_set="$4"
+    local data_set_idx="$5"
     [[ $DFDB_SH_PERF  == true ]] && {
       echo '*********perf test update**********'
       echo $time_test
@@ -261,10 +294,11 @@ function update_times()
 
 function eval_time()
 {
-    #TODO: Add optimizations for loading/reading.
     module=$1
+    # Redirects stderr (to which time is output) to stdout and drops stdout.
     eval_output=$(eval "${DFDB_TIME}" "${@:2}" 2>&1 1>/dev/null)
-    #If there any other errors in the output, just extract the last line.
+    # If there any other errors in the output, just extract the last line whic
+    # contains the time.
     time_meas=$(echo $eval_output | grep -Eo '[0-9]+\.?[0-9]*$')
     echo '##LMFAO## ' $module ' ##' "$time_meas"
 }
@@ -292,9 +326,9 @@ make -j8
 
 #TODO: If you have time to play, play with refactoring.
 function build_and_run_tests() {
-    data_set=$1
-    data_op=$2
-    data_set_idx=$3
+    local data_set=$1
+    local data_op=$2
+    local data_set_idx=$3
 
     echo "Data set id" $data_set_idx
     local features_out=$(printf "%s," ${DFDB_SH_FEATURES[@]})
@@ -306,6 +340,8 @@ function build_and_run_tests() {
     features_cat_out=${features_cat_out::-1}
     echo 'Categorical features: ' ${features_cat_out}
     echo 'Number of categorical feats: '${#DFDB_SH_FEATURES_CAT[@]}
+    local data_op_rec=$data_op
+    [[ $data_op == svd* ]] && data_op="svd"
 
     local log_lmfao=${DFDB_SH_LOG_PATH}/lmfao/log"${data_set}${data_op}".txt
     local log_madlib=${DFDB_SH_LOG_PATH}/madlib/log"${data_set}${data_op}".txt
@@ -339,30 +375,29 @@ function build_and_run_tests() {
 
     [[ $DFDB_SH_LMFAO  == true ]] && {
         echo '*********LMFAO test started**********'
-        (source test_lmfaola.sh ${data_set} ${data_op} ${DFDB_SH_DUMP} \
+        (source test_lmfaola.sh ${data_set} ${data_op_rec} ${DFDB_SH_DUMP} \
                 "${dump_lmfao}" &> ${log_lmfao})
         echo '*********LMFAO test finished**********'
-        update_times $time_lmfao $log_lmfao $data_op
+        update_times $time_lmfao $log_lmfao $data_op $data_set $data_set_idx
     }
 
+    [[ $data_op == svd* ]] && data_op="svd"
     [[ $DFDB_SH_MADLIB  == true ]] && {
         echo '*********Madlib test started**********'
         (source la_madlib.sh ${data_set} ${features_cat_out} ${data_op} \
             ${DFDB_SH_DUMP}  ${dump_madlib} &> ${log_madlib})
         echo '*********Madlib test finished**********'
-
-        compare_precisions "${dump_madlib}" "${comp_madlib}"
-        update_times "$time_madlib" "$log_madlib" $data_op
-
+        compare_precisions "${dump_madlib}" "${comp_madlib}" "${dump_lmfao}" $data_op
+        update_times "$time_madlib" "$log_madlib" $data_op $data_set $data_set_idx
     }
 
     [[ $DFDB_SH_EIGEN  == true ]] && {
         echo '*********Eigen test started**********'
         (source la_eigen.sh ${data_set} ${data_op} ${features_out} ${features_cat_out} \
                 "${DFDB_SH_DUMP}" "${dump_eigen}" "${DFDB_SH_NUM_REP}" &> ${log_eigen})
-        compare_precisions "${dump_eigen}" "${comp_eigen}"
-        update_times "$time_eigen" "$log_eigen" $data_op
         echo '*********Eigen test finished**********'
+        compare_precisions "${dump_eigen}" "${comp_eigen}" "${dump_lmfao}" $data_op
+        update_times "$time_eigen" "$log_eigen" $data_op $data_set $data_set_idx
     }
 
     [[ $DFDB_SH_R  == true ]] && {
@@ -372,8 +407,8 @@ function build_and_run_tests() {
                 ${DFDB_SH_NUM_REP}  ${DFDB_SH_DUMP}  ${dump_r}                        \
                 ${DFDB_SH_FEATURES[@]} ${DFDB_SH_FEATURES_CAT[@]}" &> ${log_r}
         echo '*********R test finished**********'
-        compare_precisions "${dump_r}" "${comp_r}"
-        update_times "$time_r" "$log_r" $data_op
+        compare_precisions "${dump_r}" "${comp_r}" "${dump_lmfao}" $data_op
+        update_times "$time_r" "$log_r" $data_op $data_set $data_set_idx
     }
 
     [[ $DFDB_SH_NUMPY  == true ]] && {
@@ -385,8 +420,8 @@ function build_and_run_tests() {
                           --dump_file "${dump_numpy}" -s "numpy"     \
                            &> ${log_numpy}
         echo '*********numpy test finished**********'
-        compare_precisions "${dump_numpy}" "${comp_numpy}"
-        update_times "$time_numpy" "$log_numpy" $data_op
+        compare_precisions "${dump_numpy}" "${comp_numpy}" "${dump_lmfao}" $data_op
+        update_times "$time_numpy" "$log_numpy" $data_op $data_set $data_set_idx
 
     }
     [[ $DFDB_SH_SCIPY  == true ]] && {
@@ -398,22 +433,19 @@ function build_and_run_tests() {
                   --dump_file "${dump_scipy}" -s "scipy"     \
                    &> ${log_scipy}
         echo '*********scipy test finished**********'
-        compare_precisions "${dump_scipy}" "${comp_scipy}"
-        update_times "$time_scipy" "$log_scipy" $data_op
+        compare_precisions "${dump_scipy}" "${comp_scipy}" "${dump_lmfao}" $data_op
+        update_times "$time_scipy" "$log_scipy" $data_op $data_set $data_set_idx
     }
-
 }
-
-# TODO:  QR for Madlib .
 
 function main() {
     init_global_paths
     init_global_vars
 
     get_str_args "$@"
-    if [[ $DFDB_SH_HELP_SHOW == true ]]; then
-        return
-    fi
+
+    [[ $DFDB_SH_CONF_ERROR == true ]] && return
+    [[ $DFDB_SH_HELP_SHOW == true ]] && return
 
     cd "${DFDB_SH_LA_BUILD}"
     cmake .. -DLMFAO_LIB:BOOL=ON -DLMFAO_RUN:BOOL=OFF -DLMFAO_TEST:BOOL=OFF
@@ -430,6 +462,7 @@ function main() {
             continue
         fi
         DFDB_SH_DB=${data_set}
+        echo ""
         echo tests for data set "$data_set" are starting;
         data_path=$DFDB_SH_DATA"/"$data_set
         get_features $data_path
@@ -443,7 +476,7 @@ function main() {
             echo '*********Join started**********'
             (source generate_join.sh ${data_set}  &> ${log_psql})
             echo '*********Join finished**********'
-            update_times "$time_psql" "$log_psql" "_"
+            update_times "$time_psql" "$log_psql" "$data_op" $data_set $data_set_idx
         }
         dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
         # Needed for MADlib
