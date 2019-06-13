@@ -11,6 +11,7 @@ namespace LMFAO::LinearAlgebra
         Eigen::MatrixXd L = lltOfA.matrixL();
         uint32_t N = mNumFeatsExp;
         mR.resize(N, N);
+        // TODO: Rethink about the order of storing operation (look at website)
         for (uint32_t row = 0; row < N; row++)
         {
             for (uint32_t col = 0; col < row; col++)

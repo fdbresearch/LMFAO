@@ -75,6 +75,18 @@ TEST(SVDEigenDecomp, 2SizeCntMatrix) {
     compareSinVals(singularValues, expSinVals);
 }
 
+TEST(SVDAltMin, DISABLED_2SizeCntMatrix) {
+    static const string FILE_INPUT = getTestPath(1) + TEST_FILE_IN;
+    static const string FILE_INPUT_EXP = getTestPath(1) + SVD_COMP_FILE_NAME;
+
+    Eigen::VectorXd singularValues, expSinVals;
+    SVDecompAltMin svdDecomp(FILE_INPUT);
+    svdDecomp.decompose();
+    svdDecomp.getSingularValues(singularValues);
+    readVector(FILE_INPUT_EXP, expSinVals);
+    compareSinVals(singularValues, expSinVals);
+}
+
 TEST(SVDNaive, 3SizeCntMatrix) {
     static const string FILE_INPUT = getTestPath(2) + TEST_FILE_IN;
     static const string FILE_INPUT_EXP = getTestPath(2) + SVD_COMP_FILE_NAME;

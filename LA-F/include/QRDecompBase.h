@@ -19,6 +19,7 @@ namespace LMFAO::LinearAlgebra
         //
         std::vector <double> mC;
         //std::vector <double> mR;
+        // TODO: Think about resizing mr so it is triangular.
         Eigen::VectorXd mR;
         std::vector <Triple> mCatVals;
 

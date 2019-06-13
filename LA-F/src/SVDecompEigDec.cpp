@@ -39,6 +39,7 @@ namespace LMFAO::LinearAlgebra
         //initialisationTime = (std::chrono::duration_cast<std::chrono::nanoseconds>(initialisationTimeEnd - initialisationTimeStart).count());
 
         //auto eigenDecompStart = Clock::now();
+        // TODO: Rethink about using different type of eigen solver.
         Eigen::SelfAdjointEigenSolver<MatrixT> eigenDecomposer(mSigma);
 
         L = eigenDecomposer.eigenvectors();
@@ -86,7 +87,6 @@ namespace LMFAO::LinearAlgebra
         // cerr << "mSigma:\n" << mSigma << std::endl;
         // cerr << "Approx:\n" << L*Diag*L.transpose() << std::endl;
         //cerr << "Expecting identity:\n" << V.transpose() * V  << std::endl;
-
 
         //auto multTimeStart = Clock::now();
 

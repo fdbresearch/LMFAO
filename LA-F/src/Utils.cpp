@@ -17,7 +17,7 @@ namespace LMFAO::LinearAlgebra
         f >> rFtDim.numExp;
         f >> rFtDim.num;
         f >> rFtDim.numCont;
-        LMFAO_LOG_MSG_INFO("Number expanded features:", rFtDim.numExp, "Number features: ", rFtDim.num,
+        LMFAO_LOG_INFO("Number expanded features:", rFtDim.numExp, "Number features: ", rFtDim.num,
                           "Number continuous:", rFtDim.numCont);
         std::vector<bool> vIsCat(rFtDim.numExp, false);
         rmACont = Eigen::MatrixXd::Zero(rFtDim.numExp, rFtDim.numExp);
@@ -32,7 +32,7 @@ namespace LMFAO::LinearAlgebra
         {
             rmACont(row, col) = val;
         }
-        LMFAO_LOG_MSG_DBG("Finished reading content of file");
+        LMFAO_LOG_DBG("Finished reading content of file");
         rearrangeMatrix(vIsCat, rFtDim, rmACont, pvCatVals, isNaive);
     }
 
@@ -86,7 +86,7 @@ namespace LMFAO::LinearAlgebra
             cntCont[idx] = cntCont[idx - 1] + !vIsCat[idx - 1];
         }
 
-        LMFAO_LOG_MSG_DBG( "Finished expanding");
+        LMFAO_LOG_DBG( "Finished expanding");
         for (uint32_t row = 0; row < ftDim.numExp; row++)
         {
             for (uint32_t col = 0; col < ftDim.numExp; col++)
@@ -116,7 +116,7 @@ namespace LMFAO::LinearAlgebra
                 }
             }
         }
-        LMFAO_LOG_MSG_DBG(__FUNCTION__, __FILE__, __LINE__, "Finished shuffling");
+        LMFAO_LOG_DBG(__FUNCTION__, __FILE__, __LINE__, "Finished shuffling");
         // In the case of naive approach just add categorical values to
         // the continuous case.
         //
@@ -155,7 +155,7 @@ namespace LMFAO::LinearAlgebra
 
         input >> rowNum;
         getline(input, line);
-        LMFAO_LOG_MSG_DBG("RowNum:", rowNum);
+        LMFAO_LOG_DBG("RowNum:", rowNum);
         rvV.resize(rowNum);
 
         getline(input, line);
@@ -167,7 +167,7 @@ namespace LMFAO::LinearAlgebra
         while (std::getline(lineStream, cell, sep))
         {
             double val = std::stod(cell);
-            LMFAO_LOG_MSG_DBG("RowNum:", row, "Val:", val);
+            LMFAO_LOG_DBG("RowNum:", row, "Val:", val);
             rvV(row) = val;
             row ++;
         }
@@ -189,7 +189,7 @@ namespace LMFAO::LinearAlgebra
 
         input >> rowNum >> colNum;
         getline(input, line);
-        LMFAO_LOG_MSG_DBG("RowNum:", rowNum, "ColNum:", colNum);
+        LMFAO_LOG_DBG("RowNum:", rowNum, "ColNum:", colNum);
         rmA.resize(rowNum, colNum);
         while (getline(input, line))
         {
@@ -201,7 +201,7 @@ namespace LMFAO::LinearAlgebra
             while (std::getline(lineStream, cell, sep))
             {
                 double val = std::stod(cell);
-                LMFAO_LOG_MSG_DBG("RowNum:", row, "ColNum:", col, "Val:", val);
+                LMFAO_LOG_DBG("RowNum:", row, "ColNum:", col, "Val:", val);
                 rmA(row, col) = val;
                 col ++;
             }
