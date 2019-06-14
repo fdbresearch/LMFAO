@@ -40,9 +40,8 @@ namespace LMFAO::LinearAlgebra
         //auto totalAlgorithmTimeStart = Clock::now();
         //auto initialisationTimeStart = Clock::now();
         Yt = MatrixT::Zero(rankK, mSigma.rows());
-        printMatrixDense(std::cout, mSigma);
         MatrixT Yold = MatrixT::Zero(rankK, mSigma.rows());
-        MatrixT Wt   = MatrixT::Zero(rankK, mSigma.rows());
+        Wt   = MatrixT::Zero(rankK, mSigma.rows());
         MatrixT Wold = MatrixT::Zero(rankK, mSigma.rows());
         MatrixT S = mSigma, Zt, Ztaux, Bt, Btaux;
 
@@ -63,7 +62,7 @@ namespace LMFAO::LinearAlgebra
         MatrixT IkgammaPeTr = MatrixT::Zero(rankK, rankK);
         MatrixT SpeTr = S * (1.0 / avgTr);
 
-        double gamma = 0.01;
+        double gamma = 0;//1e-8;
         Ikgamma = Ik * gamma;
         IkgammaPeTr = Ik * (gamma / avgTr);
 
@@ -154,8 +153,8 @@ namespace LMFAO::LinearAlgebra
             //multTimeMin = min(multTimeMin, crtMult);
             //multTimeAvg += crtMult;
             //multTimeMax = max(multTimeMax, crtMult);
-            printMatrixDense(std::cout, Yt);
-            printMatrixDense(std::cout, Wt);
+            //printMatrixDense(std::cout, Yt);
+            //printMatrixDense(std::cout, Wt);
             if ((Wold - Wt).squaredNorm() < tau &&
                 (Yold - Yt).squaredNorm() < tau)
             {
@@ -201,13 +200,30 @@ namespace LMFAO::LinearAlgebra
 
     void SVDecompAltMin::getSingularValues(Eigen::VectorXd& vSingularValues) const
     {
-        MatrixT sigma  = Yt * Yt.transpose();
+        MatrixT sigma = Yt.transpose() * Wt.transpose()
+                        * mSigma * Wt * Yt;
+        Eigen::SelfAdjointEigenSolver<MatrixT> eigenDecomposer(sigma);
+        Eigen::VectorXd eigenVal = eigenDecomposer.eigenvalues();
         vSingularValues.resize(sigma.rows());
-        printMatrixDense(std::cout, Yt);
-        printMatrixDense(std::cout, sigma);
-        for (uint32_t idx = 0; idx < sigma.rows(); idx ++)
+
+        for (uint32_t idx = 0; idx < eigenVal.rows(); idx++)
         {
-            vSingularValues(idx) = sigma(idx, idx);
+            double maxVal = eigenVal[idx];
+            uint32_t maxValIdx = idx;
+            for (uint32_t idxMax = idx + 1; idxMax < eigenVal.rows(); idxMax++)
+            {
+                if (eigenVal[idxMax] >  eigenVal[idx])
+                {
+                    maxValIdx = idxMax;
+                    maxVal = eigenVal[idxMax];
+                }
+            }
+            std::swap(eigenVal[idx], eigenVal[maxValIdx]);
+        }
+
+        for (uint32_t idx = 0; idx < eigenVal.rows(); idx ++)
+        {
+            vSingularValues(idx) = std::sqrt(eigenVal(idx));
         }
     }
 }

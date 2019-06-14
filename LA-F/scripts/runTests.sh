@@ -439,6 +439,8 @@ function build_and_run_tests() {
     }
 }
 
+# TODO: Change ** with nice dash style
+
 function main() {
     init_global_paths
     init_global_vars

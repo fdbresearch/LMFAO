@@ -82,8 +82,10 @@ def parse_times(times_path, time_workbook):
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("-t", "--time_file_for", dest="time_file_for", required=True)
-    parser.add_argument("-i", "--times_path", dest="times_path", required=True)
+    parser.add_argument("-t", "--time_file_for", dest="time_file_for", required=True,
+                        help='.xlsx file in which time measurements are stored')
+    parser.add_argument("-i", "--times_path", dest="times_path", required=True,
+                        help='log file where times are logged while runtime')
     parser.add_argument("-ds", "--data_set", dest="data_set", required=True)
     parser.add_argument("-op", "--data_op", dest="data_op", required=True)
     parser.add_argument("-s", "--data_set_idx", dest="data_set_idx", required=True)

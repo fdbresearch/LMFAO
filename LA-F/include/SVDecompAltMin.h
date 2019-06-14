@@ -11,6 +11,7 @@ namespace LMFAO::LinearAlgebra
         typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> MatrixT;
         typedef Eigen::Matrix<double, Eigen::Dynamic, 1> VectorT;
         MatrixT Yt;
+        MatrixT Wt;
     public:
         SVDecompAltMin(const std::string &path): SVDecompBaseExp(path)
         {}
