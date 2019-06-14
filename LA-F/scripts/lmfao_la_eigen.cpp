@@ -15,7 +15,6 @@ using namespace boost::program_options;
 
 #if defined(EIGEN_USE_BLAS)
 #pragma message "Using EIGEN_USE_BLAS"
-#pragma message "Konj"
 #endif
 
 #if defined(EIGEN_USE_LAPACKE)

@@ -1,6 +1,6 @@
 
 # Installs missing packages
-list.of.packages <- c("ade4", "data.table", 'stringr', 'pracma')
+list.of.packages <- c("ade4", "data.table", 'stringr', 'pracma', 'fastDummies')
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 
@@ -8,6 +8,7 @@ library(ade4)
 library(data.table)
 library(stringr)
 library(pracma)
+library(fastDummies)
 
 args <- commandArgs(trailingOnly=TRUE)
 
@@ -35,35 +36,55 @@ dataA <- read.csv(data_path, header=FALSE, sep='|')
 #feats
 #cat_feats
 
-
+# TODO: Optimize one hot encoding
 for (it in 1:num_it){
     dfA = as.data.frame(dataA)
 
     colnames(dfA) <-feats
     start_time <- Sys.time()
+    #dfT <- one_hot(as.data.table(dfA), cols=cat_feats)
+    #factor_columns <- names(which(lapply(train, class) == "factor"))
+    #factor_predictors <- setdiff(factor_columns, c("sold", "UniqueID"))
+    #dummies_formula <- as.formula(paste("~ ", paste0(factor_predictors, collapse=" + ")))
+    #dfA <- dummyVars(" ~ .", data=dfA,  fullRank=TRUE)
+    dfA = dummy_cols(dfA, select_columns=cat_feats,
+                     remove_first_dummy=FALSE)
+
+    # Removes old columns of of ohe columns.
     for (feat in cat_feats)
     {
-        one_hot_col = acm.disjonctif(dfA[feat])
-        dfA[feat] = NULL
-        dfA = cbind(dfA, one_hot_col)
-    }
 
+        #one_hot_col = acm.disjonctif(dfA[feat])
+        dfA[feat] = NULL
+        #dfA = cbind(dfA, one_hot_col)
+    }
+    #print(colnames(dfA))
     for (feat in cat_feats)
     {
         #print(paste('feat', feat))
+        min_col_id = 99999999
+        min_col = ''
         for (col in colnames(dfA))
         {
             #print(paste('col', col))
             # Delets one hot encoded values
             regex <-paste("^", feat, "([.]*)", sep='')
+
             #print(str_detect(col, regex))
+
             if (str_detect(col, regex))
             {
-                print(paste("Deleted", col))
-                dfA[col] = NULL
-                break
+                col_num = as.integer(sub(paste(feat, "_", sep=''), "", col))
+                if (col_num < min_col_id)
+                {
+                    print(paste('Number', col_num))
+                    min_col_id = col_num
+                    min_col = col
+                }
             }
         }
+        print(paste("Deleted", min_col))
+        dfA[min_col] = NULL
     }
     end_time <- Sys.time()
     diff <- difftime(end_time, start_time, units='secs')
@@ -96,7 +117,7 @@ for (it in 1:num_it){
 
         if (dump) {
             R <- R[, order(QR$pivot)]
-            print(R)
+            #print(R)
             #TODO: Recheck these parts.
             sgn <- sign(diag(R))
             R <- diag(sgn) %*% R

@@ -9,7 +9,8 @@ local DFDB_SH_NUM_REP=$7
 
 echo "Eigen" $dump_eigen
 echo "Dump" $DFDB_SH_DUMP
-g++ -std=c++14 -O3 -pthread -mtune=native -ftree-vectorize \
+rm lmfao_la_eigen
+g++ -std=c++17 -O3 -pthread -mtune=native -ftree-vectorize \
 -fopenmp  -DEIGEN_USE_BLAS -DEIGEN_USE_LAPACKE             \
 lmfao_la_eigen.cpp -lboost_program_options                 \
 -lopenblas -llapacke  -Wl,--verbose -o lmfao_la_eigen
