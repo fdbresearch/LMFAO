@@ -12,8 +12,8 @@ namespace LMFAO::LinearAlgebra
         Eigen::LLT<Eigen::MatrixXd> lltOfA(mSigma); // compute the Cholesky decomposition of A
         Eigen::MatrixXd L = lltOfA.matrixL();
         uint32_t N = mNumFeatsExp;
-        std::vector<double> sigmaExpanded(mNumFeatsExp * mNumFeatsExp);
-        expandSigma(sigmaExpanded, true /*isNaive*/);
+        //std::vector<double> sigmaExpanded(mNumFeatsExp * mNumFeatsExp);
+        //expandSigma(sigmaExpanded, true /*isNaive*/);
         mR.resize(N, N);
         // TODO: Rethink about the order of storing operation (look at website)
         for (uint32_t row = 0; row < N; row++)
@@ -28,7 +28,7 @@ namespace LMFAO::LinearAlgebra
             }
 
         }
-
+        /*
         mC.resize(N * N);
 
         for (uint32_t row = 0; row < N; row++)
@@ -57,5 +57,6 @@ namespace LMFAO::LinearAlgebra
             }
 
         }
+        */
     }
 }

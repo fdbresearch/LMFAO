@@ -32,12 +32,13 @@ function init_global_vars()
     declare -gA DFDB_SH_DATA_SETS_FULL
     DFDB_SH_DATA_SETS_FULL=( [usretailer_35f_1]=1 [usretailer_35f_10]=2 [usretailer_35f_100]=3 [usretailer_35f_1000]=4 [usretailer_35f]=5 [favorita]=6 [favorita_6f]=7 )
     DFDB_SH_DATA_SETS=("${!DFDB_SH_DATA_SETS_FULL[@]}")
-    DFDB_SH_OPS=("svd_qr" "svd_qr_chol" "svd_eig_dec" "svd_alt_min" "sin_vals" "qr_chol" "qr_mul_t" )
+    DFDB_SH_OPS=("qr_chol" "qr_mul_t" "svd" "svd_qr" "svd_qr_chol" "svd_eig_dec" "svd_alt_min")
     DFDB_SH_FEATURES=()
     DFDB_SH_FEATURES_CAT=()
     DFDB_SH_POSITIONAL=()
     DFDB_SH_CONF_ERROR=false
 
+    DFDB_SH_SIN_VALS=false
     DFDB_SH_JOIN=false
     DFDB_SH_LMFAO=false
     DFDB_SH_EIGEN=false
@@ -47,7 +48,6 @@ function init_global_vars()
     DFDB_SH_NUMPY=false
     DFDB_SH_PRECISION=false
     DFDB_SH_PERF=false
-    DFDB_SH_SIN_VALS_ONLY=false
 
     DFDB_SH_DUMP=false
     DFDB_SH_NUM_REP=1
@@ -207,6 +207,9 @@ function get_str_args()
         ;;
         -f|--full_exps)
         DFDB_SH_NUM_REP=5
+        ;;
+        -s|--sin_vals)
+        DFDB_SH_SIN_VALS=true
         ;;
         -h|--help)
         echo "$DFDB_SH_HELP_TXT"
@@ -405,7 +408,7 @@ function build_and_run_tests() {
         echo '*********R test started**********'
         eval ${DFDB_TIME} Rscript "${DFDB_SH_LA_SCRIPT}/la.R ${DFDB_SH_JOIN_RES_PATH} \
                 ${data_op} ${#DFDB_SH_FEATURES[@]} ${#DFDB_SH_FEATURES_CAT[@]}        \
-                ${DFDB_SH_NUM_REP}  ${DFDB_SH_DUMP}  ${dump_r}                        \
+                ${DFDB_SH_NUM_REP}  ${DFDB_SH_DUMP}  ${dump_r} ${DFDB_SH_SIN_VALS}    \
                 ${DFDB_SH_FEATURES[@]} ${DFDB_SH_FEATURES_CAT[@]}" &> ${log_r}
         echo '*********R test finished**********'
         compare_precisions "${dump_r}" "${comp_r}" "${dump_lmfao}" $data_op
@@ -415,10 +418,11 @@ function build_and_run_tests() {
     [[ $DFDB_SH_NUMPY  == true ]] && {
         echo '*********numpy test started**********'
         eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/la_python.py" \
-                      -f ${features_out} -c ${features_cat_out}  \
-                          -d "${DFDB_SH_JOIN_RES_PATH}" -o "$data_op"\
-                          -n "${DFDB_SH_NUM_REP}"  "${dump_opt}"     \
-                          --dump_file "${dump_numpy}" -s "numpy"     \
+                      -f ${features_out} -c ${features_cat_out}       \
+                          -d "${DFDB_SH_JOIN_RES_PATH}" -o "$data_op" \
+                          -n "${DFDB_SH_NUM_REP}"  "${dump_opt}"      \
+                          --dump_file "${dump_numpy}" -s "numpy"      \
+                          --sin_vals "${DFDB_SH_SIN_VALS}"            \
                            &> ${log_numpy}
         echo '*********numpy test finished**********'
         compare_precisions "${dump_numpy}" "${comp_numpy}" "${dump_lmfao}" $data_op
@@ -432,6 +436,7 @@ function build_and_run_tests() {
                   -d "${DFDB_SH_JOIN_RES_PATH}" -o "$data_op"\
                   -n "${DFDB_SH_NUM_REP}"  "${dump_opt}"     \
                   --dump_file "${dump_scipy}" -s "scipy"     \
+                  --sin_vals "${DFDB_SH_SIN_VALS}"           \
                    &> ${log_scipy}
         echo '*********scipy test finished**********'
         compare_precisions "${dump_scipy}" "${comp_scipy}" "${dump_lmfao}" $data_op

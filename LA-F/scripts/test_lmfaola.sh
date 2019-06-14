@@ -33,6 +33,9 @@ case $DFDB_SH_DATA_OP in
     ./multifaq --path "${DFDB_SH_DATA}/${DFDB_SH_DATA_SET}/" --model qrdecomp_chol  \
                --parallel both "${dump}" --dumpFile "${dump_file}"
     ;;
+    *)
+    return
+    ;;
 esac
 cd $DFDB_SH_RUNTIME_OUTPUT
 rm *

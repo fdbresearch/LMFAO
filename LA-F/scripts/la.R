@@ -18,9 +18,10 @@ cat_feat_num = as.integer(args[4])
 num_it = as.integer(args[5])
 dump = as.logical(args[6])
 dump_file = args[7]
-feats = args[8:(feat_num+7)]
-cat_feats = args[(feat_num+8):length(args)]
-
+sin_vals = as.logical(args[8])
+feats = args[9:(feat_num+8)]
+cat_feats = args[(feat_num+9):length(args)]
+sin_vals
 dataA <- read.csv(data_path, header=FALSE, sep='|')
 #cat_feats <- c("rain")
 #parser.add_argument("-D", "--dump_file", dest="dump_file", required=False)
@@ -72,7 +73,14 @@ for (it in 1:num_it){
 
     start_time <-Sys.time()
     if(data_operation == "svd") {
-        dfA.svd <- svd(dfA, LINPACK=FALSE)
+        if (sin_vals)
+        {
+            dfA.svd <- svd(dfA, nu=0, nv=0, LINPACK=FALSE)
+        }
+        else
+        {
+            dfA.svd <- svd(dfA, LINPACK=FALSE)
+        }
         if (dump) {
             file.create(dump_file)
             fprintf("%d\n", length(dfA.svd$d), file=dump_file, append=TRUE)

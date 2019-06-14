@@ -56,7 +56,7 @@ def dump_sigma(sigma, dump_file):
             file.write("{}\n".format(sigma[idx]))
 
 
-def run_test(linalg_sys, data, columns, columns_cat, dump, dump_file):
+def run_test(linalg_sys, data, columns, columns_cat, dump, dump_file, operation, sin_vals):
     start = timer()
     transformer_a = []
     for column in columns:
@@ -69,10 +69,16 @@ def run_test(linalg_sys, data, columns, columns_cat, dump, dump_file):
 
     preprocessor = ColumnTransformer(transformers=transformer_a)
     one_hot_a = preprocessor.fit_transform(data)
+
     if linalg_sys == 'numpy':
         print('numpy')
         if operation == 'svd':
-            _, sigma, _ = np.linalg.svd(one_hot_a, full_matrices=False)
+            if sin_vals:
+                sigma = np.linalg.svd(one_hot_a, full_matrices=False,
+                                        compute_uv=False)
+            else:
+                _, sigma, _ = np.linalg.svd(one_hot_a, full_matrices=False,
+                                        compute_uv=True)
             if dump:
                 dump_sigma(sigma, dump_file)
         elif operation == 'qr':
@@ -85,8 +91,14 @@ def run_test(linalg_sys, data, columns, columns_cat, dump, dump_file):
     elif linalg_sys == 'scipy':
             print('scipy')
             if operation == 'svd':
-                _, sigma, _ = sp.linalg.svd(one_hot_a, full_matrices=False,
-                                            overwrite_a=True, check_finite=False)
+                if sin_vals:
+                    sigma = sp.linalg.svd(one_hot_a, full_matrices=False,
+                                           overwrite_a=True, check_finite=False,
+                                           compute_uv=False)
+                else:
+                    _, sigma, _ = sp.linalg.svd(one_hot_a, full_matrices=False,
+                                            overwrite_a=True, check_finite=False,
+                                            compute_uv=True)
                 if dump:
                     dump_sigma(sigma, dump_file)
             elif operation == 'qr':
@@ -113,6 +125,7 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--num_it", dest="num_it", required=True)
     parser.add_argument("-D", "--dump_file", dest="dump_file", required=False)
     parser.add_argument('--dump', dest="dump", action='store_true')
+    parser.add_argument("--sin_vals", dest="sin_vals", required=True)
 
     np.set_printoptions(threshold=sys.maxsize, precision=20)
     pd.set_option('display.max_columns', 500)
@@ -125,6 +138,7 @@ if __name__ == "__main__":
     num_it = int(args.num_it)
     dump_file = args.dump_file
     dump = args.dump if args.dump else False
+    sin_vals = True if args.sin_vals == 'true' else False
     columns = features.split(",")
     columns_cat = cat_featurs.split(",")
 
@@ -132,6 +146,6 @@ if __name__ == "__main__":
 
     cum_time = 0.0
     for it in range(0, num_it):
-        time = run_test(linalg_sys, data, columns, columns_cat, dump, dump_file)
+        time = run_test(linalg_sys, data, columns, columns_cat, dump, dump_file, operation, sin_vals)
         cum_time += time
     print(cum_time / num_it)

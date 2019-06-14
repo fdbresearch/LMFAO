@@ -13,6 +13,15 @@
 
 using namespace boost::program_options;
 
+#if defined(EIGEN_USE_BLAS)
+#pragma message "Using EIGEN_USE_BLAS"
+#pragma message "Konj"
+#endif
+
+#if defined(EIGEN_USE_LAPACKE)
+#pragma message "Using EIGEN_USE_LAPACKE"
+#endif
+
 void getIsCatVector(std::vector<std::string> vFeats, std::vector<std::string> vCatFeats,
                     std::vector<bool>& vIsCat)
 {
@@ -338,8 +347,7 @@ int main(int argc, const char *argv[])
         }
         else if (operation.find("svd") != std::string::npos)
         {
-            std::cout << "SVD" << std::endl;
-            Eigen::BDCSVD<Eigen::MatrixXd> svdR(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+            Eigen::BDCSVD<Eigen::MatrixXd> svdR(A, Eigen::ComputeThinV);
             if (dump)
             {
                 dumpSVD(out, svdR);
