@@ -49,9 +49,10 @@ DROP TABLE IF EXISTS svd_summary_table;"
 DROP COLUMN #;
     "
 
-    sql_madlib_svd="SELECT madlib.svd( 'joinres_one_hot', 'svd', 'row_id', #, NULL, 'svd_summary_table');"
-    sql_madlib_qr="SELECT madlib.matrix_sparsify('A', 'row=row_id, val=row_vec','A_sparse', 'col=col_id, val=val');\
-    SELECT madlib.matrix_qr('A_sparse', 'row=row_id, col=col_id val=val', 'qr');"
+    sql_madlib_svd="SELECT madlib.svd( 'joinres_one_hot', 'svd', 'row_id', #, NULL, NULL);"
+    sql_madlib_qr=$"SELECT madlib.matrix_sparsify('A', 'row=row_id, val=row_vec','A_sparse', 'col=col_id, val=val');\
+    SELECT madlib.matrix_qr('A', 'row=row_id, val=row_vec', 'qr');
+    --SELECT madlib.matrix_qr('A_sparse', 'row=row_id, col=col_id, val=val', 'qr');"
     echo "${sql_madlib_qr}" > qr_madlib.sql
 }
 
@@ -124,8 +125,8 @@ function run_test_impl() {
     qr)
         pushd .
         cd "$DFDB_SH_LA_SCRIPT"
-        python3 madlib_gen_dense_mat.py -jr "$DFDB_SH_JOIN_RES_PATH" \
-          -o "$DFDB_SH_RUNTIME_SQL/madlib_dense_mat.sql"
+        #python3 madlib_gen_dense_mat.py -jr "$DFDB_SH_JOIN_RES_PATH" \
+        #  -o "$DFDB_SH_RUNTIME_SQL/madlib_dense_mat.sql"
         popd
         psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT -d ${DFDB_SH_DB} -f madlib_dense_mat.sql
         psql -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT \
