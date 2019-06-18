@@ -322,6 +322,7 @@ int main(int argc, const char *argv[])
 
     getCntLinesAndFeatsAndCategoryCnt(path, vIsCat, cntLines, cntFeat, mCntCatFeats);
     unsigned int cntCatN = getMatrixColsNum(cntFeat, mCntCatFeats);
+    std::cout << cntLines << " " << cntCatN << std::endl;
     Eigen::MatrixXd A = Eigen::MatrixXd::Zero(cntLines, cntCatN);
     getShifts(vIsCat, mCntCatFeats, vShifts);
     getMatrix(path, vIsCat, mCntCatFeats, vShifts, A);
