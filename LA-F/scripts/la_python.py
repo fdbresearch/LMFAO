@@ -12,8 +12,12 @@ from timeit import default_timer as timer
 import os
 
 class DummyEncoder(BaseEstimator, TransformerMixin):
+    def __init__(self, sparse):
+        self.sparse = sparse
+
     def transform(self, X):
-        ohe = OneHotEncoder(handle_unknown='ignore')
+        ohe = OneHotEncoder(handle_unknown='ignore', sparse=self.sparse)
+        z = ohe.fit_transform(X)
         return ohe.fit_transform(X)[:,1:]
 
     def fit(self, X, y=None, **fit_params):
@@ -22,7 +26,7 @@ class DummyEncoder(BaseEstimator, TransformerMixin):
 
 class IdentityTransformer(BaseEstimator, TransformerMixin):
     def transform(self, input_array):
-        return input_array*1
+        return input_array
 
     def fit(self, X, y=None, **fit_params):
         return self
@@ -41,8 +45,6 @@ def dump_qr(r, dump_file):
         file.write("{} {}\n".format(r_positive.shape[0], r_positive.shape[1]))
         row_num = r_positive.shape[0]
         col_num = r_positive.shape[1]
-        print(row_num)
-        print(col_num)
         for row in range(0, row_num):
             for col in range(0, col_num):
                 file.write("{} ".format(r_positive[row, col]))
@@ -56,22 +58,20 @@ def dump_sigma(sigma, dump_file):
             file.write("{}\n".format(sigma[idx]))
 
 
-def run_test(linalg_sys, data, columns, columns_cat, dump, dump_file, operation, sin_vals):
+def run_test(linalg_sys, data, columns, columns_cat, dump, dump_file, operation, sin_vals, sparse):
     start = timer()
     transformer_a = []
     for column in columns:
         if column in columns_cat:
             transf_name = column + "_onehot"
-            transformer_a.append((transf_name, DummyEncoder(), [column]))
+            transformer_a.append((transf_name, DummyEncoder(sparse), [column]))
         else:
             transf_name = column + "_identity"
             transformer_a.append((transf_name, IdentityTransformer(), [column]))
 
     preprocessor = ColumnTransformer(transformers=transformer_a)
     one_hot_a = preprocessor.fit_transform(data)
-
     if linalg_sys == 'numpy':
-        print('numpy')
         if operation == 'svd':
             if sin_vals:
                 sigma = np.linalg.svd(one_hot_a, full_matrices=False,
@@ -89,26 +89,30 @@ def run_test(linalg_sys, data, columns, columns_cat, dump, dump_file, operation,
             if dump:
                 dump_qr(r, dump_file)
     elif linalg_sys == 'scipy':
-            print('scipy')
             if operation == 'svd':
-                if sin_vals:
-                    sigma = sp.linalg.svd(one_hot_a, full_matrices=False,
-                                           overwrite_a=True, check_finite=False,
-                                           compute_uv=False)
+                if not sparse:
+                    if sin_vals:
+                        sigma = sp.linalg.svd(one_hot_a, full_matrices=False,
+                                               overwrite_a=True, check_finite=False,
+                                               compute_uv=False)
+                    else:
+                        _, sigma, _ = sp.linalg.svd(one_hot_a, full_matrices=False,
+                                                overwrite_a=True, check_finite=False,
+                                                compute_uv=True)
                 else:
-                    _, sigma, _ = sp.linalg.svd(one_hot_a, full_matrices=False,
-                                            overwrite_a=True, check_finite=False,
-                                            compute_uv=True)
+                    _, sigma, _ = sp.sparse.linalg.svds(one_hot_a, k=51,
+                                        return_singular_vectors='vh', which='LM')
+                    sigma[:] = sigma[::-1]
                 if dump:
                     dump_sigma(sigma, dump_file)
             elif operation == 'qr':
-                # The problem with scipy is that it doesn't offer a mode in which
-                # reduced R is returned as in numpy, which results in larger processing time
-                # mainly because of copying.
-                r, = scipy.linalg.qr(one_hot_a, overwrite_a=True, mode='r', check_finite=False)
-                r = np.resize(r, (r.shape[1], r.shape[1]))
-                if dump:
-                    dump_qr(r, dump_file)
+                    # The problem with scipy is that it doesn't offer a mode in which
+                    # reduced R is returned as in numpy, which results in larger processing time
+                    # mainly because of copying.
+                    r, = scipy.linalg.qr(one_hot_a, overwrite_a=True, mode='r', check_finite=False)
+                    r = np.resize(r, (r.shape[1], r.shape[1]))
+                    if dump:
+                        dump_qr(r, dump_file)
 
     end = timer()
     print("##LMFAO##Calculation##{}".format(end - start))
@@ -125,8 +129,9 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--num_it", dest="num_it", required=True)
     parser.add_argument("-D", "--dump_file", dest="dump_file", required=False)
     parser.add_argument('--dump', dest="dump", action='store_true')
+    #parser.add_argument('--sparse', dest="sparse", required=True)
     parser.add_argument("--sin_vals", dest="sin_vals", required=True)
-
+    #print(  sys.argv[1:])
     np.set_printoptions(threshold=sys.maxsize, precision=20)
     pd.set_option('display.max_columns', 500)
     args = parser.parse_args()
@@ -138,6 +143,8 @@ if __name__ == "__main__":
     num_it = int(args.num_it)
     dump_file = args.dump_file
     dump = args.dump if args.dump else False
+    #sparse = args.sparse
+    sparse = False
     sin_vals = True if args.sin_vals == 'true' else False
     columns = features.split(",")
     columns_cat = cat_featurs.split(",")
@@ -146,6 +153,6 @@ if __name__ == "__main__":
 
     cum_time = 0.0
     for it in range(0, num_it):
-        time = run_test(linalg_sys, data, columns, columns_cat, dump, dump_file, operation, sin_vals)
+        time = run_test(linalg_sys, data, columns, columns_cat, dump, dump_file, operation, sin_vals, sparse)
         cum_time += time
     print(cum_time / num_it)

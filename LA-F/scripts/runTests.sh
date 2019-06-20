@@ -479,25 +479,6 @@ function build_and_run_tests() {
                      $features_out $features_cat_out
 }
 
-function build_lmfao_and_la()
-{
-    cd "${DFDB_SH_LA_BUILD}"
-    cmake .. -DLMFAO_LIB:BOOL=ON -DLMFAO_RUN:BOOL=OFF -DLMFAO_TEST:BOOL=OFF
-    make -j8
-    cd "${DFDB_SH_LMFAO_BUILD}"
-    cmake ..
-    make -j8
-    mv multifaq ..
-}
-
-function clean_intermediate()
-{
-    find $DFDB_SH_TIME_PATH -name "*.xlsx" -type f -delete
-    find $DFDB_SH_COMP_PATH -name "*.xlsx" -type f -delete
-    find $DFDB_SH_COMP_PATH -name "*.txt" -type f -delete
-    find $DFDB_SH_DUMP_PATH -name "*.txt" -type f -delete
-    find $DFDB_SH_LOG_PATH -name "*.txt" -type f -delete
-}
 
 # TODO: Change ** with nice dash style
 function main() {
