@@ -49,6 +49,9 @@ namespace LMFAO::LinearAlgebra
         rFtDim.num = ftDim.num - 1;
         rFtDim.numCont = ftDim.numCont - 1;
         rFtDim.numCat = ftDim.num - ftDim.numCont;
+        LMFAO_LOG_INFO("Number expanded features:", rFtDim.numExp, "Number features: ", rFtDim.num,
+                      "Number continuous:", rFtDim.numCont, "Number categorical:", rFtDim.numCat);
+
         rmACont = Eigen::MatrixXd::Zero(rFtDim.numExp, rFtDim.numExp);
 
         for (const auto& keyValue: matrixAggregate)
@@ -116,7 +119,7 @@ namespace LMFAO::LinearAlgebra
                 }
             }
         }
-        LMFAO_LOG_DBG(__FUNCTION__, __FILE__, __LINE__, "Finished shuffling");
+        LMFAO_LOG_DBG("Finished shuffling");
         // In the case of naive approach just add categorical values to
         // the continuous case.
         //

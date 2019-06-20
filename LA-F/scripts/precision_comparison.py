@@ -67,7 +67,16 @@ if __name__ == "__main__":
             feats_lmfao = lmfao_file.readline().strip().split(" ")
             feats_comp = comp_file.readline().strip().split(" ")
             row_lmfao = int(feats_lmfao[0])
-            col_lmfao = int(feats_lmfao[1]) if (operation == 'qr') else 1
+            col_lmfao = int(feats_lmfao[1]) if (operation.startswith('qr')) else 1
+            row_comp = int(feats_comp[0])
+            col_comp = int(feats_comp[1]) if (operation.startswith('qr')) else 1
+            if (col_comp != col_lmfao):
+                print("Different number of columns")
+                exit()
+            if (row_comp != row_lmfao):
+                print("Different number of rows")
+                exit()
+            row_lmfao = row_comp
             for row in range(1, row_lmfao + 1):
                 lmfao_row_line_val = lmfao_file.readline().strip().split(" ")
                 comp_row_line_val = comp_file.readline().strip().split(" ")

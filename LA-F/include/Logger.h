@@ -1,5 +1,5 @@
 #ifndef _LMFAO_LA_LOGGER_H_
-
+#define _LMFAO_LA_LOGGER_H_
 
 // 0 - Debug
 // 1 - Info
@@ -37,11 +37,17 @@ void lmfaoLogBench(Arg&& module, Args&& ...args)
     ((std::cout << "##" << std::forward<Args>(args)), ...) << std::endl;
 }
 
-#define LMFAO_LOG_INTERNAL(SEVERITY, ...) \
+
+#define LMFAO_LOG_INTERNAL_FUN(SEVERITY, ...) \
 do                                            \
 {                                             \
     lmfaoLogStd(#SEVERITY, __VA_ARGS__);      \
 } while(0);
+
+
+#define LMFAO_LOG_INTERNAL(SEVERITY, ...)     \
+LMFAO_LOG_INTERNAL_FUN(SEVERITY, __FILE__,    \
+     __FUNCTION__, __LINE__, __VA_ARGS__);    \
 
 #define LMFAO_LOG_BENCH_INTERNAL(...) \
 do                                        \
@@ -59,7 +65,7 @@ do                                        \
 #if LMFAO_LOG_LEVEL < 1
 #undef LMFAO_LOG_DBG
 //#define LMFAO_LOG_DBG(...) LMFAO_LOG_INTERNAL(DEBUG, MSG)
-#define LMFAO_LOG_DBG(...) LMFAO_LOG_INTERNAL(DEBUG, __VA_ARGS__)
+#define LMFAO_LOG_DBG(...) LMFAO_LOG_INTERNAL(DEBUG, __FUNCTION__, __LINE__, __VA_ARGS__)
 #endif
 
 #if LMFAO_LOG_LEVEL < 2

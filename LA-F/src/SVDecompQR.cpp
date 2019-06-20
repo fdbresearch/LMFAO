@@ -46,7 +46,7 @@ namespace LMFAO::LinearAlgebra
                                                           mNumFeats, mNumFeatsCont,
                                                           mvIsCat);
                 }
-                break;
+            break;
             case DecompType::MULTI_THREAD:
                 if (nullptr == mpmapMatAgg)
                 {
@@ -58,6 +58,7 @@ namespace LMFAO::LinearAlgebra
                                                          mNumFeats, mNumFeatsCont,
                                                          mvIsCat);
                 }
+            break;
             case DecompType::CHOLESKY:
                 if (nullptr == mpmapMatAgg)
                 {
@@ -69,6 +70,7 @@ namespace LMFAO::LinearAlgebra
                                                      mNumFeats, mNumFeatsCont,
                                                      mvIsCat);
                 }
+            break;
             default:
                 break;
         }

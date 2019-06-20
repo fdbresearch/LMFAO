@@ -12,6 +12,7 @@
 #include <vector>
 #include <map>
 #include <iostream>
+#include "Logger.h"
 
 namespace LMFAO::LinearAlgebra
 {

@@ -32,6 +32,8 @@ function init_global_vars()
     declare -gA DFDB_SH_DATA_SETS_FULL
     DFDB_SH_DATA_SETS_FULL=( [usretailer_35f_1]=1 [usretailer_35f_10]=2 [usretailer_35f_100]=3 [usretailer_35f_1000]=4 [usretailer_35f]=5 [favorita_7f_30]=6 [favorita_7f_300]=7 [favorita_7f_1000]=8)
     DFDB_SH_DATA_SETS=("${!DFDB_SH_DATA_SETS_FULL[@]}")
+    #TODO: Create one array that will represent decomposition (qr/svd)
+    # Create another array that will represent flavor (chol, ...).
     DFDB_SH_OPS=("qr" "qr_chol" "qr_mul_t" "svd" "svd_qr" "svd_qr_chol" "svd_eig_dec" "svd_alt_min")
     DFDB_SH_FEATURES=()
     DFDB_SH_FEATURES_CAT=()
@@ -262,15 +264,16 @@ function compare_precisions()
     local dump_test="$1"
     local path_comp="$2"
     local dump_lmfao="$3"
-    local data_op="$4"
+    local decomp_op="$4"
     [[ $DFDB_SH_PRECISION  == true ]] && {
       echo '*********comparison test started**********'
       echo $dump_test
       echo $path_comp
+      echo $dump_lmfao
       python3 "${DFDB_SH_LA_SCRIPT}/precision_comparison.py" \
               -lp "${dump_lmfao}" -cp "${dump_test}"         \
               -pr 1e-10 --output_file "${path_comp}"         \
-              --operation "$data_op"
+              --operation "$decomp_op"
       echo '*********comparison test finished**********'
     }
 }
@@ -320,128 +323,156 @@ function run_test()
     done
 }
 
-: '
-cd $DFDB_SH_LA
-echo $DFDB_SH_LA
-cmake .
-make -j8
-'
-
-#TODO: If you have time to play, play with refactoring.
-function build_and_run_tests() {
-    local data_set=$1
-    local data_op=$2
-    local data_set_idx=$3
-
-    echo "Data set id" $data_set_idx
-    local features_out=$(printf "%s," ${DFDB_SH_FEATURES[@]})
-    features_out=${features_out::-1}
-    echo 'Features: ' ${features_out}
-    echo 'Number of categorical feats: '${#DFDB_SH_FEATURES[@]}
-
-    local features_cat_out=$(printf "%s," ${DFDB_SH_FEATURES_CAT[@]})
-    features_cat_out=${features_cat_out::-1}
-    echo 'Categorical features: ' ${features_cat_out}
-    echo 'Number of categorical feats: '${#DFDB_SH_FEATURES_CAT[@]}
-    local data_op_rec=$data_op
-    [[ $data_op == svd* ]] && data_op="svd"
-    [[ $data_op == qr* ]] && data_op="qr"
-
-    local log_lmfao=${DFDB_SH_LOG_PATH}/lmfao/log"${data_set}${data_op}".txt
-    local log_madlib=${DFDB_SH_LOG_PATH}/madlib/log"${data_set}${data_op}".txt
-    local log_eigen=${DFDB_SH_LOG_PATH}/eigen/log"${data_set}${data_op}".txt
-    local log_r=${DFDB_SH_LOG_PATH}/r/log"${data_set}${data_op}".txt
-    local log_numpy=${DFDB_SH_LOG_PATH}/numpy/log"${data_set}${data_op}".txt
-    local log_scipy=${DFDB_SH_LOG_PATH}/scipy/log"${data_set}${data_op}".txt
-
-    local dump_lmfao=${DFDB_SH_DUMP_PATH}/lmfao/dump"${data_set}${data_op}".txt
-    local dump_madlib=${DFDB_SH_DUMP_PATH}/madlib/dump"${data_set}${data_op}".txt
-    local dump_eigen=${DFDB_SH_DUMP_PATH}/eigen/dump"${data_set}${data_op}".txt
-    local dump_r=${DFDB_SH_DUMP_PATH}/r/dump"${data_set}${data_op}".txt
-    local dump_numpy=${DFDB_SH_DUMP_PATH}/numpy/dump"${data_set}${data_op}".txt
-    local dump_scipy=${DFDB_SH_DUMP_PATH}/scipy/dump"${data_set}${data_op}".txt
-
-    local comp_madlib=${DFDB_SH_COMP_PATH}/madlib/comp"${data_set}${data_op}"
-    local comp_numpy=${DFDB_SH_COMP_PATH}/numpy/comp"${data_set}${data_op}"
-    local comp_eigen=${DFDB_SH_COMP_PATH}/eigen/comp"${data_set}${data_op}"
-    local comp_scipy=${DFDB_SH_COMP_PATH}/scipy/comp"${data_set}${data_op}"
-    local comp_r=${DFDB_SH_COMP_PATH}/r/comp"${data_set}${data_op}"
-
-    local time_lmfao=${DFDB_SH_TIME_PATH}/timelmfao".xlsx"
-    local time_madlib=${DFDB_SH_TIME_PATH}/timemadlib".xlsx"
-    local time_eigen=${DFDB_SH_TIME_PATH}/timeigen".xlsx"
-    local time_numpy=${DFDB_SH_TIME_PATH}/timenumpy".xlsx"
-    local time_scipy=${DFDB_SH_TIME_PATH}/timescipy".xlsx"
-    local time_r=${DFDB_SH_TIME_PATH}/timer".xlsx"
-
+function eval_numpy()
+{
+    local test_log=$1
+    local decomp_op=$2
+    local features_out=$3
+    local features_cat_out=$4
+    local test_dump=$5
     local dump_opt=""
     [[ $DFDB_SH_DUMP == true ]] && dump_opt="--dump"
+    echo "$test_log" >>/dev/stderr
+    eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/la_python.py" \
+          -f ${features_out} -c ${features_cat_out}               \
+          -d "${DFDB_SH_JOIN_RES_PATH}" -o "$decomp_op"           \
+          -n "${DFDB_SH_NUM_REP}"  "${dump_opt}"                  \
+          --dump_file "${test_dump}" -s "numpy"                  \
+          --sin_vals "${DFDB_SH_SIN_VALS}" &> ${test_log}
+}
 
-    [[ $DFDB_SH_LMFAO  == true ]] && {
-        echo '*********LMFAO test started**********'
-        (source test_lmfaola.sh ${data_set} ${data_op_rec} ${DFDB_SH_DUMP} \
-                "${dump_lmfao}" &> ${log_lmfao})
-        echo '*********LMFAO test finished**********'
-        update_times $time_lmfao $log_lmfao $data_op $data_set $data_set_idx
+function eval_scipy()
+{
+    local test_log=$1
+    local decomp_op=$2
+    local features_out=$3
+    local features_cat_out=$4
+    local test_dump=$5
+    local data_set=$6
+    local dump_opt=""
+    [[ $DFDB_SH_DUMP == true ]] && dump_opt="--dump"
+     eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/la_python.py" \
+                  -f ${features_out} -c ${features_cat_out}        \
+                  -d "${DFDB_SH_JOIN_RES_PATH}" -o "$decomp_op"    \
+                  -n "${DFDB_SH_NUM_REP}"  "${dump_opt}"           \
+                  --dump_file "${test_dump}" -s "scipy"            \
+                  --sin_vals "${DFDB_SH_SIN_VALS}" &> ${test_log}
+}
+
+function eval_r()
+{
+    local test_log=$1
+    local decomp_op=$2
+    local features_out=$3
+    local features_cat_out=$4
+    local test_dump=$5
+    local data_set=$6
+    eval ${DFDB_TIME} Rscript "${DFDB_SH_LA_SCRIPT}/la.R ${DFDB_SH_JOIN_RES_PATH} \
+            ${decomp_op} ${#DFDB_SH_FEATURES[@]} ${#DFDB_SH_FEATURES_CAT[@]}      \
+            ${DFDB_SH_NUM_REP}  ${DFDB_SH_DUMP}  ${test_dump} ${DFDB_SH_SIN_VALS} \
+            ${DFDB_SH_FEATURES[@]} ${DFDB_SH_FEATURES_CAT[@]}" &> ${test_log}
+}
+
+function eval_eigen()
+{
+    local test_log=$1
+    local decomp_op=$2
+    local features_out=$3
+    local features_cat_out=$4
+    local test_dump=$5
+    local data_set=$6
+    (source la_eigen.sh ${data_set} ${decomp_op} ${features_out} ${features_cat_out} \
+                "${DFDB_SH_DUMP}" "${test_dump}" "${DFDB_SH_NUM_REP}" &> ${test_log})
+}
+
+function eval_madlib()
+{
+    local test_log=$1
+    local decomp_op=$2
+    local features_out=$3
+    local features_cat_out=$4
+    local test_dump=$5
+    local data_set=$6
+    (source la_madlib.sh ${data_set} ${features_cat_out} ${decomp_op} \
+            ${DFDB_SH_DUMP}  ${test_dump} &> ${test_log})
+}
+
+function eval_lmfao()
+{
+    local test_log=$1
+    local decomp_op=$2
+    local features_out=$3
+    local features_cat_out=$4
+    local test_dump=$5
+    local data_set=$6
+    (source test_lmfaola.sh ${data_set} ${decomp_op} ${DFDB_SH_DUMP} \
+                "${test_dump}" &> ${test_log})
+}
+
+# In comparisons directory for specific test and specific algorithm
+# an xlsx file be created with comparsion and .txt with additional information
+# In times directory timetest xlsx will keep information about running times of specific
+# test, more precisely sheets will contain times of specific test.
+function eval_test()
+{
+    local test_name="$1"
+    local data_set="$2"
+    local data_sed_idx="$3"
+    local decomp_op="$4"
+    local decomp_op_alg="$5"
+    local features_out="$6"
+    local features_cat_out="$7"
+    local test_run_name="DFDB_SH_${test_name^^}"
+    local test_run=${!test_run_name}
+
+    echo $test_run
+    echo $test_name
+
+    local test_dump=${DFDB_SH_DUMP_PATH}/${test_name}/dump"${data_set}${decomp_op}".txt
+    local test_log=${DFDB_SH_LOG_PATH}/${test_name}/log"${data_set}${decomp_op}".txt
+    local test_comp=${DFDB_SH_COMP_PATH}/${test_name}/comp"${data_set}${decomp_op_alg}"
+    local dump_lmfao=${DFDB_SH_DUMP_PATH}/lmfao/dump"${data_set}${decomp_op_alg}".txt
+    local test_time=${DFDB_SH_TIME_PATH}/time${test_name}".xlsx"
+    local fun_name=eval_${test_name}
+    echo $fun_name
+
+    [[ $test_run  == true ]] && {
+        echo "********* $test_name test started**********"
+        eval $fun_name $test_log $decomp_op $features_out \
+             $features_cat_out $test_dump $data_set
+        echo "********* $test_name test finished*********"
+        if [[ $test_name != "lmfao" ]]; then
+            compare_precisions "${test_dump}" "${test_comp}" "${dump_lmfao}" $decomp_op
+        fi
+        update_times "$test_time" "$test_log" $decomp_op $data_set $data_set_idx
     }
+}
 
+function build_and_run_tests() {
+    local data_set=$1
+    local decomp_op_alg=$2
+    local data_set_idx=$3
+    local features_out=$4
+    local features_cat_out=$5
 
-    [[ $DFDB_SH_MADLIB  == true ]] && {
-        echo '*********Madlib test started**********'
-        (source la_madlib.sh ${data_set} ${features_cat_out} ${data_op} \
-            ${DFDB_SH_DUMP}  ${dump_madlib} &> ${log_madlib})
-        echo '*********Madlib test finished**********'
-        compare_precisions "${dump_madlib}" "${comp_madlib}" "${dump_lmfao}" $data_op
-        update_times "$time_madlib" "$log_madlib" $data_op $data_set $data_set_idx
-    }
+    local decomp_op=""
+    # TODO: Refactor this such that regex extracts.
+    [[ $decomp_op_alg == svd* ]] && decomp_op="svd"
+    [[ $decomp_op_alg == qr* ]] && decomp_op="qr"
 
-    [[ $DFDB_SH_EIGEN  == true ]] && {
-        echo '*********Eigen test started**********'
-        (source la_eigen.sh ${data_set} ${data_op} ${features_out} ${features_cat_out} \
-                "${DFDB_SH_DUMP}" "${dump_eigen}" "${DFDB_SH_NUM_REP}" &> ${log_eigen})
-        echo '*********Eigen test finished**********'
-        compare_precisions "${dump_eigen}" "${comp_eigen}" "${dump_lmfao}" $data_op
-        update_times "$time_eigen" "$log_eigen" $data_op $data_set $data_set_idx
-    }
-
-    [[ $DFDB_SH_R  == true ]] && {
-        echo '*********R test started**********'
-        eval ${DFDB_TIME} Rscript "${DFDB_SH_LA_SCRIPT}/la.R ${DFDB_SH_JOIN_RES_PATH} \
-                ${data_op} ${#DFDB_SH_FEATURES[@]} ${#DFDB_SH_FEATURES_CAT[@]}        \
-                ${DFDB_SH_NUM_REP}  ${DFDB_SH_DUMP}  ${dump_r} ${DFDB_SH_SIN_VALS}    \
-                ${DFDB_SH_FEATURES[@]} ${DFDB_SH_FEATURES_CAT[@]}" &> ${log_r}
-        echo '*********R test finished**********'
-        compare_precisions "${dump_r}" "${comp_r}" "${dump_lmfao}" $data_op
-        update_times "$time_r" "$log_r" $data_op $data_set $data_set_idx
-    }
-
-    [[ $DFDB_SH_NUMPY  == true ]] && {
-        echo '*********numpy test started**********'
-        eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/la_python.py" \
-                      -f ${features_out} -c ${features_cat_out}       \
-                          -d "${DFDB_SH_JOIN_RES_PATH}" -o "$data_op" \
-                          -n "${DFDB_SH_NUM_REP}"  "${dump_opt}"      \
-                          --dump_file "${dump_numpy}" -s "numpy"      \
-                          --sin_vals "${DFDB_SH_SIN_VALS}"            \
-                           &> ${log_numpy}
-        echo '*********numpy test finished**********'
-        compare_precisions "${dump_numpy}" "${comp_numpy}" "${dump_lmfao}" $data_op
-        update_times "$time_numpy" "$log_numpy" $data_op $data_set $data_set_idx
-
-    }
-    [[ $DFDB_SH_SCIPY  == true ]] && {
-        echo '*********scipy test started**********'
-        eval ${DFDB_TIME} python3 "${DFDB_SH_LA_SCRIPT}/la_python.py" \
-                  -f ${features_out} -c ${features_cat_out}  \
-                  -d "${DFDB_SH_JOIN_RES_PATH}" -o "$data_op"\
-                  -n "${DFDB_SH_NUM_REP}"  "${dump_opt}"     \
-                  --dump_file "${dump_scipy}" -s "scipy"     \
-                  --sin_vals "${DFDB_SH_SIN_VALS}"           \
-                   &> ${log_scipy}
-        echo '*********scipy test finished**********'
-        compare_precisions "${dump_scipy}" "${comp_scipy}" "${dump_lmfao}" $data_op
-        update_times "$time_scipy" "$log_scipy" $data_op $data_set $data_set_idx
-    }
+    # DecompOp for LMFAO is the same decomp_op_alg because there are different implementations
+    eval_test 'lmfao' $data_set $data_set_idx $decomp_op_alg $decomp_op_alg  \
+                      $features_out $features_cat_out
+    eval_test 'numpy' $data_set $data_set_idx $decomp_op $decomp_op_alg      \
+                      $features_out $features_cat_out
+    eval_test 'scipy' $data_set $data_set_idx $decomp_op $decomp_op_alg      \
+                      $features_out $features_cat_out
+    eval_test 'r' $data_set $data_set_idx $decomp_op $decomp_op_alg          \
+                  $features_out $features_cat_out
+    eval_test 'eigen' $data_set $data_set_idx $decomp_op  $decomp_op_alg     \
+                     $features_out $features_cat_out
+    eval_test 'madlib' $data_set $data_set_idx $decomp_op  $decomp_op_alg    \
+                     $features_out $features_cat_out
 }
 
 # TODO: Change ** with nice dash style
@@ -474,7 +505,21 @@ function main() {
         data_path=$DFDB_SH_DATA"/"$data_set
         get_features $data_path
 
+        # Feature datasets creation
+        echo "Data set id" $data_set_idx
+        local features_out=$(printf "%s," ${DFDB_SH_FEATURES[@]})
+        features_out=${features_out::-1}
+        echo 'Features: ' ${features_out}
+        echo 'Number of categorical feats: '${#DFDB_SH_FEATURES[@]}
+
+        local features_cat_out=$(printf "%s," ${DFDB_SH_FEATURES_CAT[@]})
+        features_cat_out=${features_cat_out::-1}
+        echo 'Categorical features: ' ${features_cat_out}
+        echo 'Number of categorical feats: '${#DFDB_SH_FEATURES_CAT[@]}
+
+
         # Necessary in the case if we break script using ctrl + c
+        # Join using corresponding SQL engine.
         dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
         createdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
         local log_psql=${DFDB_SH_LOG_PATH}/psql/log"${data_set}".txt
@@ -492,7 +537,7 @@ function main() {
 
         for data_op in ${DFDB_SH_OPS[@]}; do
             echo "*********${data_op} decomposition**********"
-            build_and_run_tests $data_set $data_op $data_set_idx
+            build_and_run_tests $data_set $data_op $data_set_idx $features_out $features_cat_out
             echo "*********${data_op} decomposition**********"
         done
         dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
@@ -503,5 +548,6 @@ function main() {
 
     done
 }
-# Example:  ./runTests.sh --build=n -o=svd -d=usretailer_35f_1 -r=/home/max/LMFAO -f
+
+# Example:  ./runTests.sh --build=n -o=svd -d=usretailer_35f_1 -r=/home/popina/LMFAO -f
 main $@
