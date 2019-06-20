@@ -53,6 +53,7 @@ function init_global_vars()
 
     DFDB_SH_DUMP=false
     DFDB_SH_NUM_REP=1
+    DFDB_SH_CLEAN=false
     DFDB_SH_HELP_SHOW=false
     DFDB_SH_HELP_TXT=$"
 Usage: runTests [-h --help] [-b|--build =<OPTS>]
@@ -212,6 +213,9 @@ function get_str_args()
         ;;
         -s|--sin_vals)
         DFDB_SH_SIN_VALS=true
+        ;;
+        --clean)
+        DFDB_SH_CLEAN=true
         ;;
         -h|--help)
         echo "$DFDB_SH_HELP_TXT"
@@ -475,6 +479,26 @@ function build_and_run_tests() {
                      $features_out $features_cat_out
 }
 
+function build_lmfao_and_la()
+{
+    cd "${DFDB_SH_LA_BUILD}"
+    cmake .. -DLMFAO_LIB:BOOL=ON -DLMFAO_RUN:BOOL=OFF -DLMFAO_TEST:BOOL=OFF
+    make -j8
+    cd "${DFDB_SH_LMFAO_BUILD}"
+    cmake ..
+    make -j8
+    mv multifaq ..
+}
+
+function clean_intermediate()
+{
+    find $DFDB_SH_TIME_PATH -name "*.xlsx" -type f -delete
+    find $DFDB_SH_COMP_PATH -name "*.xlsx" -type f -delete
+    find $DFDB_SH_COMP_PATH -name "*.txt" -type f -delete
+    find $DFDB_SH_DUMP_PATH -name "*.txt" -type f -delete
+    find $DFDB_SH_LOG_PATH -name "*.txt" -type f -delete
+}
+
 # TODO: Change ** with nice dash style
 function main() {
     init_global_paths
@@ -484,15 +508,11 @@ function main() {
 
     [[ $DFDB_SH_CONF_ERROR == true ]] && return
     [[ $DFDB_SH_HELP_SHOW == true ]] && return
+    build_lmfao_and_la
+    [[ $DFDB_SH_CLEAN ]] && clean_intermediate
 
-    cd "${DFDB_SH_LA_BUILD}"
-    cmake .. -DLMFAO_LIB:BOOL=ON -DLMFAO_RUN:BOOL=OFF -DLMFAO_TEST:BOOL=OFF
-    make -j8
-    cd "${DFDB_SH_LMFAO_BUILD}"
-    cmake ..
-    make -j8
-    mv multifaq ..
     cd $DFDB_SH_LA_SCRIPT
+
     for data_set in ${DFDB_SH_DATA_SETS[@]}; do
         data_set_idx=$(( ${DFDB_SH_DATA_SETS_FULL[$data_set]} ))
         if [[ $data_set_idx == 0 ]]; then
