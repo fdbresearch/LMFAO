@@ -263,6 +263,27 @@ function get_features()
     DFDB_SH_FEATURES_CAT=(${features_cat[@]})
 }
 
+
+function build_lmfao_and_la()
+{
+    cd "${DFDB_SH_LA_BUILD}"
+    cmake .. -DLMFAO_LIB:BOOL=ON -DLMFAO_RUN:BOOL=OFF -DLMFAO_TEST:BOOL=OFF
+    make -j8
+    cd "${DFDB_SH_LMFAO_BUILD}"
+    cmake ..
+    make -j8
+    mv multifaq ..
+}
+
+function clean_intermediate()
+{
+    find $DFDB_SH_TIME_PATH -name "*.xlsx" -type f -delete
+    find $DFDB_SH_COMP_PATH -name "*.xlsx" -type f -delete
+    find $DFDB_SH_COMP_PATH -name "*.txt" -type f -delete
+    find $DFDB_SH_DUMP_PATH -name "*.txt" -type f -delete
+    find $DFDB_SH_LOG_PATH -name "*.txt" -type f -delete
+}
+
 function compare_precisions()
 {
     local dump_test="$1"
@@ -490,7 +511,7 @@ function main() {
     [[ $DFDB_SH_CONF_ERROR == true ]] && return
     [[ $DFDB_SH_HELP_SHOW == true ]] && return
     build_lmfao_and_la
-    [[ $DFDB_SH_CLEAN ]] && clean_intermediate
+    [[ $DFDB_SH_CLEAN == true ]] && clean_intermediate
 
     cd $DFDB_SH_LA_SCRIPT
 
