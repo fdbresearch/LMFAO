@@ -24,6 +24,10 @@ function init_global_paths()
 
 function init_global_vars()
 {
+    DFDB_SH_IN="-- "
+    DFDB_SH_INFO="[------] "
+    DFDB_SH_RUN="[RUN    ] "
+    DFDB_SH_END="[    END] "
     DFDB_TIME="/usr/bin/time -f \"%e\""
     DFDB_SH_DB="usretailer"
     DFDB_SH_USERNAME=$(whoami)
@@ -35,6 +39,7 @@ function init_global_vars()
     #TODO: Create one array that will represent decomposition (qr/svd)
     # Create another array that will represent flavor (chol, ...).
     DFDB_SH_OPS=("qr" "qr_chol" "qr_mul_t" "svd" "svd_qr" "svd_qr_chol" "svd_eig_dec" "svd_alt_min")
+    DFDB_SH_DEC_OPS=()
     DFDB_SH_FEATURES=()
     DFDB_SH_FEATURES_CAT=()
     DFDB_SH_POSITIONAL=()
@@ -86,6 +91,15 @@ Mandatory arguments to long options are mandatory for short options too.
                                  will be outputed.
     -h, --help                   show help.
 "
+}
+
+function indent()
+{
+    DFDB_SH_IN="${DFDB_SH_IN}  "
+}
+function unindent()
+{
+    DFDB_SH_IN="${DFDB_SH_IN:0:-2}"
 }
 
 function get_build_opts()
@@ -153,6 +167,19 @@ function get_data_sets()
     DFDB_SH_DATA_SETS=("${data_sets_tmp[@]}")
 }
 
+function get_decomp_ops()
+{
+    for data_op in ${DFDB_SH_OPS[@]}; do
+        local decomp_op=""
+        [[ $data_op == svd* ]] && decomp_op="svd"
+        [[ $data_op == qr* ]] && decomp_op="qr"
+        cont=$(array_contains $decomp_op ${DFDB_SH_DEC_OPS[@]})
+        if [[ $cont != true ]]; then
+            DFDB_SH_DEC_OPS+=($decomp_op)
+        fi
+    done
+}
+
 function get_data_operations()
 {
     local ops_tmp=()
@@ -165,6 +192,9 @@ function get_data_operations()
         fi
     done
     DFDB_SH_OPS=("${ops_tmp[@]}")
+    get_decomp_ops
+    echo ${DFDB_SH_DEC_OPS[@]}
+
 }
 
 function get_str_args()
@@ -232,7 +262,7 @@ function get_str_args()
 function get_features()
 {
     local file_name=$1"/features.conf"
-    echo $file_name
+    echo "${DFDB_SH_INFO}Features path: $file_name"
 
     local regex_num="^([0-9]+)(, ?)?([0-9]+)(, ?)?([0-9]+)(, ?)?$"
     local regex_features="^([a-zA-Z_]+):[0-9]+:[a-zA-Z_]+$"
@@ -242,7 +272,7 @@ function get_features()
     while IFS='' read -r line || [[ -n "$line" ]]; do
         if [[ $line =~ $regex_num ]]; then
             NUM_FEATURES=${BASH_REMATCH[1]}
-            echo ${line}
+            echo "${DFDB_SH_INFO}Number of features: ${line}"
             DUMB_1=${BASH_REMATCH[3]}
             DUMB_2=${BASH_REMATCH[5]}
         fi
@@ -291,15 +321,17 @@ function compare_precisions()
     local dump_lmfao="$3"
     local decomp_op="$4"
     [[ $DFDB_SH_PRECISION  == true ]] && {
-      echo '*********comparison test started**********'
-      echo $dump_test
-      echo $path_comp
-      echo $dump_lmfao
+      echo "${DFDB_SH_IN}${DFDB_SH_RUN}comparison test"
+      indent
+      echo "${DFDB_SH_IN}$dump_test"
+      echo "${DFDB_SH_IN}$path_comp"
+      echo "${DFDB_SH_IN}$dump_lmfao"
       python3 "${DFDB_SH_LA_SCRIPT}/precision_comparison.py" \
               -lp "${dump_lmfao}" -cp "${dump_test}"         \
               -pr 1e-10 --output_file "${path_comp}"         \
               --operation "$decomp_op"
-      echo '*********comparison test finished**********'
+      unindent
+      echo "${DFDB_SH_IN}${DFDB_SH_END}comparison test"
     }
 }
 # TODO: Refactor this properly.
@@ -312,13 +344,15 @@ function update_times()
     local data_set="$4"
     local data_set_idx="$5"
     [[ $DFDB_SH_PERF  == true ]] && {
-      echo '*********perf test update**********'
-      echo $time_test
-      echo $log_test
+        echo "${DFDB_SH_IN}${DFDB_SH_RUN}perf test"
+        indent
+        echo "${DFDB_SH_IN}$time_test"
+        echo "${DFDB_SH_IN}$log_test"
         python3 "${DFDB_SH_LA_SCRIPT}/time_comparison.py" \
         -t "${time_test}" -i "${log_test}"      \
         -op "$data_op" -ds "$data_set" -s "$data_set_idx"
-      echo '*********perf test finished**********'
+        unindent
+        echo "${DFDB_SH_IN}${DFDB_SH_END}perf test"
     }
 }
 
@@ -438,6 +472,7 @@ function eval_lmfao()
 # an xlsx file be created with comparsion and .txt with additional information
 # In times directory timetest xlsx will keep information about running times of specific
 # test, more precisely sheets will contain times of specific test.
+# Parameter decomp_op_alg is only imporant in the case of comparison of precisions
 function eval_test()
 {
     local test_name="$1"
@@ -447,11 +482,11 @@ function eval_test()
     local decomp_op_alg="$5"
     local features_out="$6"
     local features_cat_out="$7"
+    local test_compute_b="$8"
+    local test_compare_b="$9"
+    local test_time_b="${10}"
     local test_run_name="DFDB_SH_${test_name^^}"
     local test_run=${!test_run_name}
-
-    echo $test_run
-    echo $test_name
 
     local test_dump=${DFDB_SH_DUMP_PATH}/${test_name}/dump"${data_set}${decomp_op}".txt
     local test_log=${DFDB_SH_LOG_PATH}/${test_name}/log"${data_set}${decomp_op}".txt
@@ -459,45 +494,53 @@ function eval_test()
     local dump_lmfao=${DFDB_SH_DUMP_PATH}/lmfao/dump"${data_set}${decomp_op_alg}".txt
     local test_time=${DFDB_SH_TIME_PATH}/time${test_name}".xlsx"
     local fun_name=eval_${test_name}
-    echo $fun_name
 
-    [[ $test_run  == true ]] && {
-        echo "********* $test_name test started**********"
-        eval $fun_name $test_log $decomp_op $features_out \
-             $features_cat_out $test_dump $data_set
-        echo "********* $test_name test finished*********"
-        if [[ $test_name != "lmfao" ]]; then
+
+    if [[ $test_run  == true ]]; then
+        if [[ $test_compute_b == true ]]; then
+            echo "${DFDB_SH_IN}${DFDB_SH_RUN}$test_name test started"
+            eval $fun_name $test_log $decomp_op $features_out \
+                 $features_cat_out $test_dump $data_set
+            echo "${DFDB_SH_IN}${DFDB_SH_END}$test_name test finished"
+        fi
+        if [[ $test_compare_b == true ]]; then
             compare_precisions "${test_dump}" "${test_comp}" "${dump_lmfao}" $decomp_op
         fi
-        update_times "$test_time" "$test_log" $decomp_op $data_set $data_set_idx
-    }
+        #if [[ $test_name != "lmfao" ]]; then
+        #fi
+        if [[ $test_time_b == true ]]; then
+            update_times "$test_time" "$test_log" $decomp_op $data_set $data_set_idx
+        fi
+    fi
 }
 
+#decomp_op_alg is only important in the case of comparison of precisions
 function build_and_run_tests() {
     local data_set=$1
     local decomp_op_alg=$2
     local data_set_idx=$3
     local features_out=$4
     local features_cat_out=$5
-
+    local test_compute=$6
+    local test_comp=$7
+    local test_time=$8
     local decomp_op=""
     # TODO: Refactor this such that regex extracts.
     [[ $decomp_op_alg == svd* ]] && decomp_op="svd"
     [[ $decomp_op_alg == qr* ]] && decomp_op="qr"
-
     # DecompOp for LMFAO is the same decomp_op_alg because there are different implementations
-    eval_test 'lmfao' $data_set $data_set_idx $decomp_op_alg $decomp_op_alg  \
-                      $features_out $features_cat_out
+    #test_compute 'lmfao' $data_set $data_set_idx $decomp_op_alg $decomp_op_alg  \
+    #                  $features_out $features_cat_out
     eval_test 'numpy' $data_set $data_set_idx $decomp_op $decomp_op_alg      \
-                      $features_out $features_cat_out
+                      $features_out $features_cat_out $test_compute $test_comp $test_time
     eval_test 'scipy' $data_set $data_set_idx $decomp_op $decomp_op_alg      \
-                      $features_out $features_cat_out
+                      $features_out $features_cat_out $test_compute $test_comp $test_time
     eval_test 'r' $data_set $data_set_idx $decomp_op $decomp_op_alg          \
-                  $features_out $features_cat_out
+                  $features_out $features_cat_out $test_compute $test_comp $test_time
     eval_test 'eigen' $data_set $data_set_idx $decomp_op  $decomp_op_alg     \
-                     $features_out $features_cat_out
+                     $features_out $features_cat_out $test_compute $test_comp $test_time
     eval_test 'madlib' $data_set $data_set_idx $decomp_op  $decomp_op_alg    \
-                     $features_out $features_cat_out
+                     $features_out $features_cat_out $test_compute $test_comp $test_time
 }
 
 
@@ -523,21 +566,21 @@ function main() {
         fi
         DFDB_SH_DB=${data_set}
         echo ""
-        echo tests for data set "$data_set" are starting;
+        echo "[======] Tests for data set $data_set are starting"
         data_path=$DFDB_SH_DATA"/"$data_set
         get_features $data_path
 
         # Feature datasets creation
-        echo "Data set id" $data_set_idx
+        echo "${DFDB_SH_INFO}Data set id: $data_set_idx"
         local features_out=$(printf "%s," ${DFDB_SH_FEATURES[@]})
         features_out=${features_out::-1}
-        echo 'Features: ' ${features_out}
-        echo 'Number of categorical feats: '${#DFDB_SH_FEATURES[@]}
+        echo "${DFDB_SH_INFO}Features:  ${features_out}"
+        echo "${DFDB_SH_INFO}Number of feats: ${#DFDB_SH_FEATURES[@]}"
 
         local features_cat_out=$(printf "%s," ${DFDB_SH_FEATURES_CAT[@]})
         features_cat_out=${features_cat_out::-1}
-        echo 'Categorical features: ' ${features_cat_out}
-        echo 'Number of categorical feats: '${#DFDB_SH_FEATURES_CAT[@]}
+        echo "${DFDB_SH_INFO}Categorical features:  ${features_cat_out}"
+        echo "${DFDB_SH_INFO}Number of categorical feats: ${#DFDB_SH_FEATURES_CAT[@]}"
 
 
         # Necessary in the case if we break script using ctrl + c
@@ -557,11 +600,36 @@ function main() {
         # Even if it remains, it will be empty.
         createdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
 
+        # TODO: Create only array of deocmp ops to iterate over
+        echo ""; echo "${DFDB_SH_IN}Runtime LMFAO experiments started"
+        indent
         for data_op in ${DFDB_SH_OPS[@]}; do
-            echo "*********${data_op} decomposition**********"
-            build_and_run_tests $data_set $data_op $data_set_idx $features_out $features_cat_out
-            echo "*********${data_op} decomposition**********"
+            eval_test 'lmfao' $data_set $data_set_idx $data_op $data_op  \
+                              $features_out $features_cat_out true false true
         done
+        unindent
+        echo "${DFDB_SH_IN}Runtime LMFAO experiments finished";echo ""
+        echo "${DFDB_SH_IN}Runtime experiments of competitors started"
+        indent
+        for decomp_op in ${DFDB_SH_DEC_OPS[@]}; do
+            echo "${DFDB_SH_IN}${DFDB_SH_RUN}${decomp_op} decomposition"
+            indent
+            build_and_run_tests $data_set $decomp_op $data_set_idx $features_out $features_cat_out true false true
+            unindent
+            echo "${DFDB_SH_IN}${DFDB_SH_END}${decomp_op} decomposition"
+        done
+        unindent
+        echo "${DFDB_SH_IN}Runtime experiments of competitors finished";echo ""
+
+        # Only used for comparison
+        echo "${DFDB_SH_IN}Precision testing"
+        indent
+        for data_op in ${DFDB_SH_OPS[@]}; do
+            build_and_run_tests $data_set $data_op $data_set_idx $features_out $features_cat_out false true false
+        done
+        unindent
+        echo "${DFDB_SH_IN}Precision testing "
+
         dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
 
 
