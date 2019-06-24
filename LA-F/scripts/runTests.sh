@@ -24,10 +24,23 @@ function init_global_paths()
 
 function init_global_vars()
 {
-    DFDB_SH_IN="-- "
-    DFDB_SH_INFO="[------] "
-    DFDB_SH_RUN="[RUN    ] "
-    DFDB_SH_END="[    END] "
+    # Reset
+    DFDB_SH_COLOR_OFF='\033[0m'       # Text Reset
+
+    # Regular Colors
+    Black='\033[0;30m'        # Black
+    Red='\033[0;31m'          # Red
+    DFDB_SH_GREEN='\033[0;32m' # DFDB_SH_GREEN
+    Yellow='\033[0;33m'       # Yellow
+    Blue='\033[0;34m'         # Blue
+    Purple='\033[0;35m'       # Purple
+    Cyan='\033[0;36m'         # Cyan
+    White='\033[0;37m'
+
+    DFDB_SH_IN_STR="-- "
+    DFDB_SH_INFO_STR="[------] "
+    DFDB_SH_RUN_STR="[RUN    ] "
+    DFDB_SH_END_STR="[    END] "
     DFDB_TIME="/usr/bin/time -f \"%e\""
     DFDB_SH_DB="usretailer"
     DFDB_SH_USERNAME=$(whoami)
@@ -55,6 +68,7 @@ function init_global_vars()
     DFDB_SH_NUMPY=false
     DFDB_SH_PRECISION=false
     DFDB_SH_PERF=false
+    DFDB_SH_RUN=false
 
     DFDB_SH_DUMP=false
     DFDB_SH_NUM_REP=1
@@ -69,7 +83,7 @@ Usage: runTests [-h --help] [-b|--build =<OPTS>]
 Run experiments for matrix factorizations.
 
 Mandatory arguments to long options are mandatory for short options too.
-    -b, --build=<OPTS>           run the experiments stated in opts:
+    -b, --build=<OPTS>           Implementations to be run in the experiments stated in opts:
                                  j - join tables using PSQL and export the joined result
                                  l - factorizations using LA-F (linear algebra on top of LMFAO)
                                  r - factorizations implemented in r
@@ -77,29 +91,39 @@ Mandatory arguments to long options are mandatory for short options too.
                                  s - factorizations implemented in scipy
                                  e - factorizations implemented using eigen and C++
                                  m - factorizations implemented using MADlib
-                                 p - compare accuracies of factorizations using LA-F
-                                   and other approaches.
     -r, --root=<PATH>            set the root path to PATH of LMFAO project
     -u, --user=<NAME>            connect to PSQL datatabase with the username NAME.
     -p, --port=<NUMBER>          connect to PSQL database on the port NUMBER.
-    -o, --operation=<NAME1>,...> run experiments for the factorization NAME1, NAME2,...
+    -o, --operation=<NAME1>,...> Decompositons to be run in experiments factorization NAME1, NAME2,...
                                  Possible operations are qr and svd.
     -d, --data_sets=<NAME1>,...> run experiments for data sets NAME1, NAME2,...
                                  located on root of LMFAO project/data.
-    -f, --full_exps              run multiple times the same experiment to reduce cache
+    -f, --full_exps              Run multiple times the same experiment to reduce cache
                                  locality and statistics problems. All times
                                  will be outputed.
+    -t, --time                   Create an xlsxs with times for corresponding operations,
+                                 builds and data_sets. Note: --ful_exps
+                                 has to be enabled for 5 time repeatition.
+    --run                        Run experiments for corresponding operations,
+                                 builds and data_sets.
+    --dump                       If we should dump R in QR decomposition/singular values to a file.
+    --precision                  Compare R/singular values computed by LMFAOs algorithm with ones computed
+                                 by other implementatiuons (python/r/...) and create corresponding xlsxs and
+                                 .txt files with comparisons. Note: dump files have to exist.
+    -s, --sin_vals               Some algorithms from competitors run faster if only singular values
+                                 are needed to be calculated. This flag, enables that option.
+    --clean                      WARNING: Removes all dumps/txts/xlsx produced by this script.
     -h, --help                   show help.
 "
 }
 
 function indent()
 {
-    DFDB_SH_IN="${DFDB_SH_IN}  "
+    DFDB_SH_IN_STR="${DFDB_SH_IN_STR}  "
 }
 function unindent()
 {
-    DFDB_SH_IN="${DFDB_SH_IN:0:-2}"
+    DFDB_SH_IN_STR="${DFDB_SH_IN_STR:0:-2}"
 }
 
 function get_build_opts()
@@ -128,11 +152,6 @@ function get_build_opts()
             ;;
             r)
             DFDB_SH_R=true
-            ;;
-            p)
-            DFDB_SH_LMFAO=true
-            DFDB_SH_DUMP=true
-            DFDB_SH_PRECISION=true
             ;;
             *)    # unknown option
             echo "Wrong build argument" $build_option
@@ -231,12 +250,17 @@ function get_str_args()
         EXTENSION="${option#*=}"
         get_data_sets $EXTENSION
         ;;
+        --run)
+        DFDB_SH_RUN=true
+        ;;
         --dump)
         DFDB_SH_DUMP=true
         ;;
+        --precision)
+        DFDB_SH_PRECISION=true
+        ;;
         -t|--time)
         DFDB_SH_PERF=true
-        DFDB_SH_NUM_REP=5
         ;;
         -f|--full_exps)
         DFDB_SH_NUM_REP=5
@@ -262,7 +286,7 @@ function get_str_args()
 function get_features()
 {
     local file_name=$1"/features.conf"
-    echo "${DFDB_SH_INFO}Features path: $file_name"
+    echo "${DFDB_SH_INFO_STR}Features path: $file_name"
 
     local regex_num="^([0-9]+)(, ?)?([0-9]+)(, ?)?([0-9]+)(, ?)?$"
     local regex_features="^([a-zA-Z_]+):[0-9]+:[a-zA-Z_]+$"
@@ -272,7 +296,7 @@ function get_features()
     while IFS='' read -r line || [[ -n "$line" ]]; do
         if [[ $line =~ $regex_num ]]; then
             NUM_FEATURES=${BASH_REMATCH[1]}
-            echo "${DFDB_SH_INFO}Number of features: ${line}"
+            echo "${DFDB_SH_INFO_STR}Number of features: ${line}"
             DUMB_1=${BASH_REMATCH[3]}
             DUMB_2=${BASH_REMATCH[5]}
         fi
@@ -316,23 +340,33 @@ function clean_intermediate()
 
 function compare_precisions()
 {
-    local dump_test="$1"
-    local path_comp="$2"
-    local dump_lmfao="$3"
-    local decomp_op="$4"
-    [[ $DFDB_SH_PRECISION  == true ]] && {
-      echo "${DFDB_SH_IN}${DFDB_SH_RUN}comparison test"
-      indent
-      echo "${DFDB_SH_IN}$dump_test"
-      echo "${DFDB_SH_IN}$path_comp"
-      echo "${DFDB_SH_IN}$dump_lmfao"
-      python3 "${DFDB_SH_LA_SCRIPT}/precision_comparison.py" \
-              -lp "${dump_lmfao}" -cp "${dump_test}"         \
-              -pr 1e-10 --output_file "${path_comp}"         \
-              --operation "$decomp_op"
-      unindent
-      echo "${DFDB_SH_IN}${DFDB_SH_END}comparison test"
-    }
+    local test_dump="$1"
+    local dump_lmfao="$2"
+    local test_path_comp="$3"
+    local decomp_op_alg="$4"
+    local test_comp_precs="$5"
+    local precs_txt="${test_path_comp}.txt"
+    if [[ $DFDB_SH_PRECISION  == true ]]; then
+        echo "${DFDB_SH_IN_STR}${DFDB_SH_RUN_STR}comparison test"
+        indent
+        echo "${DFDB_SH_IN_STR}$test_dump"
+        echo "${DFDB_SH_IN_STR}$test_path_comp"
+        echo "${DFDB_SH_IN_STR}$dump_lmfao"
+
+        python3 "${DFDB_SH_LA_SCRIPT}/precision_comparison.py" \
+              -lp "${dump_lmfao}" -cp "${test_dump}"           \
+              -pr 1e-10 --output_file "${test_path_comp}"      \
+              --operation "$decomp_op_alg"
+        echo "${DFDB_SH_IN_STR}$precs_txt"
+        echo "${DFDB_SH_IN_STR}$test_comp_precs"
+        python3 "${DFDB_SH_LA_SCRIPT}/precision_formating.py"                    \
+                --prec_file_for "${test_comp_precs}" --precs_dump "${precs_txt}" \
+                -op "$decomp_op_alg" -ds "$data_set" -s "$data_set_idx"          \
+                --rename False -cp $DFDB_SH_COMP_PATH
+
+        unindent
+        echo "${DFDB_SH_IN_STR}${DFDB_SH_END_STR}comparison test"
+    fi
 }
 # TODO: Refactor this properly.
 
@@ -343,17 +377,17 @@ function update_times()
     local data_op="$3"
     local data_set="$4"
     local data_set_idx="$5"
-    [[ $DFDB_SH_PERF  == true ]] && {
-        echo "${DFDB_SH_IN}${DFDB_SH_RUN}perf test"
+    if [[ $DFDB_SH_PERF  == true ]]; then
+        echo "${DFDB_SH_IN_STR}${DFDB_SH_RUN_STR}perf test"
         indent
-        echo "${DFDB_SH_IN}$time_test"
-        echo "${DFDB_SH_IN}$log_test"
+        echo "${DFDB_SH_IN_STR}$time_test"
+        echo "${DFDB_SH_IN_STR}$log_test"
         python3 "${DFDB_SH_LA_SCRIPT}/time_comparison.py" \
         -t "${time_test}" -i "${log_test}"      \
         -op "$data_op" -ds "$data_set" -s "$data_set_idx"
         unindent
-        echo "${DFDB_SH_IN}${DFDB_SH_END}perf test"
-    }
+        echo "${DFDB_SH_IN_STR}${DFDB_SH_END_STR}perf test"
+    fi
 }
 
 
@@ -468,6 +502,21 @@ function eval_lmfao()
                 "${test_dump}" &> ${test_log})
 }
 
+function eval_run()
+{
+    local fun_name=$1
+    local test_log=$2
+    local decomp_op=$3
+    local features_out=$4
+    local features_cat_out=$5
+    local test_dump=$6
+    local data_set=$7
+    if [[ $DFDB_SH_RUN == true ]]; then
+        eval $fun_name $test_log $decomp_op $features_out \
+            $features_cat_out $test_dump $data_set
+    fi
+}
+
 # In comparisons directory for specific test and specific algorithm
 # an xlsx file be created with comparsion and .txt with additional information
 # In times directory timetest xlsx will keep information about running times of specific
@@ -488,23 +537,25 @@ function eval_test()
     local test_run_name="DFDB_SH_${test_name^^}"
     local test_run=${!test_run_name}
 
-    local test_dump=${DFDB_SH_DUMP_PATH}/${test_name}/dump"${data_set}${decomp_op}".txt
-    local test_log=${DFDB_SH_LOG_PATH}/${test_name}/log"${data_set}${decomp_op}".txt
-    local test_comp=${DFDB_SH_COMP_PATH}/${test_name}/comp"${data_set}${decomp_op_alg}"
-    local dump_lmfao=${DFDB_SH_DUMP_PATH}/lmfao/dump"${data_set}${decomp_op_alg}".txt
-    local test_time=${DFDB_SH_TIME_PATH}/time${test_name}".xlsx"
+    local test_dump=${DFDB_SH_DUMP_PATH}/${test_name}/dump-"${data_set}-${decomp_op}".txt
+    local test_log=${DFDB_SH_LOG_PATH}/${test_name}/log"-${data_set}-${decomp_op}".txt
+    local test_comp=${DFDB_SH_COMP_PATH}/${test_name}/comp-"${data_set}-${decomp_op_alg}"
+    local dump_lmfao=${DFDB_SH_DUMP_PATH}/lmfao/dump-"${data_set}-${decomp_op_alg}".txt
+    local test_prec=${DFDB_SH_COMP_PATH}/comp-${test_name}".xlsx"
+    local test_time=${DFDB_SH_TIME_PATH}/time-${test_name}".xlsx"
     local fun_name=eval_${test_name}
 
 
     if [[ $test_run  == true ]]; then
         if [[ $test_compute_b == true ]]; then
-            echo "${DFDB_SH_IN}${DFDB_SH_RUN}$test_name test started"
-            eval $fun_name $test_log $decomp_op $features_out \
+            echo "${DFDB_SH_IN_STR}${DFDB_SH_RUN_STR}$test_name test started"
+            eval_run $fun_name $test_log $decomp_op $features_out \
                  $features_cat_out $test_dump $data_set
-            echo "${DFDB_SH_IN}${DFDB_SH_END}$test_name test finished"
+            echo "${DFDB_SH_IN_STR}${DFDB_SH_END_STR}$test_name test finished"
         fi
         if [[ $test_compare_b == true ]]; then
-            compare_precisions "${test_dump}" "${test_comp}" "${dump_lmfao}" $decomp_op
+            compare_precisions "${test_dump}" "${dump_lmfao}" "${test_comp}" \
+                                $decomp_op_alg "${test_prec}"
         fi
         #if [[ $test_name != "lmfao" ]]; then
         #fi
@@ -565,22 +616,23 @@ function main() {
             continue
         fi
         DFDB_SH_DB=${data_set}
-        echo ""
+        echo -e "${DFDB_SH_GREEN}\c"
         echo "[======] Tests for data set $data_set are starting"
+        echo -e "${DFDB_SH_COLOR_OFF}\c"
         data_path=$DFDB_SH_DATA"/"$data_set
         get_features $data_path
 
         # Feature datasets creation
-        echo "${DFDB_SH_INFO}Data set id: $data_set_idx"
+        echo "${DFDB_SH_INFO_STR}Data set id: $data_set_idx"
         local features_out=$(printf "%s," ${DFDB_SH_FEATURES[@]})
         features_out=${features_out::-1}
-        echo "${DFDB_SH_INFO}Features:  ${features_out}"
-        echo "${DFDB_SH_INFO}Number of feats: ${#DFDB_SH_FEATURES[@]}"
+        echo "${DFDB_SH_INFO_STR}Features:  ${features_out}"
+        echo "${DFDB_SH_INFO_STR}Number of feats: ${#DFDB_SH_FEATURES[@]}"
 
         local features_cat_out=$(printf "%s," ${DFDB_SH_FEATURES_CAT[@]})
         features_cat_out=${features_cat_out::-1}
-        echo "${DFDB_SH_INFO}Categorical features:  ${features_cat_out}"
-        echo "${DFDB_SH_INFO}Number of categorical feats: ${#DFDB_SH_FEATURES_CAT[@]}"
+        echo "${DFDB_SH_INFO_STR}Categorical features:  ${features_cat_out}"
+        echo "${DFDB_SH_INFO_STR}Number of categorical feats: ${#DFDB_SH_FEATURES_CAT[@]}"
 
 
         # Necessary in the case if we break script using ctrl + c
@@ -589,46 +641,46 @@ function main() {
         createdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
         local log_psql=${DFDB_SH_LOG_PATH}/psql/log"${data_set}".txt
         local time_psql=${DFDB_SH_TIME_PATH}/timepsql".xlsx"
-        [[ $DFDB_SH_JOIN  == true ]] && {
-            echo '*********Join started**********'
+        if [[ $DFDB_SH_JOIN  == true ]]; then
+            echo "${DFDB_SH_IN_STR}${DFDB_SH_RUN_STR}Joinning"
             (source generate_join.sh ${data_set}  &> ${log_psql})
-            echo '*********Join finished**********'
+            echo "${DFDB_SH_IN_STR}${DFDB_SH_END_STR}Joinning"
             update_times "$time_psql" "$log_psql" "$data_op" $data_set $data_set_idx
-        }
+        fi
         dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
         # Needed for MADlib
         # Even if it remains, it will be empty.
         createdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
 
         # TODO: Create only array of deocmp ops to iterate over
-        echo ""; echo "${DFDB_SH_IN}Runtime LMFAO experiments started"
+        echo ""; echo "${DFDB_SH_IN_STR}Runtime LMFAO experiments started"
         indent
         for data_op in ${DFDB_SH_OPS[@]}; do
             eval_test 'lmfao' $data_set $data_set_idx $data_op $data_op  \
                               $features_out $features_cat_out true false true
         done
         unindent
-        echo "${DFDB_SH_IN}Runtime LMFAO experiments finished";echo ""
-        echo "${DFDB_SH_IN}Runtime experiments of competitors started"
+        echo "${DFDB_SH_IN_STR}Runtime LMFAO experiments finished";echo ""
+        echo "${DFDB_SH_IN_STR}Runtime experiments of competitors started"
         indent
         for decomp_op in ${DFDB_SH_DEC_OPS[@]}; do
-            echo "${DFDB_SH_IN}${DFDB_SH_RUN}${decomp_op} decomposition"
+            echo "${DFDB_SH_IN_STR}${DFDB_SH_RUN_STR}${decomp_op} decomposition"
             indent
             build_and_run_tests $data_set $decomp_op $data_set_idx $features_out $features_cat_out true false true
             unindent
-            echo "${DFDB_SH_IN}${DFDB_SH_END}${decomp_op} decomposition"
+            echo "${DFDB_SH_IN_STR}${DFDB_SH_END_STR}${decomp_op} decomposition"
         done
         unindent
-        echo "${DFDB_SH_IN}Runtime experiments of competitors finished";echo ""
+        echo "${DFDB_SH_IN_STR}Runtime experiments of competitors finished";echo ""
 
         # Only used for comparison
-        echo "${DFDB_SH_IN}Precision testing"
+        echo "${DFDB_SH_IN_STR}Precision testing"
         indent
         for data_op in ${DFDB_SH_OPS[@]}; do
             build_and_run_tests $data_set $data_op $data_set_idx $features_out $features_cat_out false true false
         done
         unindent
-        echo "${DFDB_SH_IN}Precision testing "
+        echo "${DFDB_SH_IN_STR}Precision testing "
 
         dropdb $DFDB_SH_DB -U $DFDB_SH_USERNAME -p $DFDB_SH_PORT
 

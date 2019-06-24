@@ -46,14 +46,14 @@ class PrecisionWorkbook:
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-lp", "--lmfao_path", dest="lmfao_qr_path", required=True)
-    parser.add_argument("-cp", "--comparison_path", dest="comparison_qr_path", required=True)
+    parser.add_argument("-cp", "--comparison_path", dest="comparison_path", required=True)
     parser.add_argument("-op", "--output_file", dest="output_file", required=True)
     parser.add_argument("-pr", "--precision", dest="precision", required=True)
     parser.add_argument("-o", "--operation", dest="operation", required=True)
 
     args = parser.parse_args()
     lmfao_path = args.lmfao_qr_path
-    comparison_path = args.comparison_qr_path
+    comparison_path = args.comparison_path
     output_file = args.output_file
     operation = args.operation
     precision = Decimal(args.precision)
