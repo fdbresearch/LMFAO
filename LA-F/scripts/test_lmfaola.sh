@@ -40,6 +40,7 @@ esac
 cd $DFDB_SH_RUNTIME_OUTPUT
 rm *
 cd $DFDB_SH_RUNTIME_CPP
+make clean
 make -j8
 
 function run_test_impl() {

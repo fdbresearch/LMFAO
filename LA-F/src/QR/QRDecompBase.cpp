@@ -100,7 +100,6 @@ namespace LMFAO::LinearAlgebra
         }
         I = Eigen::MatrixXd::Identity(mNumFeatsExp, mNumFeatsExp);
         res = C.transpose() * mSigma * C - I;
-        printMatrixDense(std::cout, res);
         LMFAO_LOG_DBG("NORMA", res.norm());
         return res.norm() / I.norm();
     }
