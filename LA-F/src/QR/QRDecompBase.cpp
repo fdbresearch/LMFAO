@@ -25,9 +25,11 @@ namespace LMFAO::LinearAlgebra
         rEigen.resize(N, N);
         rEigen = Eigen::MatrixXd::Zero(rEigen.rows(), rEigen.cols());
 
-        for (uint32_t row = 0; row < N; row++)
+        // Default storage order order in Eigen is column-major.
+        //
+        for (uint32_t col = 0; col < N; col++)
         {
-            for (uint32_t col = row; col < N; col++)
+            for (uint32_t row = 0; row <= col; row++)
             {
                 rEigen(row, col) = mR[col * N + row];
             }
@@ -62,7 +64,7 @@ namespace LMFAO::LinearAlgebra
             {
                 norm = sqrt(mR[row * N + row]);
             }
-            // In this loop we normalize rows by dviding all of them with norm.
+            // In this loop we normalize rows by dividing all of them with norm.
             for (uint32_t col = row; col < N; col++)
             {
                 mR[col * N + row] /= norm;
@@ -85,6 +87,22 @@ namespace LMFAO::LinearAlgebra
                 cEigen(row, col) = mC[expIdx(row, col, N)];
             }
         }
+    }
+    double QRDecompBase::getQTQFrobeniusError(void)
+    {
+        Eigen::MatrixXd R, C, res, I;
+        FeatDim ftDim = {mNumFeats, mNumFeatsExp, mNumFeatsCont, mNumFeatsCat};
+        getR(R);
+        getC(C);
+        if (m_pvCatVals != nullptr)
+        {
+            expandMatrixWithCatVals(ftDim, mSigma, *m_pvCatVals);
+        }
+        I = Eigen::MatrixXd::Identity(mNumFeatsExp, mNumFeatsExp);
+        res = C.transpose() * mSigma * C - I;
+        printMatrixDense(std::cout, res);
+        LMFAO_LOG_DBG("NORMA", res.norm());
+        return res.norm() / I.norm();
     }
 
     std::ostream& operator<<(std::ostream& out, const QRDecompBase& qrDecomp)

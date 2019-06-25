@@ -14,7 +14,7 @@ namespace LMFAO::LinearAlgebra
             return;
 
         mCofactorPerFeature.resize(mNumFeatsExp - mNumFeatsCont);
-        for (const Triple &triple : mCatVals)
+        for (const Triple &triple : *m_pvCatVals)
         {
             uint32_t row = std::get<0>(triple);
             uint32_t col = std::get<1>(triple);

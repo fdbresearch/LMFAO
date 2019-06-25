@@ -7,7 +7,7 @@ namespace LMFAO::LinearAlgebra
 {
     void readMatrix(const std::string& sPath, FeatDim& rFtDim,
                     Eigen::MatrixXd& rmACont, std::vector <Triple>* pvCatVals,
-                    bool isNaive)
+                    bool isDense)
     {
         std::ifstream f(sPath);
         uint32_t row, col;
@@ -32,17 +32,17 @@ namespace LMFAO::LinearAlgebra
             rmACont(row, col) = val;
         }
         LMFAO_LOG_DBG("Finished reading content of file");
-        rearrangeMatrix(vIsCat, rFtDim, rmACont, pvCatVals, isNaive);
+        rearrangeMatrix(vIsCat, rFtDim, rmACont, pvCatVals, isDense);
     }
 
     void formMatrix(const MapMatrixAggregate &matrixAggregate,
                     const std::vector<bool>& vIsCat,
                     const FeatDim& ftDim, FeatDim& rFtDim,
                     Eigen::MatrixXd& rmACont, std::vector <Triple>* pvCatVals,
-                    bool isNaive)
+                    bool isDense)
     {
         uint32_t row, col;
-        // We exclued intercept column passed from LMFAO.
+        // We exclued the intercept column passed from LMFAO.
         //
         rFtDim.numExp = ftDim.numExp - 1;
         rFtDim.num = ftDim.num - 1;
@@ -64,15 +64,40 @@ namespace LMFAO::LinearAlgebra
                 rmACont(row, col) = value;
             }
         }
-        //std::cout << vIsCat.size() << std::endl;
         const_cast<std::vector<bool>&>(vIsCat).erase(vIsCat.begin());
-        //std::cout << vIsCat.size() << std::endl;
-        rearrangeMatrix(vIsCat, rFtDim, rmACont, pvCatVals, isNaive);
+        rearrangeMatrix(vIsCat, rFtDim, rmACont, pvCatVals, isDense);
+    }
+
+    void expandMatrixWithCatVals(const FeatDim& rFtDim, Eigen::MatrixXd& rmACont,
+                                const std::vector <Triple>& vCatVals)
+    {
+        for (uint32_t row = 0; row < rFtDim.numExp; row++)
+        {
+            for (uint32_t col = rFtDim.numCont; col < rFtDim.numExp; col++)
+            {
+                rmACont(row, col) = 0;
+            }
+        }
+        for (uint32_t row = rFtDim.numCont; row < rFtDim.numExp; row++)
+        {
+            for (uint32_t col = 0; col < rFtDim.numCont; col++)
+            {
+                rmACont(row, col) = 0;
+            }
+        }
+
+        for (const Triple &triple : vCatVals)
+        {
+            uint32_t row = std::get<0>(triple);
+            uint32_t col = std::get<1>(triple);
+            double aggregate = std::get<2>(triple);
+            rmACont(row, col) = aggregate;
+        }
     }
 
     void rearrangeMatrix(const std::vector<bool>& vIsCat, const FeatDim& ftDim,
                          Eigen::MatrixXd& rmACont, std::vector <Triple>* pvCatVals,
-                         bool isNaive)
+                         bool isDense)
     {
         std::vector <Triple> vNaiveCatVals;
 
@@ -83,7 +108,6 @@ namespace LMFAO::LinearAlgebra
         std::vector<uint32_t> cntCont(ftDim.numExp, 0);
         for (uint32_t idx = 1; idx < ftDim.numExp; idx++)
         {
-            //std::cout << vIsCat[idx-1] << std::endl;
             cntCat[idx] = cntCat[idx - 1] + vIsCat[idx - 1];
             cntCont[idx] = cntCont[idx - 1] + !vIsCat[idx - 1];
         }
@@ -97,52 +121,36 @@ namespace LMFAO::LinearAlgebra
                 uint32_t colIdx = vIsCat[col] ? (col - cntCont[col] + ftDim.numCont) : (col - cntCat[col]);
                 // Categorical values only.
                 //
-                if (vIsCat[row] || (vIsCat[col]))
+                if (!vIsCat[row] && !vIsCat[col])
                 {
-                    // Fully expand everything in dense format if naive flag is set.
+                    rmACont(row - cntCat[row], col - cntCat[col]) = rmACont(row, col);
+                }
+                else if ((vIsCat[row] || vIsCat[col]) && (rmACont(row, col) != 0))
+                {
+                    // Fully expand everything in dense format if isDense flag is set.
                     //
-                    if (isNaive)
+                    if (isDense)
                     {
-                        vNaiveCatVals.push_back(std::make_tuple(rowIdx, colIdx, rmACont(row, col)));
+                        vNaiveCatVals.push_back(std::make_tuple(rowIdx, colIdx,
+                                                rmACont(row, col)));
                     }
                     // Otherwise store nonzero values to vector.
                     //
                     else if ((rmACont(row, col) != 0))
                     {
-                        pvCatVals->push_back(std::make_tuple(rowIdx, colIdx, rmACont(row, col)));
+                        pvCatVals->push_back(std::make_tuple(rowIdx, colIdx,
+                                             rmACont(row, col)));
                     }
-                }
-                else
-                {
-                    rmACont(row - cntCat[row], col - cntCat[col]) = rmACont(row, col);
                 }
             }
         }
         LMFAO_LOG_DBG("Finished shuffling");
-        // In the case of naive approach just add categorical values to
-        // the continuous case.
+        // In the case of dense approach just append categorical values to the end.
         //
-        if (isNaive)
+        if (isDense)
         {
-            for (const Triple &triple : vNaiveCatVals)
-            {
-                uint32_t row = std::get<0>(triple);
-                uint32_t col = std::get<1>(triple);
-                double aggregate = std::get<2>(triple);
-                rmACont(row, col) = aggregate;
-            }
+            expandMatrixWithCatVals(ftDim, rmACont, vNaiveCatVals);
         }
-        //std::cout << "Matrix" << std::endl;
-        /*
-        for (uint32_t row = 0; row < rFtDim.numExp; row++)
-        {
-            for (uint32_t col = 0; col < rFtDim.numExp; col++)
-            {
-                cout << row << " " << col << " " << rmACont(row, col) << endl;
-            }
-        }
-        std::cout << "******************" << std::endl;
-        */
     }
 
     void readVector(const std::string& sPath, Eigen::VectorXd& rvV, char sep)

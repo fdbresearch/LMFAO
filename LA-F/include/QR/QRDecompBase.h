@@ -11,6 +11,7 @@ namespace LMFAO::LinearAlgebra
     class QRDecompBase
     {
      protected:
+        // Sigma is stored column-major (default in Eigen)
         Eigen::MatrixXd mSigma;
         // R is  stored column-wise to exploit cache locality.
         // C is stored row-wise look at the line 112 -> cache locality in each thread important.
@@ -18,10 +19,9 @@ namespace LMFAO::LinearAlgebra
         // code runs 40% faster.
         //
         std::vector <double> mC;
-        //std::vector <double> mR;
-        // TODO: Think about resizing mr so it is triangular.
+        // TODO: Completely replace Eigenvector with eigen matrix
         Eigen::VectorXd mR;
-        std::vector <Triple> mCatVals;
+        std::vector <Triple> *m_pvCatVals = nullptr;
 
         // Number of features (categorical + continuous) in sigma matrix.
         //
@@ -46,12 +46,16 @@ namespace LMFAO::LinearAlgebra
         void expandSigma(std::vector <double> &sigmaExpanded, bool isNaive);
 
     protected:
-        QRDecompBase(const std::string& path, bool initNaiveVect, const bool isLinDepAllowed=false) :
+        QRDecompBase(const std::string& path, bool isDense, const bool isLinDepAllowed=false) :
         mIsLinDepAllowed(isLinDepAllowed)
         {
             FeatDim oFeatDim;
+            if (!isDense)
+            {
+                m_pvCatVals = new std::vector<Triple>();
+            }
             LMFAO::LinearAlgebra::readMatrix(path, oFeatDim, mSigma,
-                                 &mCatVals, initNaiveVect);
+                                 m_pvCatVals, isDense);
             mNumFeats = oFeatDim.num;
             mNumFeatsExp = oFeatDim.numExp;
             mNumFeatsCont = oFeatDim.numCont;
@@ -59,7 +63,7 @@ namespace LMFAO::LinearAlgebra
         }
         QRDecompBase(const MapMatrixAggregate& mMatrix, uint32_t numFeatsExp,
                      uint32_t numFeats, uint32_t numFeatsCont,
-                     const std::vector<bool>& vIsCat, bool initNaiveVect,
+                     const std::vector<bool>& vIsCat, bool isDense,
                      const bool isLinDepAllowed=false):
         mIsLinDepAllowed(isLinDepAllowed)
         {
@@ -68,8 +72,12 @@ namespace LMFAO::LinearAlgebra
             featDim.num = numFeats;
             featDim.numExp = numFeatsExp;
             featDim.numCont = numFeatsCont;
+            if (!isDense)
+            {
+                m_pvCatVals = new std::vector<Triple>();
+            }
             LMFAO::LinearAlgebra::formMatrix(mMatrix, vIsCat, featDim, oFeatDim, mSigma,
-                                             &mCatVals, initNaiveVect);
+                                             m_pvCatVals, isDense);
             mNumFeats = oFeatDim.num;
             mNumFeatsExp = oFeatDim.numExp;
             mNumFeatsCont = oFeatDim.numCont;
@@ -78,9 +86,20 @@ namespace LMFAO::LinearAlgebra
         void normalizeRC(void);
     public:
         virtual void decompose(void) = 0;
-        virtual ~QRDecompBase() {}
+        virtual ~QRDecompBase()
+        {
+            if (m_pvCatVals != nullptr)
+            {
+                delete m_pvCatVals;
+            }
+
+        }
         void getR(Eigen::MatrixXd &rEigen) const;
         void getC(Eigen::MatrixXd &cEigen) const;
+        // It calculate Q' * Q, using covar matrix and C, but adds categorical columns
+        // to the end of the matrix.
+        //
+        double getQTQFrobeniusError(void);
         friend std::ostream& operator<<(std::ostream& os, const QRDecompBase& qrDecomp);
     };
 }

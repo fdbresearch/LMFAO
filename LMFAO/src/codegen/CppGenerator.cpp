@@ -365,6 +365,7 @@ void CppGenerator::genMakeFile()
     if (_hasApplicationHandler)
         ofs << "application.o : ApplicationHandler.cpp\n"
             << "\t$(CXX) $(FLAG) $(CXXFLAG) -c ApplicationHandler.cpp "
+            << " -I../../../LA-F/include "
             << "-o application.o\n\n";
     if (_hasDynamicFunctions)
         ofs << "dynamic.o : DynamicFunctions.cpp\n"

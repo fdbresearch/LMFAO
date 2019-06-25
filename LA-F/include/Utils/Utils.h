@@ -64,6 +64,9 @@ namespace LMFAO::LinearAlgebra
                     Eigen::MatrixXd& rmACont, std::vector <Triple>* pvCatVals,
                     bool isNaive);
 
+    void expandMatrixWithCatVals(const FeatDim& rFtDim, Eigen::MatrixXd& rmACont,
+                                const std::vector <Triple>& vCatVals);
+
     void formMatrix(const MapMatrixAggregate &matrixAggregate,
                     const std::vector<bool>& vIsCat,
                     const FeatDim& ftDim, FeatDim& rFtDim,

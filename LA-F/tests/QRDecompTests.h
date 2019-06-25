@@ -34,13 +34,14 @@ TEST(QRNaive, 2SizeCntMatrix)
     static const string FILE_INPUT_EXP_C = getTestPath(1) + C_COMP_FILE_NAME;
     QRDecompNaive qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
-    Eigen::MatrixXd R, expR, C, expC;
+    Eigen::MatrixXd R, expR, C, expC, covar;
     qrDecomp.getR(R);
     qrDecomp.getC(C);
     readMatrixDense(FILE_INPUT_EXP_R, expR);
     readMatrixDense(FILE_INPUT_EXP_C, expC);
     compareMatrices(R, expR);
     compareMatrices(C, expC);
+    EXPECT_NEAR(qrDecomp.getQTQFrobeniusError(), 0, QR_TEST_PRECISION_ERROR);
 }
 
 TEST(QRSingleThreaded, 2SizeCntMatrix)
@@ -57,6 +58,7 @@ TEST(QRSingleThreaded, 2SizeCntMatrix)
     readMatrixDense(FILE_INPUT_EXP_C, expC);
     compareMatrices(R, expR);
     compareMatrices(C, expC);
+    EXPECT_NEAR(qrDecomp.getQTQFrobeniusError(), 0, QR_TEST_PRECISION_ERROR);
 }
 
 TEST(QRMultiThreaded, 2SizeCntMatrix)
@@ -73,6 +75,7 @@ TEST(QRMultiThreaded, 2SizeCntMatrix)
     readMatrixDense(FILE_INPUT_EXP_C, expC);
     compareMatrices(R, expR);
     compareMatrices(C, expC);
+    EXPECT_NEAR(qrDecomp.getQTQFrobeniusError(), 0, QR_TEST_PRECISION_ERROR);
 }
 
 TEST(QRCholesky, 2SizeCntMatrix)
@@ -97,6 +100,7 @@ TEST(QRNaive, 3SizeCntMatrix)
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
     compareMatrices(R, expR);
+    EXPECT_NEAR(qrDecomp.getQTQFrobeniusError(), 0, QR_TEST_PRECISION_ERROR);
 }
 
 TEST(QRSingleThreaded, 3SizeCntMatrix)
@@ -109,6 +113,7 @@ TEST(QRSingleThreaded, 3SizeCntMatrix)
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
     compareMatrices(R, expR);
+    EXPECT_NEAR(qrDecomp.getQTQFrobeniusError(), 0, QR_TEST_PRECISION_ERROR);
 }
 
 TEST(QRMultiThreaded, 3SizeCntMatrix)
@@ -121,6 +126,7 @@ TEST(QRMultiThreaded, 3SizeCntMatrix)
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
     compareMatrices(R, expR);
+    EXPECT_NEAR(qrDecomp.getQTQFrobeniusError(), 0, QR_TEST_PRECISION_ERROR);
 }
 
 TEST(QRCholesky, 3SizeCntMatrix)
@@ -193,6 +199,7 @@ TEST(QRNaive, 3Size2Cnt1Cat3Matrix)
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
     compareMatrices(R, expR);
+    EXPECT_NEAR(qrDecomp.getQTQFrobeniusError(), 0, QR_TEST_PRECISION_ERROR);
 }
 
 TEST(QRSingleThreaded, 3Size2Cnt1Cat3Matrix)
@@ -205,6 +212,7 @@ TEST(QRSingleThreaded, 3Size2Cnt1Cat3Matrix)
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
     compareMatrices(R, expR);
+    EXPECT_NEAR(qrDecomp.getQTQFrobeniusError(), 0, QR_TEST_PRECISION_ERROR);
 }
 
 TEST(QRMultiThreaded, 3Size2Cnt1Cat3Matrix)
@@ -217,6 +225,7 @@ TEST(QRMultiThreaded, 3Size2Cnt1Cat3Matrix)
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
     compareMatrices(R, expR);
+    EXPECT_NEAR(qrDecomp.getQTQFrobeniusError(), 0, QR_TEST_PRECISION_ERROR);
 }
 
 TEST(QRCholesky, 3Size2Cnt1Cat3Matrix)
