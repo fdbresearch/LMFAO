@@ -12,8 +12,7 @@
 #include <iostream>
 
 // TODO:
-// 1) __FUNCTION__, __FILE__, __LINE__ flag for debugging
-// 2) Add module definition for benchmark
+// 1) Add module definition for benchmark
 
 template<typename Arg1, typename Arg2, typename ...Args>
 void lmfaoLogStd(Arg1&& severity, Arg2&& arg, Args&& ...args)

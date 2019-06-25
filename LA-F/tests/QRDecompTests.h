@@ -1,13 +1,14 @@
 #include "UtilsTests.h"
-#include "QRDecomp.h"
+#include "QR/QRDecomp.h"
 
 using namespace LMFAO::LinearAlgebra;
 using namespace std;
 
 constexpr double QR_TEST_PRECISION_ERROR = 1e-10;
 const std::string R_COMP_FILE_NAME = "testExpR.in";
+const std::string C_COMP_FILE_NAME = "testExpC.in";
 
-void compareR(Eigen::MatrixXd& R, Eigen::MatrixXd& expR, bool cmpRowNum=true, bool cmpColNum=true)
+void compareMatrices(Eigen::MatrixXd& R, Eigen::MatrixXd& expR, bool cmpRowNum=true, bool cmpColNum=true)
 {
     if (cmpRowNum)
     {
@@ -29,37 +30,49 @@ void compareR(Eigen::MatrixXd& R, Eigen::MatrixXd& expR, bool cmpRowNum=true, bo
 TEST(QRNaive, 2SizeCntMatrix)
 {
     static const string FILE_INPUT = getTestPath(1) + TEST_FILE_IN;
-    static const string FILE_INPUT_EXP = getTestPath(1) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_R = getTestPath(1) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_C = getTestPath(1) + C_COMP_FILE_NAME;
     QRDecompNaive qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
-    Eigen::MatrixXd R, expR;
+    Eigen::MatrixXd R, expR, C, expC;
     qrDecomp.getR(R);
-    readMatrixDense(FILE_INPUT_EXP, expR);
-    compareR(R, expR);
+    qrDecomp.getC(C);
+    readMatrixDense(FILE_INPUT_EXP_R, expR);
+    readMatrixDense(FILE_INPUT_EXP_C, expC);
+    compareMatrices(R, expR);
+    compareMatrices(C, expC);
 }
 
 TEST(QRSingleThreaded, 2SizeCntMatrix)
 {
     static const string FILE_INPUT = getTestPath(1) + TEST_FILE_IN;
-    static const string FILE_INPUT_EXP = getTestPath(1) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_R = getTestPath(1) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_C = getTestPath(1) + C_COMP_FILE_NAME;
     QRDecompSingleThread qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
-    Eigen::MatrixXd R, expR;
+    Eigen::MatrixXd R, expR, C, expC;
     qrDecomp.getR(R);
-    readMatrixDense(FILE_INPUT_EXP, expR);
-    compareR(R, expR);
+    qrDecomp.getC(C);
+    readMatrixDense(FILE_INPUT_EXP_R, expR);
+    readMatrixDense(FILE_INPUT_EXP_C, expC);
+    compareMatrices(R, expR);
+    compareMatrices(C, expC);
 }
 
 TEST(QRMultiThreaded, 2SizeCntMatrix)
 {
     static const string FILE_INPUT = getTestPath(1) + TEST_FILE_IN;
-    static const string FILE_INPUT_EXP = getTestPath(1) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_R = getTestPath(1) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_C = getTestPath(1) + C_COMP_FILE_NAME;
     QRDecompMultiThread qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
-    Eigen::MatrixXd R, expR;
+    Eigen::MatrixXd R, expR, C, expC;
     qrDecomp.getR(R);
-    readMatrixDense(FILE_INPUT_EXP, expR);
-    compareR(R, expR);
+    qrDecomp.getC(C);
+    readMatrixDense(FILE_INPUT_EXP_R, expR);
+    readMatrixDense(FILE_INPUT_EXP_C, expC);
+    compareMatrices(R, expR);
+    compareMatrices(C, expC);
 }
 
 TEST(QRCholesky, 2SizeCntMatrix)
@@ -71,7 +84,7 @@ TEST(QRCholesky, 2SizeCntMatrix)
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
-    compareR(R, expR);
+    compareMatrices(R, expR);
 }
 
 TEST(QRNaive, 3SizeCntMatrix)
@@ -83,7 +96,7 @@ TEST(QRNaive, 3SizeCntMatrix)
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
-    compareR(R, expR);
+    compareMatrices(R, expR);
 }
 
 TEST(QRSingleThreaded, 3SizeCntMatrix)
@@ -95,7 +108,7 @@ TEST(QRSingleThreaded, 3SizeCntMatrix)
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
-    compareR(R, expR);
+    compareMatrices(R, expR);
 }
 
 TEST(QRMultiThreaded, 3SizeCntMatrix)
@@ -107,7 +120,7 @@ TEST(QRMultiThreaded, 3SizeCntMatrix)
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
-    compareR(R, expR);
+    compareMatrices(R, expR);
 }
 
 TEST(QRCholesky, 3SizeCntMatrix)
@@ -119,7 +132,7 @@ TEST(QRCholesky, 3SizeCntMatrix)
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
-    compareR(R, expR);
+    compareMatrices(R, expR);
 }
 
 TEST(QRNaive, 3Size2Cnt1Cat2atrix)
@@ -131,7 +144,7 @@ TEST(QRNaive, 3Size2Cnt1Cat2atrix)
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
-    compareR(R, expR, false, true);
+    compareMatrices(R, expR, false, true);
 }
 
 TEST(QRSingleThreaded, 3Size2Cnt1Cat2Matrix)
@@ -143,7 +156,7 @@ TEST(QRSingleThreaded, 3Size2Cnt1Cat2Matrix)
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
-    compareR(R, expR, false, true);
+    compareMatrices(R, expR, false, true);
 }
 
 TEST(QRMultiThreaded, 3Size2Cnt1Cat2Matrix)
@@ -155,7 +168,7 @@ TEST(QRMultiThreaded, 3Size2Cnt1Cat2Matrix)
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
-    compareR(R, expR, false, true);
+    compareMatrices(R, expR, false, true);
 }
 
 TEST(QRCholesky, 3Size2Cnt1Cat2Matrix)
@@ -167,7 +180,7 @@ TEST(QRCholesky, 3Size2Cnt1Cat2Matrix)
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
-    compareR(R, expR, false, true);
+    compareMatrices(R, expR, false, true);
 }
 
 TEST(QRNaive, 3Size2Cnt1Cat3Matrix)
@@ -179,7 +192,7 @@ TEST(QRNaive, 3Size2Cnt1Cat3Matrix)
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
-    compareR(R, expR);
+    compareMatrices(R, expR);
 }
 
 TEST(QRSingleThreaded, 3Size2Cnt1Cat3Matrix)
@@ -191,7 +204,7 @@ TEST(QRSingleThreaded, 3Size2Cnt1Cat3Matrix)
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
-    compareR(R, expR);
+    compareMatrices(R, expR);
 }
 
 TEST(QRMultiThreaded, 3Size2Cnt1Cat3Matrix)
@@ -203,7 +216,7 @@ TEST(QRMultiThreaded, 3Size2Cnt1Cat3Matrix)
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
-    compareR(R, expR);
+    compareMatrices(R, expR);
 }
 
 TEST(QRCholesky, 3Size2Cnt1Cat3Matrix)
@@ -215,7 +228,7 @@ TEST(QRCholesky, 3Size2Cnt1Cat3Matrix)
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
-    compareR(R, expR);
+    compareMatrices(R, expR);
 }
 
 TEST(QRNaive, 3Size2Cnt2Cat33Matrix)
@@ -227,7 +240,7 @@ TEST(QRNaive, 3Size2Cnt2Cat33Matrix)
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
-    compareR(R, expR, false, true);
+    compareMatrices(R, expR, false, true);
 }
 
 TEST(QRSingleThreaded, 3Size2Cnt1Cat33Matrix)
@@ -239,7 +252,7 @@ TEST(QRSingleThreaded, 3Size2Cnt1Cat33Matrix)
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
-    compareR(R, expR, false, true);
+    compareMatrices(R, expR, false, true);
 }
 
 TEST(QRMultiThreaded, 3Size2Cnt1Cat33Matrix)
@@ -251,7 +264,7 @@ TEST(QRMultiThreaded, 3Size2Cnt1Cat33Matrix)
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
-    compareR(R, expR, false, true);
+    compareMatrices(R, expR, false, true);
 }
 
 TEST(QRCholesky, 3Size2Cnt1Cat33Matrix)
@@ -263,7 +276,7 @@ TEST(QRCholesky, 3Size2Cnt1Cat33Matrix)
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
     readMatrixDense(FILE_INPUT_EXP, expR);
-    compareR(R, expR, false, true);
+    compareMatrices(R, expR, false, true);
 }
 
 TEST(QRNaive, 3SizeCntZeroMatrix)

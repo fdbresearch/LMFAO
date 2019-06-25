@@ -1,9 +1,9 @@
 //#include <fstream>
 #include <iostream>
-#include "QRDecompCholesky.h"
-#include "Logger.h"
+#include "QR/QRDecompCholesky.h"
+#include "Utils/Logger.h"
 
-#include "omp.h"
+#include <omp.h>
 
 namespace LMFAO::LinearAlgebra
 {

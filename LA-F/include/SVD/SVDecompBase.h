@@ -1,7 +1,7 @@
 #ifndef _LMFAO_LA_SV_DECOMP_BASE_H_
 #define _LMFAO_LA_SV_DECOMP_BASE_H_
 
-#include "Utils.h"
+#include "Utils/Utils.h"
 
 namespace LMFAO::LinearAlgebra
 {
@@ -32,6 +32,7 @@ namespace LMFAO::LinearAlgebra
             mpmapMatAgg = &mapMatAgg;
             mvIsCat = vIsCat;
          }
+        void normalizeRC();
     public:
         virtual ~SVDecompBase() {}
         virtual void decompose(void) = 0;

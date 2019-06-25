@@ -14,9 +14,6 @@ set(CMAKE_CXX_FLAGS_BENCHMARK "${CMAKE_CXX_FLAGS_RELEASE} -DBENCH")
 
 # Set to Debug, Benchmark or Release.
 set(CMAKE_BUILD_TYPE Benchmark)
-#set(LMFAO_TEST false)
-#set(LMFAO_RUN true)
-#set(LMFAO_LIB true)
 
 include_directories(include/compiler include/treeDecomposition include/application include/launcher include/templates include/codegen include/utils /usr/local/include)
 
@@ -25,7 +22,6 @@ add_subdirectory(src/compiler)
 add_subdirectory(src/codegen)
 add_subdirectory(src/application)
 add_subdirectory(src/launcher)
-#add_subdirectory(LA-F)
 
 add_executable (multifaq multiFAQ.cpp)
 target_link_libraries (multifaq launcher application codegen compiler treeDecomposition)

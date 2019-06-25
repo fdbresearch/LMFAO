@@ -5,7 +5,7 @@
 #include <limits>
 #include <algorithm>
 
-#include "SVDecompEigDec.h"
+#include "SVD/SVDecompEigDec.h"
 
 namespace LMFAO::LinearAlgebra
 {

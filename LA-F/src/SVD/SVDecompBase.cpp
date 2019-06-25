@@ -3,7 +3,7 @@
 #include <iomanip>
 #include <limits>
 
-#include "SVDecompBase.h"
+#include "SVD/SVDecompBase.h"
 
 namespace LMFAO::LinearAlgebra
 {

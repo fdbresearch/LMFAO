@@ -12,15 +12,16 @@ set(CMKAKE_CXX_STANDARD REQUIRED )
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++17 -pthread -g -Wall -Wextra -Og")
-  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -std=c++17 -pthread -Ofast -mtune=native -fassociative-math -freciprocal-math -fno-signed-zeros -frename-registers -fopenmp")
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -std=c++17  -Ofast -mtune=native -fassociative-math -freciprocal-math -fno-signed-zeros -frename-registers -fopenmp")
 else()
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++17 -pthread -g -Wall -Wextra -O0")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -std=c++17  -Ofast")
 endif()
-set(CMAKE_CXX_FLAGS_BENCHMARK "${CMAKE_CXX_FLAGS_RELEASE} -DBENCH")
+#set(CMAKE_CXX_FLAGS_BENCHMARK "${CMAKE_CXX_FLAGS_RELEASE} -DBENCH")
 
-# Set to Debug, Benchmark or Release.
-set(CMAKE_BUILD_TYPE Benchmark)
+
+# Set to Debug or Release.
+set(CMAKE_BUILD_TYPE Release)
 #set(LMFAO_RUN true)
 #set(LMFAO_LIB true)
 set(LMFAO_TEST true)
@@ -41,8 +42,7 @@ include_directories(${LMFAO_LA_INCLUDE})
 if (${LMFAO_GPU})
   include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 endif()
-file(GLOB SRCFILES src/*.cpp)
-
+file(GLOB_RECURSE SRCFILES src/*.cpp)
 #Build library for svd from cuda files only
 set(SRCCUFILES "")
 set(LMFAO_CUDA_LIBS "")

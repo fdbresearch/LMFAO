@@ -1,7 +1,6 @@
 #ifndef _LMFAO_LA_SV_DECOMP_EIG_DEC_H_
 #define _LMFAO_LA_SV_DECOMP_EIG_DEC_H_
 
-#include "Utils.h"
 #include "SVDecompBaseExp.h"
 
 namespace LMFAO::LinearAlgebra

@@ -1,7 +1,7 @@
 #include <iostream>
 #include <fstream>
 
-#include "SVDecompBaseExp.h"
+#include "SVD/SVDecompBaseExp.h"
 
 namespace LMFAO::LinearAlgebra
 {

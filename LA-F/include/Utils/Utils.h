@@ -44,17 +44,17 @@ namespace LMFAO::LinearAlgebra
 
     struct FeatDim
     {
-        // Number of features (categorical + continuous) in matrix.
+        // Number of features (categorical + continuous) in the matrix.
         //
         uint32_t num = 0;
-        // Number of real valued values in the expanded matrix
+        // Number of real values in the expanded matrix
         // without linearly dependent columns.
         //
         uint32_t numExp = 0;
-        // Number of continuous features in matrix.
+        // Number of continuous features in the matrix.
         //
         uint32_t numCont = 0;
-        // Number of categorical features in matrix.
+        // Number of categorical features in the matrix.
         //
         uint32_t numCat = 0;
     };

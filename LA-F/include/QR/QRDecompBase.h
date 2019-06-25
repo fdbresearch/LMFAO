@@ -1,7 +1,7 @@
 #ifndef _LMFAO_LA_QR_DECOMP_BASE_H_
 #define _LMFAO_LA_QR_DECOMP_BASE_H_
 
-#include "Utils.h"
+#include "Utils/Utils.h"
 
 #include <iostream>
 #include <vector>
@@ -75,10 +75,12 @@ namespace LMFAO::LinearAlgebra
             mNumFeatsCont = oFeatDim.numCont;
             mNumFeatsCat = oFeatDim.numCat;
         }
+        void normalizeRC(void);
     public:
         virtual void decompose(void) = 0;
         virtual ~QRDecompBase() {}
         void getR(Eigen::MatrixXd &rEigen) const;
+        void getC(Eigen::MatrixXd &cEigen) const;
         friend std::ostream& operator<<(std::ostream& os, const QRDecompBase& qrDecomp);
     };
 }

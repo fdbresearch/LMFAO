@@ -1,6 +1,6 @@
 //#include <fstream>
 #include <iostream>
-#include "QRDecompNaive.h"
+#include "QR/QRDecompNaive.h"
 
 namespace LMFAO::LinearAlgebra
 {
@@ -63,29 +63,6 @@ namespace LMFAO::LinearAlgebra
         mR = Eigen::VectorXd::Zero(N * N);
         calculateCR();
 
-        // Normalise R
-        for (uint32_t row = 0; row < N; row++)
-        {
-            //std::cout << "Norm: " << row << " " <<  mR[expIdx(row, row, N)] <<  std::endl;
-            double norm = 1;;
-            if (!mIsLinDepAllowed || (fabs(mR[expIdx(row, row, N)]) >= mcPrecisionError))
-            {
-                norm = sqrt(mR[expIdx(row, row, N)]);;
-            }
-            /*
-            for (uint32_t col = 0; col < row; col++)
-            {
-                std::cout << "0.0 ";
-            }
-            */
-
-            for (uint32_t col = row; col < N; col++)
-            {
-                //std::cout << row << " " << col << " " << mR[col * N + row] << std::endl;
-                mR[col * N + row] /= norm;
-                //std::cout << mR[col * N + row] << " ";
-            }
-            //std::cout << std::endl;
-        }
+        normalizeRC();
     }
 }

@@ -6,10 +6,10 @@
 #include <algorithm>
 #include <cstdint>
 
-#include "Logger.h"
-#include "Utils.h"
+#include "Utils/Logger.h"
+#include "Utils/Utils.h"
 
-#include "SVDecompAltMin.h"
+#include "SVD/SVDecompAltMin.h"
 
 namespace LMFAO::LinearAlgebra
 {

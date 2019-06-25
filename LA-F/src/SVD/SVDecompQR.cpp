@@ -5,8 +5,8 @@
 #include <limits>
 #include <omp.h>
 
-#include "QRDecomp.h"
-#include "SVDecompQR.h"
+#include "QR/QRDecomp.h"
+#include "SVD/SVDecompQR.h"
 //#include "RedSVD.h"
 
 namespace LMFAO::LinearAlgebra

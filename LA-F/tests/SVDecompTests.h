@@ -1,5 +1,5 @@
 #include "UtilsTests.h"
-#include "SVDecomp.h"
+#include "SVD/SVDecomp.h"
 
 using namespace LMFAO::LinearAlgebra;
 using namespace std;
