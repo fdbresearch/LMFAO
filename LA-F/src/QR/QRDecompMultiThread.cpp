@@ -164,12 +164,9 @@ namespace LMFAO::LinearAlgebra
                 }
             }
 
-            if (k > 0)
-            {
-                mMutex.lock();
-                mR[idxRCol + k] += D_k;
-                mMutex.unlock();
-            }
+            mMutex.lock();
+            mR[idxRCol + k] += D_k;
+            mMutex.unlock();
         }
         //std::cout << "Time spent: " << time_spent << std::endl;
     }

@@ -38,13 +38,13 @@ namespace LMFAO::LinearAlgebra
             }
 
             omp_set_num_threads(8);
-            for (uint32_t k = 1; k < N; k++)
+            #pragma omp parallel for
+            for (uint32_t j = 0; j < N - 1; j++)
             {
-                uint32_t idxRCol = N * k;
-                #pragma omp parallel for
-                for (uint32_t j = 0; j <= k - 1; j++)
+                uint32_t rowIdx = N * j;
+                for (uint32_t k = j + 1; k <= N - 1; k++)
                 {
-                    uint32_t rowIdx = N * j;
+                    uint32_t idxRCol = N * k;
 
                     for (uint32_t i = j; i <= k - 1; i++)
                     {

@@ -139,10 +139,7 @@ namespace LMFAO::LinearAlgebra
                 }
             }
 
-            if (k > 0)
-            {
-                mR[idxRCol + k] += D_k;
-            }
+            mR[idxRCol + k] += D_k;
         }
     }
 
