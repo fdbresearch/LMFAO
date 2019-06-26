@@ -81,24 +81,29 @@ TEST(QRMultiThreaded, 2SizeCntMatrix)
 TEST(QRCholesky, 2SizeCntMatrix)
 {
     static const string FILE_INPUT = getTestPath(1) + TEST_FILE_IN;
-    static const string FILE_INPUT_EXP = getTestPath(1) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_R = getTestPath(1) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_C = getTestPath(1) + C_COMP_FILE_NAME;
     QRDecompCholesky qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
-    Eigen::MatrixXd R, expR;
+    Eigen::MatrixXd R, expR, C, expC;
     qrDecomp.getR(R);
-    readMatrixDense(FILE_INPUT_EXP, expR);
+    qrDecomp.getC(C);
+    readMatrixDense(FILE_INPUT_EXP_R, expR);
+    readMatrixDense(FILE_INPUT_EXP_C, expC);
     compareMatrices(R, expR);
+    compareMatrices(C, expC);
+    EXPECT_NEAR(qrDecomp.getQTQFrobeniusError(), 0, QR_TEST_PRECISION_ERROR);
 }
 
 TEST(QRNaive, 3SizeCntMatrix)
 {
     static const string FILE_INPUT = getTestPath(2) + TEST_FILE_IN;
-    static const string FILE_INPUT_EXP = getTestPath(2) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_R = getTestPath(2) + R_COMP_FILE_NAME;
     QRDecompNaive qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
-    readMatrixDense(FILE_INPUT_EXP, expR);
+    readMatrixDense(FILE_INPUT_EXP_R, expR);
     compareMatrices(R, expR);
     EXPECT_NEAR(qrDecomp.getQTQFrobeniusError(), 0, QR_TEST_PRECISION_ERROR);
 }
@@ -106,12 +111,12 @@ TEST(QRNaive, 3SizeCntMatrix)
 TEST(QRSingleThreaded, 3SizeCntMatrix)
 {
     static const string FILE_INPUT = getTestPath(2) + TEST_FILE_IN;
-    static const string FILE_INPUT_EXP = getTestPath(2) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_R = getTestPath(2) + R_COMP_FILE_NAME;
     QRDecompSingleThread qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
-    readMatrixDense(FILE_INPUT_EXP, expR);
+    readMatrixDense(FILE_INPUT_EXP_R, expR);
     compareMatrices(R, expR);
     EXPECT_NEAR(qrDecomp.getQTQFrobeniusError(), 0, QR_TEST_PRECISION_ERROR);
 }
@@ -119,12 +124,12 @@ TEST(QRSingleThreaded, 3SizeCntMatrix)
 TEST(QRMultiThreaded, 3SizeCntMatrix)
 {
     static const string FILE_INPUT = getTestPath(2) + TEST_FILE_IN;
-    static const string FILE_INPUT_EXP = getTestPath(2) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_R = getTestPath(2) + R_COMP_FILE_NAME;
     QRDecompMultiThread qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
-    readMatrixDense(FILE_INPUT_EXP, expR);
+    readMatrixDense(FILE_INPUT_EXP_R, expR);
     compareMatrices(R, expR);
     EXPECT_NEAR(qrDecomp.getQTQFrobeniusError(), 0, QR_TEST_PRECISION_ERROR);
 }
@@ -132,72 +137,73 @@ TEST(QRMultiThreaded, 3SizeCntMatrix)
 TEST(QRCholesky, 3SizeCntMatrix)
 {
     static const string FILE_INPUT = getTestPath(2) + TEST_FILE_IN;
-    static const string FILE_INPUT_EXP = getTestPath(2) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_R = getTestPath(2) + R_COMP_FILE_NAME;
     QRDecompCholesky qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
-    readMatrixDense(FILE_INPUT_EXP, expR);
+    readMatrixDense(FILE_INPUT_EXP_R, expR);
     compareMatrices(R, expR);
+    EXPECT_NEAR(qrDecomp.getQTQFrobeniusError(), 0, QR_TEST_PRECISION_ERROR);
 }
 
 TEST(QRNaive, 3Size2Cnt1Cat2atrix)
 {
     static const string FILE_INPUT = getTestPath(3) + TEST_FILE_IN;
-    static const string FILE_INPUT_EXP = getTestPath(3) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_R = getTestPath(3) + R_COMP_FILE_NAME;
     QRDecompNaive qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
-    readMatrixDense(FILE_INPUT_EXP, expR);
+    readMatrixDense(FILE_INPUT_EXP_R, expR);
     compareMatrices(R, expR, false, true);
 }
 
 TEST(QRSingleThreaded, 3Size2Cnt1Cat2Matrix)
 {
     static const string FILE_INPUT = getTestPath(3) + TEST_FILE_IN;
-    static const string FILE_INPUT_EXP = getTestPath(3) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_R = getTestPath(3) + R_COMP_FILE_NAME;
     QRDecompSingleThread qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
-    readMatrixDense(FILE_INPUT_EXP, expR);
+    readMatrixDense(FILE_INPUT_EXP_R, expR);
     compareMatrices(R, expR, false, true);
 }
 
 TEST(QRMultiThreaded, 3Size2Cnt1Cat2Matrix)
 {
     static const string FILE_INPUT = getTestPath(3) + TEST_FILE_IN;
-    static const string FILE_INPUT_EXP = getTestPath(3) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_R = getTestPath(3) + R_COMP_FILE_NAME;
     QRDecompMultiThread qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
-    readMatrixDense(FILE_INPUT_EXP, expR);
+    readMatrixDense(FILE_INPUT_EXP_R, expR);
     compareMatrices(R, expR, false, true);
 }
 
 TEST(QRCholesky, 3Size2Cnt1Cat2Matrix)
 {
     static const string FILE_INPUT = getTestPath(3) + TEST_FILE_IN;
-    static const string FILE_INPUT_EXP = getTestPath(3) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_R = getTestPath(3) + R_COMP_FILE_NAME;
     QRDecompCholesky qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
-    readMatrixDense(FILE_INPUT_EXP, expR);
+    readMatrixDense(FILE_INPUT_EXP_R, expR);
     compareMatrices(R, expR, false, true);
 }
 
 TEST(QRNaive, 3Size2Cnt1Cat3Matrix)
 {
     static const string FILE_INPUT = getTestPath(4) + TEST_FILE_IN;
-    static const string FILE_INPUT_EXP = getTestPath(4) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_R = getTestPath(4) + R_COMP_FILE_NAME;
     QRDecompNaive qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
-    readMatrixDense(FILE_INPUT_EXP, expR);
+    readMatrixDense(FILE_INPUT_EXP_R, expR);
     compareMatrices(R, expR);
     EXPECT_NEAR(qrDecomp.getQTQFrobeniusError(), 0, QR_TEST_PRECISION_ERROR);
 }
@@ -205,12 +211,12 @@ TEST(QRNaive, 3Size2Cnt1Cat3Matrix)
 TEST(QRSingleThreaded, 3Size2Cnt1Cat3Matrix)
 {
     static const string FILE_INPUT = getTestPath(4) + TEST_FILE_IN;
-    static const string FILE_INPUT_EXP = getTestPath(4) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_R = getTestPath(4) + R_COMP_FILE_NAME;
     QRDecompSingleThread qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
-    readMatrixDense(FILE_INPUT_EXP, expR);
+    readMatrixDense(FILE_INPUT_EXP_R, expR);
     compareMatrices(R, expR);
     EXPECT_NEAR(qrDecomp.getQTQFrobeniusError(), 0, QR_TEST_PRECISION_ERROR);
 }
@@ -218,12 +224,12 @@ TEST(QRSingleThreaded, 3Size2Cnt1Cat3Matrix)
 TEST(QRMultiThreaded, 3Size2Cnt1Cat3Matrix)
 {
     static const string FILE_INPUT = getTestPath(4) + TEST_FILE_IN;
-    static const string FILE_INPUT_EXP = getTestPath(4) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_R = getTestPath(4) + R_COMP_FILE_NAME;
     QRDecompMultiThread qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
-    readMatrixDense(FILE_INPUT_EXP, expR);
+    readMatrixDense(FILE_INPUT_EXP_R, expR);
     compareMatrices(R, expR);
     EXPECT_NEAR(qrDecomp.getQTQFrobeniusError(), 0, QR_TEST_PRECISION_ERROR);
 }
@@ -231,60 +237,61 @@ TEST(QRMultiThreaded, 3Size2Cnt1Cat3Matrix)
 TEST(QRCholesky, 3Size2Cnt1Cat3Matrix)
 {
     static const string FILE_INPUT = getTestPath(4) + TEST_FILE_IN;
-    static const string FILE_INPUT_EXP = getTestPath(4) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_R = getTestPath(4) + R_COMP_FILE_NAME;
     QRDecompCholesky qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
-    readMatrixDense(FILE_INPUT_EXP, expR);
+    readMatrixDense(FILE_INPUT_EXP_R, expR);
     compareMatrices(R, expR);
+    EXPECT_NEAR(qrDecomp.getQTQFrobeniusError(), 0, QR_TEST_PRECISION_ERROR);
 }
 
 TEST(QRNaive, 3Size2Cnt2Cat33Matrix)
 {
     static const string FILE_INPUT = getTestPath(5) + TEST_FILE_IN;
-    static const string FILE_INPUT_EXP = getTestPath(5) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_R = getTestPath(5) + R_COMP_FILE_NAME;
     QRDecompNaive qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
-    readMatrixDense(FILE_INPUT_EXP, expR);
+    readMatrixDense(FILE_INPUT_EXP_R, expR);
     compareMatrices(R, expR, false, true);
 }
 
 TEST(QRSingleThreaded, 3Size2Cnt1Cat33Matrix)
 {
     static const string FILE_INPUT = getTestPath(5) + TEST_FILE_IN;
-    static const string FILE_INPUT_EXP = getTestPath(5) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_R = getTestPath(5) + R_COMP_FILE_NAME;
     QRDecompSingleThread qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
-    readMatrixDense(FILE_INPUT_EXP, expR);
+    readMatrixDense(FILE_INPUT_EXP_R, expR);
     compareMatrices(R, expR, false, true);
 }
 
 TEST(QRMultiThreaded, 3Size2Cnt1Cat33Matrix)
 {
     static const string FILE_INPUT = getTestPath(5) + TEST_FILE_IN;
-    static const string FILE_INPUT_EXP = getTestPath(5) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_R = getTestPath(5) + R_COMP_FILE_NAME;
     QRDecompMultiThread qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
-    readMatrixDense(FILE_INPUT_EXP, expR);
+    readMatrixDense(FILE_INPUT_EXP_R, expR);
     compareMatrices(R, expR, false, true);
 }
 
 TEST(QRCholesky, 3Size2Cnt1Cat33Matrix)
 {
     static const string FILE_INPUT = getTestPath(5) + TEST_FILE_IN;
-    static const string FILE_INPUT_EXP = getTestPath(5) + R_COMP_FILE_NAME;
+    static const string FILE_INPUT_EXP_R = getTestPath(5) + R_COMP_FILE_NAME;
     QRDecompCholesky qrDecomp(FILE_INPUT);
     qrDecomp.decompose();
     Eigen::MatrixXd R, expR;
     qrDecomp.getR(R);
-    readMatrixDense(FILE_INPUT_EXP, expR);
+    readMatrixDense(FILE_INPUT_EXP_R, expR);
     compareMatrices(R, expR, false, true);
 }
 

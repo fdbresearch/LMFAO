@@ -11,7 +11,7 @@ namespace LMFAO::LinearAlgebra
         expandSigma(sigmaExpanded, true /*isNaive*/);
         mR[0] = sigmaExpanded[0];
 
-        // We skip k=0 since the ineer loops don't iterate over it.
+        // We skip k=0 since the inner loops don't iterate over it.
         for (uint32_t k = 1; k < N; k++)
         {
             uint32_t idxRCol = N * k;

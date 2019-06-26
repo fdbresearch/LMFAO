@@ -38,6 +38,8 @@ namespace LMFAO::LinearAlgebra
 
     void QRDecompBase::normalizeRC(void)
     {
+        // The order in which we normalize C and R is important.
+        //
         uint32_t N = mNumFeatsExp;
         for (uint32_t col = 0; col < N; col++)
         {
@@ -68,6 +70,8 @@ namespace LMFAO::LinearAlgebra
             for (uint32_t col = row; col < N; col++)
             {
                 mR[col * N + row] /= norm;
+                LMFAO_LOG_DBG("NORM", row, col,norm);
+                LMFAO_LOG_DBG("r:", row, col, N, mR[col * N + row]);
             }
         }
 

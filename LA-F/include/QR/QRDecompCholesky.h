@@ -7,14 +7,16 @@ namespace LMFAO::LinearAlgebra
 {
     class QRDecompCholesky: public QRDecompBase
     {
+        bool m_onlyR;
     public:
-        QRDecompCholesky(const std::string &path, const bool isLinDepAllowed=false) :
-            QRDecompBase(path, true, isLinDepAllowed) {}
+        QRDecompCholesky(const std::string &path, const bool isLinDepAllowed=false, const bool onlyR=false) :
+            QRDecompBase(path, true, isLinDepAllowed), m_onlyR(onlyR) {}
         QRDecompCholesky(const MapMatrixAggregate &mMatrix, uint32_t numFeatsExp,
                             uint32_t numFeats, uint32_t numFeatsCont,
-                            const std::vector<bool>& vIsCat, const bool isLinDepAllowed=false) :
+                            const std::vector<bool>& vIsCat, const bool isLinDepAllowed=false,
+                            const bool onlyR=false) :
             QRDecompBase(mMatrix, numFeatsExp, numFeats, numFeatsCont,
-                         vIsCat, true, isLinDepAllowed) {}
+                         vIsCat, true, isLinDepAllowed), m_onlyR(onlyR) {}
         ~QRDecompCholesky() {}
         virtual void decompose(void) override;
     };

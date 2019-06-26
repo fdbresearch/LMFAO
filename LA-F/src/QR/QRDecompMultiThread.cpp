@@ -52,7 +52,6 @@ namespace LMFAO::LinearAlgebra
 
     void QRDecompMultiThread::calculateCR(uint32_t threadId)
     {
-        // R(0,0) = Cofactor[1,1] (Note that the first row and column contain the label's aggregates)
         uint32_t T = mNumFeatsCont;
         uint32_t N = mNumFeatsExp;
         uint32_t step = mNumThreads;
@@ -61,6 +60,7 @@ namespace LMFAO::LinearAlgebra
 
         expandSigma(sigmaExpanded, false /*isNaive*/);
 
+        // R(0,0) = Cofactor[1,1]
         mR[0] = sigmaExpanded[0];
         //std::cout << "TID " << threadId << std::endl;
         //auto begin_timer = std::chrono::high_resolution_clock::now();
@@ -68,7 +68,7 @@ namespace LMFAO::LinearAlgebra
         //std::chrono::duration<double> elapsed_time = end_timer - begin_timer;
         //double time_spent = elapsed_time.count();
 
-        // We skip k=0 since the ineer loops don't iterate over it.
+        // We skip k=0 since the inner loops don't iterate over it.
         for (uint32_t k = 1; k < N; k++)
         {
             uint32_t idxRCol = N * k;
