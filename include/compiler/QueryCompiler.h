@@ -19,6 +19,11 @@
 
 class AggregateRegister;
 class ViewGroupCompiler;
+class DataStructureLayer;
+
+typedef std::tuple<int,int,std::vector<Product>,var_bitset> cache_tuple;
+typedef std::tuple<int,int,var_bitset> view_tuple;
+
 
 class QueryCompiler : public std::enable_shared_from_this<QueryCompiler>
 {
@@ -34,11 +39,13 @@ public:
 
     void addQuery(Query* q);
 
-    size_t numberOfViews();
+    size_t numberOfViews() const;
 
-    size_t numberOfQueries();
+    size_t numberOfQueries() const;
 
-    size_t numberOfFunctions();
+    size_t numberOfFunctions() const;
+
+    size_t numberOfViewGroups() const;
     
     View* getView(size_t v_id);
 
@@ -46,22 +53,25 @@ public:
 
     Function* getFunction(size_t f_id);
 
-    size_t getNumberOfViewGroups();
-
     ViewGroup& getViewGroup(size_t group_id);
 
     AttributeOrder& getAttributeOrder(size_t group_id);
 
+    bool requireHashing(size_t view_id) const;
     
 private:
+    
     /* Pointer to the database which stores the schema and catalog*/
     std::shared_ptr<Database> _db;
 
     /* Pointer to the tree decomposition*/
     std::shared_ptr<TreeDecomposition> _td;
 
-    std::shared_ptr<AggregateRegister> _ar;
-    std::shared_ptr<ViewGroupCompiler> _vg;
+    std::shared_ptr<AggregateRegister> _aggregateRegistrationLayer;
+    
+    std::shared_ptr<ViewGroupCompiler> _viewGroupLayer;
+
+    std::shared_ptr<DataStructureLayer> _dataStructureLayer;
     
     /* List of Querys that we want to compute. */
     std::vector<Query*> _queryList;
@@ -74,7 +84,7 @@ private:
     
     /* Method that turns Querys into messages. */
     std::pair<size_t,size_t> compileViews(TDNode* node, size_t targetID,
-        std::vector<prod_bitset> aggregate,var_bitset freeVars);
+        std::vector<Product> aggregate,var_bitset freeVars);
     
     std::unordered_map<cache_tuple, std::pair<int,int>> _cache;
     

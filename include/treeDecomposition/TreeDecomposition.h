@@ -16,36 +16,26 @@
 #include <vector>
 
 #include <Database.h>
+#include <GlobalParams.hpp>
 
-struct TDNode
+struct TDNode 
 {  
     TDNode(Relation* rel) : _relation(rel), _id(rel->_id)
-    {
-    }
+    {     }
     
     ~TDNode()
-    {
-        delete[] _neighborSchema;
-    }    
+    {    }
+    
     //! Pointer to relation that this node represents
     Relation* _relation = nullptr;
 
-    size_t _id; //TODO: this should be removed!!
-
-    //! Parent of the current node
-    TDNode* _parent = nullptr;
-
-    //! Number of children of current node.
-    size_t _numOfNeighbors;
-
+    size_t _id; // TODO: this should be removed!!
+    
     //! Array of neighbors.
     std::vector<size_t> _neighbors;
     
-    // Bag of this TD node.
-    // std::bitset<multifaq::params::NUM_OF_VARIABLES> _bag;
-    
     //! Bitset that indicates schema of subtree root at neighbors 
-    std::bitset<multifaq::params::NUM_OF_VARIABLES>* _neighborSchema = nullptr;    
+    std::vector<var_bitset> _neighborSchema;
 };
 
 
@@ -79,7 +69,7 @@ public:
     /**
      * Builds the DTree from a configuration file.
      */
-    void buildFromFile();
+    void buildTreeDecompositionFromFile();
 
     /**
      * Get pointer to treedecomposition node from relation id.
@@ -90,7 +80,7 @@ public:
     /**
      * Get pointer to treedecomposition node from relation id.
      */
-    std::vector<size_t>& getJoinKeyOrder(size_t relID);
+    std::vector<size_t>& getJoinKeyOrder();
 
     // Attribute* getAttribute(size_t attID);
     // size_t getAttributeIndex(const std::string& name);
@@ -115,6 +105,8 @@ private:
 
     //! Number of edges in the tree decomposition. 
     size_t _numOfEdges;
+    
+    std::vector<size_t> _joinKeyOrder;
 
     // //! List of attributes in the Database
     // std::vector<Attribute*> _attributes;

@@ -37,7 +37,7 @@ public:
     // virtual void generateCode() = 0;
     virtual void generateCode(bool, bool) = 0;
 
-    virtual size_t numberOfGroups() = 0;
+    // virtual size_t numberOfGroups() = 0;
     
 };
 

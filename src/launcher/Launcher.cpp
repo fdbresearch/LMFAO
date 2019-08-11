@@ -7,18 +7,18 @@
 //
 //--------------------------------------------------------------------
 
-#include <Count.h>
-#include <CovarianceMatrix.h>
+// #include <Count.h>
+// #include <CovarianceMatrix.h>
 #include <CppGenerator.h>
 #include <Database.h>
-#include <DataCube.h>
-#include <KMeans.h>
+// #include <DataCube.h>
+// #include <KMeans.h>
 #include <Launcher.h>
 #include <LinearRegression.h>
-#include <MutualInformation.h>
-#include <RegressionTree.h>
-#include <Percentile.h>
-#include <SqlGenerator.h>
+// #include <MutualInformation.h>
+// #include <RegressionTree.h>
+// #include <Percentile.h>
+// #include <SqlGenerator.h>
 
 #include <bitset>
 #include <fstream>
@@ -73,18 +73,7 @@ shared_ptr<CodeGenerator> Launcher::getCodeGenerator()
 {
     return _codeGenerator;
 }
-// Model Launcher::getModel()
-// {
-//     return _model;
-// }
 
-// int Launcher::launch(const string& model, const string& codeGenerator,
-//                      const string& featureFile,
-//                      const string& tdFile, const string& outDirectory,
-//                      const bool multioutput_flag, const bool resort_flag,
-//                      const bool microbench_flag, const bool compression_flag,
-//                      const int k
-//     )
 int Launcher::launch(boost::program_options::variables_map& vm)
 {
     /* Define the Feature Conf File */
@@ -97,7 +86,7 @@ int Launcher::launch(boost::program_options::variables_map& vm)
     SCHEMA_CONF = multifaq::dir::PATH_TO_FILES+"/"+vm["schema"].as<std::string>();
 
     /* Define the Catalog Conf File */
-    CATALOG_CONF = multifaq::dir::PATH_TO_FILES+"/"+"catalog.conf";
+    CATALOG_CONF = multifaq::dir::PATH_TO_FILES+"/catalog.conf";
 
     const string model = vm["model"].as<std::string>();
     
@@ -106,7 +95,7 @@ int Launcher::launch(boost::program_options::variables_map& vm)
     multifaq::cppgen::PARALLELIZATION_TYPE parallelization_type =
         multifaq::cppgen::NO_PARALLELIZATION;
 
-    std::string parallel = vm["parallel"].as<std::string>();
+    const std::string parallel = vm["parallel"].as<std::string>();
    
     if (parallel.compare("task") == 0)
         parallelization_type =  multifaq::cppgen::TASK_PARALLELIZATION;
@@ -135,20 +124,26 @@ int Launcher::launch(boost::program_options::variables_map& vm)
     if (vm["degree"].as<int>() > 1)
         ERROR("A degree > 1 is currenlty not supported.\n");
 
-    /* Build database. */
+    DINFO("Construct all necessary objects.\n");
+    
     _database.reset(new Database());
     
-    // TODO: TODO: construct model first!! --> we can call model to query later!  
-    
-    /* Build tree decompostion. */
     _treeDecomposition.reset(new TreeDecomposition(_database));
-
-    DINFO("Built the TreeDecomposition.\n");
     
-    int64_t start = duration_cast<milliseconds>(
-        system_clock::now().time_since_epoch()).count();
-
     _compiler.reset(new QueryCompiler(_database, _treeDecomposition));
+
+    if (codeGenerator.compare("cpp") == 0)
+        _codeGenerator.reset(
+            new CppGenerator(shared_from_this())
+            );
+    // else if (codeGenerator.compare("sql") == 0)
+    //     _codeGenerator.reset(
+    //         new SqlGenerator(shared_from_this()));
+    else
+    {
+        ERROR("The code generator "+codeGenerator+" is not supported. \n");
+        exit(1);
+    }
     
     bool hasApplicationHandler = false;
     bool hasDynamicFunctions = false;
@@ -159,76 +154,74 @@ int Launcher::launch(boost::program_options::variables_map& vm)
             new LinearRegression(shared_from_this()));
         hasApplicationHandler = true;
     }
-    else if (model.compare("rtree") == 0)
-    {
-        _application.reset(
-            new RegressionTree(shared_from_this(), false));
-        hasApplicationHandler = true;
-        hasDynamicFunctions = true;
-    }
-    else if (model.compare("ctree") == 0)
-    {
-        _application.reset(
-            new RegressionTree(shared_from_this(), true));
-        hasApplicationHandler = true;
-        hasDynamicFunctions = true;
-    }
-    else if (model.compare("covar") == 0)
-    {
-        _application.reset(
-            new CovarianceMatrix(shared_from_this()));
-        hasApplicationHandler = true;
-    }
-    else if (model.compare("count") == 0)
-    {
-        _application.reset(
-            new Count(shared_from_this()));
-        hasApplicationHandler = true;
-    }
-    else if (model.compare("cube") == 0)
-    {
-        _application.reset(
-            new DataCube(shared_from_this()));
-    }
-    else if (model.compare("mi") == 0)
-    {
-        _application.reset(
-            new MutualInformation(shared_from_this()));
-    }
-    else if (model.compare("perc") == 0)
-    {
-        _application.reset(
-            new Percentile(shared_from_this()));
-        hasApplicationHandler = true;
-    }
-    else if (model.compare("kmeans") == 0)
-    {
-        _application.reset(
-            new KMeans(shared_from_this(), vm["clusters"].as<int>()));
-        hasApplicationHandler = true;
-    }
-    else
-    {
-        ERROR("The model "+model+" is not supported. \n");
-        exit(1);
-    }
+    // else if (model.compare("rtree") == 0)
+    // {
+    //     _application.reset(
+    //         new RegressionTree(shared_from_this(), false));
+    //     hasApplicationHandler = true;
+    //     hasDynamicFunctions = true;
+    // }
+    // else if (model.compare("ctree") == 0)
+    // {
+    //     _application.reset(
+    //         new RegressionTree(shared_from_this(), true));
+    //     hasApplicationHandler = true;
+    //     hasDynamicFunctions = true;
+    // }
+    // else if (model.compare("covar") == 0)
+    // {
+    //     _application.reset(
+    //         new CovarianceMatrix(shared_from_this()));
+    //     hasApplicationHandler = true;
+    // }
+    // else if (model.compare("count") == 0)
+    // {
+    //     _application.reset(
+    //         new Count(shared_from_this()));
+    //     hasApplicationHandler = true;
+    // }
+    // else if (model.compare("cube") == 0)
+    // {
+    //     _application.reset(
+    //         new DataCube(shared_from_this()));
+    // }
+    // else if (model.compare("mi") == 0)
+    // {
+    //     _application.reset(
+    //         new MutualInformation(shared_from_this()));
+    // }
+    // else if (model.compare("perc") == 0)
+    // {
+    //     _application.reset(
+    //         new Percentile(shared_from_this()));
+    //     hasApplicationHandler = true;
+    // }
+    // else if (model.compare("kmeans") == 0)
+    // {
+    //     _application.reset(
+    //         new KMeans(shared_from_this(), vm["clusters"].as<int>()));
+    //     hasApplicationHandler = true;
+    // }
+    // else
+    // {
+    //     ERROR("The model "+model+" is not supported. \n");
+    //     exit(1);
+    // }
+
+    // TODO: construct model first!! --> we can call model to query later!
+
+    int64_t start = duration_cast<milliseconds>(
+        system_clock::now().time_since_epoch()).count();
+    
+    // hasApplicationHandler = false;
+    
+    _database->initializeDatabaseFromFile();    
+    
+    _treeDecomposition->buildTreeDecompositionFromFile();
     
     _application->run();
-    
-    if (codeGenerator.compare("cpp") == 0)
-        _codeGenerator.reset(
-            new CppGenerator(shared_from_this())
-            );
-    else if (codeGenerator.compare("sql") == 0)
-        _codeGenerator.reset(
-            new SqlGenerator(shared_from_this()));
-    else
-    {
-        ERROR("The code generator "+codeGenerator+" is not supported. \n");
-        exit(1);
-    }
 
-    // hasApplicationHandler = false;
+    _compiler->compile();
     
     _codeGenerator->generateCode(hasApplicationHandler, hasDynamicFunctions);
 
@@ -240,7 +233,7 @@ int Launcher::launch(boost::program_options::variables_map& vm)
 
     size_t numOfViews = _compiler->numberOfViews();    
     size_t numOfQueries = _compiler->numberOfQueries();
-    size_t numOfGroups = _codeGenerator->numberOfGroups();
+    size_t numOfGroups = _compiler->numberOfViewGroups();
 
     size_t finalNumberOfAggregates = 0;
     size_t totalNumberOfAggregates = 0;
@@ -263,7 +256,8 @@ int Launcher::launch(boost::program_options::variables_map& vm)
         ofs << totalNumberOfAggregates << "\t"
             << finalNumberOfAggregates << "\t"
             << numOfQueries <<"\t"
-            << numOfViews <<"\t"<< numOfGroups <<"\t"
+            << numOfViews <<"\t"
+            << numOfGroups <<"\t"
             << processingTime << std::endl;
     }
     else

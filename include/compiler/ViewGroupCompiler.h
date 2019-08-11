@@ -24,13 +24,14 @@ public:
 
     ~ViewGroupCompiler();
 
+    void compile();
     
     size_t numberOfGroups()
     {
         return viewGroups.size();
     }
 
-    const ViewGroup& getGroup(size_t group_id)
+    ViewGroup& getGroup(size_t group_id) 
     {
         return viewGroups[group_id];
     }
@@ -47,11 +48,8 @@ private:
 
     // Mapping from View ID to Group ID
     size_t* viewToGroupMapping = nullptr;
-
-    void computeViewOrdering();
-
-    void incomingViews();
-
+    
+    // void incomingViews();
 };
 
 

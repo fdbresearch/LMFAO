@@ -43,6 +43,7 @@ LinearRegression::LinearRegression(shared_ptr<Launcher> launcher)
 {
     _compiler = launcher->getCompiler();
     _td = launcher->getTreeDecomposition();
+    _db = launcher->getDatabase();
 }
 
 LinearRegression::~LinearRegression()
@@ -60,7 +61,6 @@ void LinearRegression::run()
 {
     loadFeatures();
     modelToQueries();
-    _compiler->compile();
 }
 
 void LinearRegression::modelToQueries()
@@ -95,13 +95,12 @@ void LinearRegression::modelToQueries()
         }
     }
 
-    // --- TODO: TODO: add count query for intercept!! TODO: TODO: --- //
     Aggregate* agg_count = new Aggregate();
-    agg_count->_agg.push_back(prod_bitset());
+    agg_count->_sum.push_back(prod_bitset());
             
     Query* count = new Query();
     count->_aggregates.push_back(agg_count);
-    count->_rootID = _td->_root->_id;
+    count->_root = _td->_root;
     _compiler->addQuery(count);
 
     PartialGradient countGradient;
@@ -114,7 +113,7 @@ void LinearRegression::modelToQueries()
 
     size_t numberOfQueries = 0;
     
-    size_t cont_var_root = _td->_root->_id;
+    TDNode* cont_var_root = _td->_root;
 
     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
     {
@@ -130,11 +129,11 @@ void LinearRegression::modelToQueries()
             prod_linear_v1.set(featureToFunction[var]);
  
             Aggregate* agg_linear = new Aggregate();
-            agg_linear->_agg.push_back(prod_linear_v1);
+            agg_linear->_sum.push_back(prod_linear_v1);
             
             Query* linear = new Query();
             linear->_aggregates.push_back(agg_linear);
-            linear->_rootID = cont_var_root;
+            linear->_root = cont_var_root;
 
             _compiler->addQuery(linear);
 
@@ -159,11 +158,11 @@ void LinearRegression::modelToQueries()
             prod_quad_v1.set(quadFeatureToFunction[var]);
             
             Aggregate* agg_quad = new Aggregate();
-            agg_quad->_agg.push_back(prod_quad_v1);
+            agg_quad->_sum.push_back(prod_quad_v1);
             
             Query* quad = new Query();
             quad->_aggregates.push_back(agg_quad);
-            quad->_rootID = _td->_root->_id; // cont_var_root;
+            quad->_root = cont_var_root;
 
             _compiler->addQuery(quad);
 
@@ -180,12 +179,12 @@ void LinearRegression::modelToQueries()
             // v1_root = _queryRootIndex[var];
 
             Aggregate* agg_linear = new Aggregate();
-            agg_linear->_agg.push_back(prod_linear_v1);
+            agg_linear->_sum.push_back(prod_linear_v1);
             
             Query* linear = new Query();
             linear->_aggregates.push_back(agg_linear);
             linear->_fVars.set(var);
-            linear->_rootID = _queryRootIndex[var];
+            linear->_root = _td->getTDNode(_queryRootIndex[var]);
             _compiler->addQuery(linear);
 
             parameterQueries[var] = linear;
@@ -213,7 +212,7 @@ void LinearRegression::modelToQueries()
                 Aggregate* agg_quad_v2 = new Aggregate();
                 
                 Query* quad_v2 = new Query();
-                quad_v2->_rootID = _td->_root->_id;
+                quad_v2->_root = _td->_root;
 
                 // if (_categoricalFeatures[var])
                 // {
@@ -250,7 +249,7 @@ void LinearRegression::modelToQueries()
                 // }
                 if (_categoricalFeatures[var])
                 {
-                    quad_v2->_rootID = _queryRootIndex[var];
+                    quad_v2->_root = _td->getTDNode(_queryRootIndex[var]);
                     quad_v2->_fVars.set(var);                    
                 }
                 
@@ -259,7 +258,7 @@ void LinearRegression::modelToQueries()
                     quad_v2->_fVars.set(var2);
                     // If both varaibles are categoricalVars - we choose the
                     // var2 as the root
-                    quad_v2->_rootID = _queryRootIndex[var2];
+                    quad_v2->_root = _td->getTDNode(_queryRootIndex[var2]);
                 }
                 else
                 {
@@ -267,7 +266,7 @@ void LinearRegression::modelToQueries()
                     prod_quad_v2.set(featureToFunction[var2]);                    
                 }
                 
-                agg_quad_v2->_agg.push_back(prod_quad_v2);
+                agg_quad_v2->_sum.push_back(prod_quad_v2);
                 
                 quad_v2->_aggregates.push_back(agg_quad_v2);
                 _compiler->addQuery(quad_v2);
@@ -1033,9 +1032,9 @@ void LinearRegression::loadFeatures()
         /* Extract the dimension of the current attribute. */
         getline(ssLine, rootName, ATTRIBUTE_NAME_CHAR);
 
-        int attributeID = _td->getAttributeIndex(attrName);
+        int attributeID = _db->getAttributeIndex(attrName);
         int categorical = stoi(typeOfFeature); 
-        int rootID = _td->getRelationIndex(rootName);
+        int rootID = _db->getRelationIndex(rootName);
 
         if (attributeID == -1)
         {
@@ -1114,7 +1113,7 @@ std::string LinearRegression::generateParameters()
         }
         else
         {
-            size_t& viewID = parameterQueries[var]->_aggregates[0]->_incoming[0].first;
+            const size_t& viewID = parameterQueries[var]->_incoming[0].first;
             numOfParameters += "V"+std::to_string(viewID)+".size() + ";
         }
     }
@@ -1140,8 +1139,8 @@ std::string LinearRegression::generateParameters()
 
         if (_categoricalFeatures.test(var))
         {
-            size_t& viewID = parameterQueries[var]->_aggregates[0]->_incoming[0].first;
-            
+            const size_t& viewID = parameterQueries[var]->_incoming[0].first;
+
             constructGrad += offset(1)+"std::unordered_map<int,size_t> index_"+
                 getAttributeName(var)+";\n";
 
@@ -1182,7 +1181,7 @@ std::string LinearRegression::getAttributeName(size_t attID)
 {
     if (attID == NUM_OF_VARIABLES)
         return "int";
-    return _td->getAttribute(attID)->_name;
+    return _db->getAttribute(attID)->_name;
 }
 
 
@@ -1197,7 +1196,8 @@ std::string LinearRegression::generateGradients()
     {
         // get view and aggregate corresponding to the query
         std::pair<size_t,size_t>& viewAggPair =
-            pGrad.query->_aggregates[0]->_incoming[0];
+            pGrad.query->_incoming[0];
+
         
         // Assign to view, the aggregate and the corresponding param, grad pair
         ActualGradient ag;
@@ -1342,25 +1342,24 @@ std::string LinearRegression::generateGradients()
     return gradString + errorString;
 }
 
+// inline std::string LinearRegression::offset(size_t off)
+// {
+//     return std::string(off*3, ' ');
+// }
 
-inline std::string LinearRegression::offset(size_t off)
-{
-    return std::string(off*3, ' ');
-}
-
-std::string LinearRegression::typeToStr(Type t)
-{
-    switch(t)
-    {
-    case Type::Integer : return "int";
-    case Type::Double : return "double";            
-    case Type::Short : return "short";
-    case Type::U_Integer : return "size_t";
-    default :
-        ERROR("This type does not exist \n");
-        exit(1);
-    }
-}
+// std::string LinearRegression::typeToStr(Type t)
+// {
+//     switch(t)
+//     {
+//     case Type::Integer : return "int";
+//     case Type::Double : return "double";            
+//     case Type::Short : return "short";
+//     case Type::UInteger : return "size_t";
+//     default :
+//         ERROR("This type does not exist \n");
+//         exit(1);
+//     }
+// }
 
 
 void LinearRegression::generateCode()
@@ -1541,9 +1540,9 @@ std::string LinearRegression::generateTestDataEvaluation()
     std::string attributeString = "",
         attrConstruct = offset(4)+"qi::phrase_parse(tuple.begin(),tuple.end(),";
         
-    for (size_t var = 0; var < _td->numberOfAttributes(); ++var)
+    for (size_t var = 0; var < _db->numberOfAttributes(); ++var)
     {
-        Attribute* att = _td->getAttribute(var);
+        Attribute* att = _db->getAttribute(var);
         attrConstruct += "\n"+offset(5)+"qi::"+typeToStr(att->_type)+
             "_[phoenix::ref("+att->_name+") = qi::_1]>>";
         attributeString += offset(2)+typeToStr(att->_type) + " "+
@@ -1559,16 +1558,16 @@ std::string LinearRegression::generateTestDataEvaluation()
         attributeString+offset(2)+"Test_tuple(const std::string& tuple)\n"+
         offset(2)+"{\n"+attrConstruct+offset(2)+"}\n"+offset(1)+"};\n\n";
 
-    std::string loadFunction = offset(1)+"void loadTestDataset("+
-        "std::vector<Test_tuple>& TestDataset)\n"+offset(1)+"{\n"+
-        offset(2)+"std::ifstream input;\n"+offset(2)+"std::string line;\n"+
-        offset(2)+"input.open(PATH_TO_DATA + \"test_data.tbl\");\n"+
-        offset(2)+"if (!input)\n"+offset(2)+"{\n"+
-        offset(3)+"std::cerr << \"TestDataset.tbl does is not exist.\\n\";\n"+
-        offset(3)+"exit(1);\n"+offset(2)+"}\n"+
-        offset(2)+"while(getline(input, line))\n"+
-        offset(3)+"TestDataset.push_back(Test_tuple(line));\n"+
-        offset(2)+"input.close();\n"+offset(1)+"}\n\n";
+    // std::string loadFunction = offset(1)+"void loadTestDataset("+
+    //     "std::vector<Test_tuple>& TestDataset)\n"+offset(1)+"{\n"+
+    //     offset(2)+"std::ifstream input;\n"+offset(2)+"std::string line;\n"+
+    //     offset(2)+"input.open(PATH_TO_DATA + \"test_data.tbl\");\n"+
+    //     offset(2)+"if (!input)\n"+offset(2)+"{\n"+
+    //     offset(3)+"std::cerr << \"TestDataset.tbl does is not exist.\\n\";\n"+
+    //     offset(3)+"exit(1);\n"+offset(2)+"}\n"+
+    //     offset(2)+"while(getline(input, line))\n"+
+    //     offset(3)+"TestDataset.push_back(Test_tuple(line));\n"+
+    //     offset(2)+"input.close();\n"+offset(1)+"}\n\n";
     
     std::string prediction = "";
     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
@@ -1576,7 +1575,7 @@ std::string LinearRegression::generateTestDataEvaluation()
         if (!_features[var])
             continue;
 
-        Attribute* att = _td->getAttribute(var);
+        Attribute* att = _db->getAttribute(var);
         
         if (_categoricalFeatures[var])
             prediction += "params[index_"+att->_name+"[tuple."+att->_name+"]]+";
@@ -1587,8 +1586,15 @@ std::string LinearRegression::generateTestDataEvaluation()
     prediction.pop_back();
     
     std::string evalFunction = offset(1)+"void evaluateModel()\n"+offset(1)+"{\n"+
-        offset(2)+"std::vector<Test_tuple> TestDataset;\n"+
-        offset(2)+"loadTestDataset(TestDataset);\n"+
+        offset(2)+"std::vector<Test_tuple> TestDataset;\n\n"+
+        offset(2)+"std::ifstream input;\n"+offset(2)+"std::string line;\n"+
+        offset(2)+"input.open(PATH_TO_DATA + \"test_data.tbl\");\n"+
+        offset(2)+"if (!input)\n"+offset(2)+"{\n"+
+        offset(3)+"std::cerr << \"TestDataset.tbl does is not exist.\\n\";\n"+
+        offset(3)+"return;\n"+offset(2)+"}\n"+
+        offset(2)+"while(getline(input, line))\n"+
+        offset(3)+"TestDataset.push_back(Test_tuple(line));\n"+
+        offset(2)+"input.close();\n\n"+
         offset(2)+"double diff, error = 0.0;\n"+
         offset(2)+"for (Test_tuple& tuple : TestDataset)\n"+offset(2)+"{\n"+
         offset(3)+"diff = params[0]+"+prediction+";\n"+
@@ -1598,6 +1604,6 @@ std::string LinearRegression::generateTestDataEvaluation()
         offset(2)+"std::cout << \"RMSE: \" << sqrt(error) << std::endl;\n"+
         offset(1)+"}\n";
 
-    return testTuple + loadFunction + evalFunction;
+    return testTuple + evalFunction;
 }
 

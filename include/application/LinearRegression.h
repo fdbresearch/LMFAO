@@ -46,6 +46,8 @@ private:
     std::shared_ptr<QueryCompiler> _compiler;
     
     std::shared_ptr<TreeDecomposition> _td;
+
+    std::shared_ptr<Database> _db;
     
     var_bitset _categoricalFeatures;
 
@@ -65,8 +67,8 @@ private:
     std::string generateConvergenceLoop();
     std::string generatePrintFunction();
     std::string getAttributeName(size_t attID);
-    std::string offset(size_t off);
-    std::string typeToStr(Type t);
+    // std::string offset(size_t off);
+    // std::string typeToStr(Type t);
     
     std::string generateTestDataEvaluation();
     

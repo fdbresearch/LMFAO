@@ -17,15 +17,12 @@
 
 #include <GlobalParams.hpp>
 
-typedef std::bitset<multifaq::params::NUM_OF_VARIABLES> var_bitset;
-typedef std::bitset<multifaq::params::NUM_OF_FUNCTIONS> prod_bitset;
-
 enum class Type
 {
     Integer,
     Double,
     Short,
-    U_Integer
+    UInteger
 };
 
 struct Attribute
@@ -95,6 +92,11 @@ public:
     Database();
 
     ~Database();
+
+    /**
+     * Function which loads the schema and catalog from File 
+     */
+    void initializeDatabaseFromFile();
     
     /**
      * Returns the number of attributes.

@@ -15,8 +15,8 @@ struct RegTreeNode
 {
     Condition condition;
 
-    size_t count;
-    double prediction;
+    size_t count = 0;
+    double prediction = 0.0;
     double cost = 0.0;
     bool isLeaf = true;
 

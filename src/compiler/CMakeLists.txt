@@ -1,1 +1,1 @@
-add_library(compiler QueryCompiler.cpp ViewGroupCompiler.cpp AggregateRegister.cpp)
+add_library(compiler QueryCompiler.cpp DataStructureLayer.cpp ViewGroupCompiler.cpp AggregateRegister.cpp)

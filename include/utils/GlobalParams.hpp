@@ -22,7 +22,7 @@ namespace multifaq
 /* Runtime variable: can be used across different compilation units; must be
  * defined in a source file. */
 #else
-        const size_t NUM_OF_FUNCTIONS = 100000;
+        const size_t NUM_OF_FUNCTIONS = 100;
 #endif
 
 
@@ -34,7 +34,7 @@ namespace multifaq
 /* Runtime variable: can be used across different compilation units; must be
  * defined in a source file. */
 #else
-        const size_t NUM_OF_VARIABLES = 750;
+        const size_t NUM_OF_VARIABLES = 100;
 #endif
         
 /* Compile time constant: can be used directly to enable loop unrolling and
@@ -44,7 +44,7 @@ namespace multifaq
 /* Runtime variable: can be used across different compilation units; must be
  * defined in a source file. */
 #else
-        const size_t NUM_OF_ATTRIBUTES = 750;
+        const size_t NUM_OF_ATTRIBUTES = 100;
 #endif
 
 /* Compile time constant: can be used directly to enable loop unrolling and
@@ -55,6 +55,16 @@ namespace multifaq
  * defined in a source file. */
 #else
         const size_t NUM_OF_PRODUCTS = 200;
+#endif
+
+/* Compile time constant: can be used directly to enable loop unrolling and
+ * other compiler optimisations. */
+#ifdef VIEWS
+        const size_t NUM_OF_VIEWS = VIEWS;
+/* Runtime variable: can be used across different compilation units; must be
+ * defined in a source file. */
+#else
+        const size_t NUM_OF_VIEWS = 1000;
 #endif
     }
 
@@ -113,5 +123,9 @@ namespace multifaq
     }
     
 }
+
+typedef std::bitset<multifaq::params::NUM_OF_VARIABLES+1> var_bitset;
+typedef std::bitset<multifaq::params::NUM_OF_FUNCTIONS> prod_bitset;
+
 
 #endif /* GLOBALPARAMS_HPP_ */

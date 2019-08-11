@@ -152,7 +152,8 @@ int main(int argc, char *argv[])
    else
    {
        pathToFiles = pathToData;
-   }   
+       pathToFiles += "/config";
+   }
 
    /* Check the code generator is supported */
    std::string codeGenerator = vm["codegen"].as<std::string>();

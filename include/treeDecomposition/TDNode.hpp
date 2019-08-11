@@ -21,11 +21,7 @@ class TDNode
   
 public:
 
-    TDNode(std::string name, size_t ID)
-    {
-        this->_name = name;
-        this->_id = ID;
-    }
+    TDNode(std::string name, size_t ID) : _name(name), _id(ID) { }
 
     ~TDNode()
     {
@@ -82,14 +78,6 @@ public:
     //     ++this->_numOfChildren;
     //     node->_parent = this;
     // }
-
-    /**
-     * Set the type for this TD node 
-     */
-    // void setType(std::string type)
-    // {
-    //     this->type = type; 
-    // }    
     
 };
 

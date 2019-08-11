@@ -23,15 +23,17 @@ static const char COMMENT_CHAR = '#';
 static const char PARAMETER_SEPARATOR_CHAR = ' ';
 
 Database::Database()
+{  }
+
+Database::~Database()
+{  }
+
+void Database::initializeDatabaseFromFile()
 {
     loadSchema();
     loadCatalog();
 }
 
-Database::~Database()
-{
-    /* TODO: Determine what needs to be deleted. */
-}
 
 size_t Database::numberOfAttributes()
 {
@@ -119,6 +121,9 @@ void Database::loadSchema()
     {        
         if (line[0] == COMMENT_CHAR || line.empty())
             continue;
+
+        if (line.find(TABLE_SEPARATOR_CHAR) == std::string::npos)
+            break;
         
         ssLine << line;
 
@@ -158,26 +163,60 @@ void Database::loadSchema()
             }
             
             _relations[relationID]->_schema.push_back(attribute);            
+            _relations[relationID]->_schemaMask.set(_attributeMap[attrName]);            
         }
         
         /* Clear string stream. */
         ssLine.clear();
         
 #ifdef PRINT_SCHEMA        
-        DINFO(relationID << " : " << relationName << " ( " << attributes << " )\n");
+        DINFO("\n"<<relationID << " : " << relationName << " ( " << attributes << " )");
 #endif
     }
 
-    for (size_t a = 0; a < numberOfAttributes(); ++a)
-        std::cout << _attributes[a]->_name << std::endl;
+    /* Scan through the input stream line by line. */
+    do
+    {        
+        if (line[0] == COMMENT_CHAR || line.empty())
+            continue;
+        
 
-    DINFO("Loading schema from file: " << multifaq::config::SCHEMA_CONF << " ... ");
+        ssLine << line;
 
+        std::string attributeName, type;
+        getline(ssLine, attributeName, PARAMETER_SEPARATOR_CHAR);
+        getline(ssLine, type, PARAMETER_SEPARATOR_CHAR);
+
+        
+        Type t = Type::Integer;        
+        if (type.compare("double")==0) t = Type::Double;
+        if (type.compare("short")==0) t = Type::Short;
+        if (type.compare("uint")==0) t = Type::UInteger;
+
+        auto it = _attributeMap.find(attributeName);
+        if (it != _attributeMap.end())
+            _attributes[it->second]->_type = t;
+        else
+        {
+            ERROR("Attribute |"+attributeName+"| does not exist in schema. \n");
+            exit(1);
+        }
+
+        /* Clear string stream. */
+        ssLine.clear();
+        
+#ifdef PRINT_SCHEMA        
+        DINFO("\n" << attributeName << " : " << type );
+#endif
+    } while (getline(input, line));
+
+
+    DINFO("... DONE: Schema loaded.\n");
 }
 
 void Database::loadCatalog()
 {
-        /* Load the TreeDecomposition config file into an input stream. */
+    /* Load the TreeDecomposition config file into an input stream. */
     std::ifstream input(multifaq::config::CATALOG_CONF);
 
     if (!input)
@@ -241,14 +280,8 @@ void Database::loadCatalog()
         
         /* Clear string stream. */
         ssLine.clear();
-        
-#ifdef PRINT_SCHEMA        
-        DINFO(relationID << " : " << relationName << " ( " << attributes << " )\n");
-#endif
     }
 
-    for (size_t a = 0; a < numberOfAttributes(); ++a)
-        std::cout << _attributes[a]->_name << std::endl;
-    
+    DINFO("... DONE: Catalog loaded.\n");
 }
 

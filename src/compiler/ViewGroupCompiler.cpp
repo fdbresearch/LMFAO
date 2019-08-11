@@ -34,7 +34,7 @@ ViewGroupCompiler::~ViewGroupCompiler()
 }
 
 
-void ViewGroupCompiler::computeViewOrdering()
+void ViewGroupCompiler::compile()
 {
     viewToGroupMapping = new size_t[_qc->numberOfViews()];
 
@@ -115,9 +115,9 @@ void ViewGroupCompiler::computeViewOrdering()
     for (size_t incViewID : prevView->_incomingViews)
         incomingViews.set(incViewID);
     
-    viewGroups.push_back({orderedViewList[0],
-         _td->getTDNode(_qc->getView(orderedViewList[0])->_origin)
-        });
+    viewGroups.push_back(
+        {orderedViewList[0],_td->getTDNode(prevOrigin)}
+        );
 
     viewToGroupMapping[orderedViewList[0]] = 0;    
     size_t currentGroup = 0;
