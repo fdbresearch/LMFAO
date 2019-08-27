@@ -95,7 +95,7 @@ void MutualInformation::modelToQueries()
             // Create a query & Aggregate
             Query* query = new Query();
             query->_aggregates.push_back(agg);
-            query->_root = _td-getTDNode(_queryRootIndex[var]);
+            query->_root = _td->getTDNode(_queryRootIndex[var]);
             query->_fVars.set(var);
 
             _compiler->addQuery(query);
