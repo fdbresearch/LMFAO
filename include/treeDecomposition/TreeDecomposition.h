@@ -11,6 +11,7 @@
 #define INCLUDE_TREEDECOMPOSITION_H_
 
 #include <bitset>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>

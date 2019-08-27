@@ -10,6 +10,8 @@
 #ifndef GLOBALPARAMS_HPP_
 #define GLOBALPARAMS_HPP_
 
+#include <bitset>
+
 namespace multifaq
 {
     namespace params

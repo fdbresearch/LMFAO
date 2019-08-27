@@ -478,11 +478,11 @@ void QueryCompiler::printQueries()
         for (size_t aggNum = 0; aggNum < q->_aggregates.size(); ++aggNum)
         {
             Aggregate* agg = q->_aggregates[aggNum];
-            size_t aggIdx = 0;
             for (size_t i = 0; i < agg->_sum.size(); i++)
             {
-                const auto &prod = agg->_sum[aggIdx]._prod;
+                const auto &prod = agg->_sum[i]._prod;
                 for (size_t f = 0; f < NUM_OF_FUNCTIONS; f++)
+                {
                     if (prod.test(f))
                     {
                         Function* func = getFunction(f);
@@ -492,7 +492,7 @@ void QueryCompiler::printQueries()
                                 printf(" %s ", _db->getAttribute(i)->_name.c_str());
                         printf(" )");
                     }
-                    ++aggIdx;
+                }
                 printf(" - ");
             }
         }
