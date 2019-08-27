@@ -44,6 +44,8 @@ private:
     std::shared_ptr<QueryCompiler> _compiler;
     
     std::shared_ptr<TreeDecomposition> _td;
+
+    std::shared_ptr<Database> _db;
     
     var_bitset _categoricalFeatures;
 

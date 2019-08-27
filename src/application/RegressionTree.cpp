@@ -42,8 +42,9 @@ std::vector<QueryThresholdPair> queryToThreshold;
 RegressionTree::RegressionTree(shared_ptr<Launcher> launcher, bool classification) :
     _classification(classification)
 {
-    _compiler = launcher->getCompiler();
+    _db = launcher->getDatabase();
     _td = launcher->getTreeDecomposition();
+    _compiler = launcher->getCompiler();
 }
 
 RegressionTree::~RegressionTree()
@@ -168,11 +169,11 @@ void RegressionTree::computeCandidates()
 
     // Adding dynamic functions for each relation, which can be modified
     // without recompiling the entire codebase. 
-    for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
+    for (size_t rel = 0; rel < _db->numberOfRelations(); ++rel)
     {
-        TDNode* relation = _td->getRelation(rel);
-        var_bitset& relationBag = relation->_bag;
-
+        Relation* relation = _db->getRelation(rel);
+        var_bitset& relationBag = relation->_schemaMask;
+        
         std::string functionName = "f_"+relation->_name;
 
         std::set<size_t> relationVariables;
@@ -200,20 +201,20 @@ void RegressionTree::regressionTreeQueries()
     Aggregate* countQ = new Aggregate();
                 
     /* Q_C */
-    countC->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
+    countC->_sum.push_back(_candidateMask[NUM_OF_VARIABLES]);
                             
     /* Q_L */
-    countL->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
-    countL->_agg[0].set(0);
+    countL->_sum.push_back(_candidateMask[NUM_OF_VARIABLES]);
+    countL->_sum[0].set(0);
         
     /* Q_Q */
-    countQ->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
-    countQ->_agg[0].set(1);
+    countQ->_sum.push_back(_candidateMask[NUM_OF_VARIABLES]);
+    countQ->_sum[0].set(1);
 
     // We add an additional query without free vars to compute the
     // complement of each threshold 
     Query* countQuery = new Query();
-    countQuery->_rootID = _td->_root->_id;  
+    countQuery->_root = _td->_root;
     countQuery->_aggregates = {countC,countL,countQ};
 
     _compiler->addQuery(countQuery);
@@ -229,19 +230,19 @@ void RegressionTree::regressionTreeQueries()
                 Aggregate* aggQ = new Aggregate();
                 
                 /* Q_C */
-                aggC->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                aggC->_sum.push_back(_candidateMask[NUM_OF_VARIABLES]);
                             
                 /* Q_L */
-                aggL->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
-                aggL->_agg[0].set(0);
+                aggL->_sum.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                aggL->_sum[0].set(0);
         
                 /* Q_Q */
-                aggQ->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
-                aggQ->_agg[0].set(1);
+                aggQ->_sum.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                aggQ->_sum[0].set(1);
 
                 
                 Query* query = new Query();
-                query->_rootID = _queryRootIndex[var];  
+                query->_root = _td->getTDNode(_queryRootIndex[var]);
                 query->_aggregates = {aggC,aggL,aggQ};
                 query->_fVars.set(var);
                 
@@ -271,41 +272,43 @@ void RegressionTree::regressionTreeQueries()
                     Aggregate* aggQ = new Aggregate();
         
                     /* Q_C */
-                    aggC->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
-                    aggC->_agg[0].set(f);
+                    aggC->_sum.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                    aggC->_sum[0].set(f);
 
                     /* Q_L */
-                    aggL->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
-                    aggL->_agg[0].set(0);
-                    aggL->_agg[0].set(f);
+                    aggL->_sum.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                    aggL->_sum[0].set(0);
+                    aggL->_sum[0].set(f);
         
                     /* Q_Q */
-                    aggQ->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
-                    aggQ->_agg[0].set(1);
-                    aggQ->_agg[0].set(f);
+                    aggQ->_sum.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                    aggQ->_sum[0].set(1);
+                    aggQ->_sum[0].set(f);
                                         
                     Aggregate* aggC_complement = new Aggregate();
                     Aggregate* aggL_complement = new Aggregate();
                     Aggregate* aggQ_complement = new Aggregate();
         
                     /* Q_C */
-                    aggC_complement->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
-                    aggC_complement->_agg[0].set(_complementFunction[f]);
+                    aggC_complement->_sum.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                    aggC_complement->_sum[0].set(_complementFunction[f]);
 
                     /* Q_L */
-                    aggL_complement->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
-                    aggL_complement->_agg[0].set(0);
-                    aggL_complement->_agg[0].set(_complementFunction[f]);
+                    aggL_complement->_sum.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                    aggL_complement->_sum[0].set(0);
+                    aggL_complement->_sum[0].set(_complementFunction[f]);
         
                     /* Q_Q */
-                    aggQ_complement->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
-                    aggQ_complement->_agg[0].set(1);
-                    aggQ_complement->_agg[0].set(_complementFunction[f]);
+                    aggQ_complement->_sum.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                    aggQ_complement->_sum[0].set(1);
+                    aggQ_complement->_sum[0].set(_complementFunction[f]);
 
                     Query* query = new Query();
-                    query->_rootID =  _queryRootIndex[var]; // _td->_root->_id;
-                    query->_aggregates = {aggC,aggL,aggQ,
-                         aggC_complement,aggL_complement,aggQ_complement};
+                    query->_root =  _td->getTDNode(_queryRootIndex[var]);
+                    // _td->_root->_id;
+                    query->_aggregates =
+                        {aggC,aggL,aggQ,aggC_complement,
+                         aggL_complement,aggQ_complement};
                     
                     _compiler->addQuery(query);
                     _varToQueryMap[var] = query;
@@ -326,23 +329,23 @@ void RegressionTree::regressionTreeQueries()
 void RegressionTree::classificationTreeQueries()
 {
     Query* continuousQuery = new Query();
-    continuousQuery->_rootID = _queryRootIndex[_labelID];
+    continuousQuery->_root = _td->getTDNode(_queryRootIndex[_labelID]);
     continuousQuery->_fVars.set(_labelID);
     _compiler->addQuery(continuousQuery);
     
     // Simple count for each category
     Aggregate* countCategory = new Aggregate();
-    countCategory->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
+    countCategory->_sum.push_back(_candidateMask[NUM_OF_VARIABLES]);
     continuousQuery->_aggregates.push_back(countCategory);
     
     // Add to compiler list
     Query* countQuery = new Query();
-    countQuery->_rootID = _queryRootIndex[_labelID]; // TODO: is this ok?!
+    countQuery->_root = _td->getTDNode(_queryRootIndex[_labelID]); // TODO: is this ok?!
     _compiler->addQuery(countQuery);
 
     // Overall count of tuples satisfying the parent conditions
     Aggregate* count = new Aggregate();
-    count->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
+    count->_sum.push_back(_candidateMask[NUM_OF_VARIABLES]);
     countQuery->_aggregates.push_back(count);
 
     QueryThresholdPair qtPair;
@@ -359,10 +362,10 @@ void RegressionTree::classificationTreeQueries()
             if (_categoricalFeatures[var])
             {
                 Aggregate* agg = new Aggregate();
-                agg->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                agg->_sum.push_back(_candidateMask[NUM_OF_VARIABLES]);
                 
                 Query* query = new Query();
-                query->_rootID = _queryRootIndex[var];
+                query->_root = _td->getTDNode(_queryRootIndex[var]);
                 query->_fVars.set(var);
                 query->_fVars.set(_labelID);
                 query->_aggregates.push_back(agg);
@@ -372,10 +375,10 @@ void RegressionTree::classificationTreeQueries()
                 /* Count Query keeps track of the count of each category
                  * independent of label */
                 Aggregate* countagg = new Aggregate();
-                countagg->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                countagg->_sum.push_back(_candidateMask[NUM_OF_VARIABLES]);
                 
                 Query* varCountQuery = new Query();
-                varCountQuery->_rootID = _queryRootIndex[var];  
+                varCountQuery->_root = _td->getTDNode(_queryRootIndex[var]);
                 varCountQuery->_aggregates.push_back(countagg);
                 varCountQuery->_fVars.set(var);
                 _compiler->addQuery(varCountQuery);
@@ -404,14 +407,14 @@ void RegressionTree::classificationTreeQueries()
                         continue;
                     
                     Aggregate* agg = new Aggregate();
-                    agg->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
-                    agg->_agg[0].set(f);
+                    agg->_sum.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                    agg->_sum[0].set(f);
 
                     // TODO: technically we can infer the comp agg from the
                     // first aggregate - but I will add it for now to make it easier
                     Aggregate* agg_complement = new Aggregate();
-                    agg_complement->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
-                    agg_complement->_agg[0].set(_complementFunction[f]);
+                    agg_complement->_sum.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                    agg_complement->_sum[0].set(_complementFunction[f]);
 
                     continuousQuery->_aggregates.push_back(agg);
                     continuousQuery->_aggregates.push_back(agg_complement);
@@ -419,15 +422,15 @@ void RegressionTree::classificationTreeQueries()
                     // The below should give us the size of the group - may not
                     // be necessary
                     Aggregate* agg_count = new Aggregate();
-                    agg_count->_agg.push_back(_candidateMask[NUM_OF_VARIABLES]);
-                    agg_count->_agg[0].set(f);
+                    agg_count->_sum.push_back(_candidateMask[NUM_OF_VARIABLES]);
+                    agg_count->_sum[0].set(f);
                     
                     // TODO: technically we can infer the comp agg from the
                     // first aggregate - but I will add it for now to make it easier
                     Aggregate* agg_count_complement = new Aggregate();
-                    agg_count_complement->_agg.push_back(
+                    agg_count_complement->_sum.push_back(
                         _candidateMask[NUM_OF_VARIABLES]);
-                    agg_count_complement->_agg[0].set(_complementFunction[f]);
+                    agg_count_complement->_sum[0].set(_complementFunction[f]);
 
                     countQuery->_aggregates.push_back(agg_count);
                     countQuery->_aggregates.push_back(agg_count_complement);
@@ -541,7 +544,7 @@ void RegressionTree::loadFeatures()
     }
         
 
-    _labelID = _td->getAttributeIndex(labelName);
+    _labelID = _db->getAttributeIndex(labelName);
 
     /* Clear string stream. */
     ssLine.clear();
@@ -570,9 +573,9 @@ void RegressionTree::loadFeatures()
         /* Extract the dimension of the current attribute. */
         getline(ssLine, rootName);
         
-        int attributeID = _td->getAttributeIndex(attrName);
+        int attributeID = _db->getAttributeIndex(attrName);
         bool categorical = stoi(typeOfFeature);
-        int rootID = _td->getRelationIndex(rootName);
+        int rootID = _db->getRelationIndex(rootName);
 
         if (attributeID == -1)
         {
@@ -624,7 +627,7 @@ void RegressionTree::genDynamicFunctions()
             {
                 if (fVars.test(var))
                 {
-                    Attribute* att = _td->getAttribute(var);
+                    Attribute* att = _db->getAttribute(var);
                     fvarString += typeToStr(att->_type)+" "+att->_name+",";
                 }
             }
@@ -662,9 +665,9 @@ std::string RegressionTree::dynamicFunctionsGenerator()
     std::string condition[] = {" <= "," == "};
     
     std::string varList = "", relationMap = ""; 
-    for (size_t var = 0; var< _td->numberOfAttributes(); ++var)
+    for (size_t var = 0; var< _db->numberOfAttributes(); ++var)
     {
-        const std::string varName = _td->getAttribute(var)->_name;
+        const std::string varName = _db->getAttribute(var)->_name;
 
 	varList += "\""+varName+"\","; 
 	relationMap += std::to_string(_queryRootIndex[var])+",";        
@@ -673,19 +676,19 @@ std::string RegressionTree::dynamicFunctionsGenerator()
     relationMap.pop_back();
     
     std::string relationName = "", varTypeList = "", conditionsString = ""; 
-    for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
+    for (size_t rel = 0; rel < _db->numberOfRelations(); ++rel)
     {
-	relationName += "\""+_td->getRelation(rel)->_name+"\",";
+	relationName += "\""+_db->getRelation(rel)->_name+"\",";
         conditionsString += "\"\",";
 
         varTypeList += "\"";
 
-        var_bitset& bag = _td->getRelation(rel)->_bag;
+        var_bitset& bag = _db->getRelation(rel)->_schemaMask;
         for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
         {
             if (bag[var])
             {
-                Attribute* att = _td->getAttribute(var);
+                Attribute* att = _db->getAttribute(var);
                 varTypeList += typeToStr(att->_type)+" "+att->_name+",";
             }
         }
@@ -721,7 +724,7 @@ std::string RegressionTree::dynamicFunctionsGenerator()
         offset(1)+"ofs << \"#include \\\"DynamicFunctions.h\\\"\\n"+
         "namespace lmfao\\n{\\n\";\n"+
         offset(1)+"for (size_t rel = 0; rel < "+
-        std::to_string(_td->numberOfRelations())+"; ++rel)\n"+offset(1)+"{\n"+
+        std::to_string(_db->numberOfRelations())+"; ++rel)\n"+offset(1)+"{\n"+
         offset(2)+"if (!conditionStr[rel].empty())\n"+offset(2)+"{\n"+
         offset(3)+"conditionStr[rel].pop_back();\n"+
         offset(3)+"conditionStr[rel].pop_back();\n"+
@@ -745,9 +748,9 @@ std::string RegressionTree::dynamicFunctionsGenerator()
     std::string attributeString = "",
         attrConstruct = offset(3)+"qi::phrase_parse(tuple.begin(),tuple.end(),";
         
-    for (size_t var = 0; var < _td->numberOfAttributes(); ++var)
+    for (size_t var = 0; var < _db->numberOfAttributes(); ++var)
     {
-        Attribute* att = _td->getAttribute(var);
+        Attribute* att = _db->getAttribute(var);
         attrConstruct += "\n"+offset(4)+"qi::"+typeToStr(att->_type)+
             "_[phoenix::ref("+att->_name+") = qi::_1]>>";
         attributeString += offset(1)+typeToStr(att->_type) + " "+
@@ -780,9 +783,9 @@ std::string RegressionTree::dynamicFunctionsGenerator()
     /****************************************************************/
 
     std::string findPredSwitch=""; 
-    for (size_t var = 0; var< _td->numberOfAttributes(); ++var)
+    for (size_t var = 0; var< _db->numberOfAttributes(); ++var)
     {
-        const std::string& varName = _td->getAttribute(var)->_name;
+        const std::string& varName = _db->getAttribute(var)->_name;
         findPredSwitch += offset(3)+"case "+std::to_string(var)+" : "+
             "goLeft = (tuple."+varName+condition[_categoricalFeatures[var]]+
             "c.threshold); break;\n";       
@@ -807,7 +810,7 @@ std::string RegressionTree::dynamicFunctionsGenerator()
         offset(1)+"double pred, diff, error = 0.0;\n"+
         offset(1)+"for (const Test_tuple& tuple : TestDataset)\n"+offset(2)+"{\n"+
         offset(2)+"pred = findPrediction(root, tuple);\n"+
-        offset(2)+"diff = tuple."+_td->getAttribute(_labelID)->_name+"-pred;\n"+
+        offset(2)+"diff = tuple."+_db->getAttribute(_labelID)->_name+"-pred;\n"+
         offset(2)+"error += diff * diff;\n"+
         offset(1)+"}\n"+
         offset(1)+"error /= TestDataset.size();\n"+
@@ -831,23 +834,23 @@ std::string RegressionTree::genVarianceComputation()
         {
             // Find the view that corresponds to the query
             Query* query = qtPair.query;
-            size_t& viewID = query->_aggregates[0]->_incoming[0].first;
-            size_t& viewID2 = query->_aggregates[1]->_incoming[0].first;
-            size_t& viewID3 = query->_aggregates[2]->_incoming[0].first;
+            size_t& viewID = query->_incoming[0].first;
+            size_t& viewID2 = query->_incoming[1].first;
+            size_t& viewID3 = query->_incoming[2].first;
 
             Query* complement = qtPair.complementQuery;
-            const size_t& comp_viewID = complement->_aggregates[0]->_incoming[0].first;
+            const size_t& comp_viewID = complement->_incoming[0].first;
 
             if (viewID != viewID2 || viewID != viewID3)
                 std::cout << "THERE IS AN ERROR IN genVarianceComputation" << std::endl;
         
-            const size_t& count = query->_aggregates[0]->_incoming[0].second;
-            const size_t& linear = query->_aggregates[1]->_incoming[0].second;
-            const size_t& quad = query->_aggregates[2]->_incoming[0].second;
+            const size_t& count = query->_incoming[0].second;
+            const size_t& linear = query->_incoming[1].second;
+            const size_t& quad = query->_incoming[2].second;
 
-            const size_t& comp_count = complement->_aggregates[0]->_incoming[0].second;
-            // const size_t& comp_linear=complement->_aggregates[1]->_incoming[0].second;
-            // const size_t& comp_quad = complement->_aggregates[2]->_incoming[0].second;
+            const size_t& comp_count = complement->_incoming[0].second;
+            // const size_t& comp_linear=complement->_incoming[1].second;
+            // const size_t& comp_quad = complement->_incoming[2].second;
         
             std::string viewTup = "V"+std::to_string(viewID)+"tuple";
         
@@ -869,7 +872,7 @@ std::string RegressionTree::genVarianceComputation()
 
             complementQueryPerView[viewID] = complement;
             
-            Attribute* att = _td->getAttribute(qtPair.varID);
+            Attribute* att = _db->getAttribute(qtPair.varID);
 
             // functionPerView[viewID].push_back(
             //     "\"Variable: "+std::to_string(qtPair.varID)+" "+
@@ -888,25 +891,25 @@ std::string RegressionTree::genVarianceComputation()
             
             // Find the view that corresponds to the query
             Query* query = qtPair.query;
-            size_t& viewID = query->_aggregates[0]->_incoming[0].first;
-            size_t& viewID2 = query->_aggregates[1]->_incoming[0].first;
-            size_t& viewID3 = query->_aggregates[2]->_incoming[0].first;
+            size_t& viewID = query->_incoming[0].first;
+            size_t& viewID2 = query->_incoming[1].first;
+            size_t& viewID3 = query->_incoming[2].first;
 
-            size_t& cviewID = query->_aggregates[3]->_incoming[0].first;
-            size_t& cviewID2 = query->_aggregates[4]->_incoming[0].first;
-            size_t& cviewID3 = query->_aggregates[5]->_incoming[0].first;
+            size_t& cviewID = query->_incoming[3].first;
+            size_t& cviewID2 = query->_incoming[4].first;
+            size_t& cviewID3 = query->_incoming[5].first;
 
             if (viewID != viewID2 || viewID != viewID3 ||
                 cviewID != viewID || cviewID2 != viewID || cviewID3 != viewID  )
                 std::cout << "THERE IS AN ERROR IN genVarianceComputation" << std::endl;
         
-            const size_t& count = query->_aggregates[0]->_incoming[0].second;
-            const size_t& linear = query->_aggregates[1]->_incoming[0].second;
-            const size_t& quad = query->_aggregates[2]->_incoming[0].second;
+            const size_t& count = query->_incoming[0].second;
+            const size_t& linear = query->_incoming[1].second;
+            const size_t& quad = query->_incoming[2].second;
 
-            const size_t& compcount = query->_aggregates[3]->_incoming[0].second;
-            const size_t& complinear = query->_aggregates[4]->_incoming[0].second;
-            const size_t& compquad = query->_aggregates[5]->_incoming[0].second;
+            const size_t& compcount = query->_incoming[3].second;
+            const size_t& complinear = query->_incoming[4].second;
+            const size_t& compquad = query->_incoming[5].second;
         
             std::string viewTup = "V"+std::to_string(viewID)+"tuple";
             
@@ -951,7 +954,7 @@ std::string RegressionTree::genVarianceComputation()
         }
         else
         {
-            size_t& viewID = _varToQueryMap[var]->_aggregates[0]->_incoming[0].first;   
+            size_t& viewID = _varToQueryMap[var]->_incoming[0].first;   
             numOfThresholds += "V"+std::to_string(viewID)+".size() + ";
         }
     }
@@ -992,14 +995,10 @@ std::string RegressionTree::genVarianceComputation()
                 }
 
                 Query* complement = complementQueryPerView[viewID];
-                const size_t& comp_viewID =
-                    complement->_aggregates[0]->_incoming[0].first;
-                const size_t& comp_count =
-                    complement->_aggregates[0]->_incoming[0].second;
-                const size_t& comp_linear =
-                    complement->_aggregates[1]->_incoming[0].second;
-                const size_t& comp_quad =
-                    complement->_aggregates[2]->_incoming[0].second;
+                const size_t& comp_viewID = complement->_incoming[0].first;
+                const size_t& comp_count = complement->_incoming[0].second;
+                const size_t& comp_linear = complement->_incoming[1].second;
+                const size_t& comp_quad = complement->_incoming[2].second;
 
                 if (comp_count != comp_linear-1 || comp_count != comp_quad-2 ||
                     comp_linear != comp_quad-1)
@@ -1146,17 +1145,15 @@ std::string RegressionTree::genGiniComputation()
     Query* continuousQuery = continuousPair.query;
     Query* countQuery = continuousPair.complementQuery;
 
-    const size_t& continuousViewID =
-        continuousQuery->_aggregates[0]->_incoming[0].first;
-    const size_t& countViewID =
-        countQuery->_aggregates[0]->_incoming[0].first;
+    const size_t& continuousViewID = continuousQuery->_incoming[0].first;
+    const size_t& countViewID = countQuery->_incoming[0].first;
 
     string viewStr = "V"+std::to_string(continuousViewID);
     string countViewStr = "V"+std::to_string(countViewID);
     string overallCountViewStr = "V"+std::to_string(countViewID);
 
-    string label = _td->getAttribute(_labelID)->_name;
-
+    string label = _db->getAttribute(_labelID)->_name;
+    
     string numAggs = std::to_string(_functionOfAggregate.size());
 
     std::string returnString = "";
@@ -1242,8 +1239,8 @@ std::string RegressionTree::genGiniComputation()
             Query* query = qtPair.query;
             Query* varCountQuery = qtPair.complementQuery;
             
-            size_t& viewID = query->_aggregates[0]->_incoming[0].first;
-            size_t& countViewID = varCountQuery->_aggregates[0]->_incoming[0].first;
+            size_t& viewID = query->_incoming[0].first;
+            size_t& countViewID = varCountQuery->_incoming[0].first;
 
             // const size_t& count = query->_aggregates[0]->_incoming[0].second;
             // const size_t& varCount=varCountQuery->_aggregates[0]->_incoming[0].second;
@@ -1252,8 +1249,8 @@ std::string RegressionTree::genGiniComputation()
             string labelViewStr = "V"+std::to_string(continuousViewID);
             std::string countViewStr = "V"+std::to_string(countViewID);
             
-            std::string label = _td->getAttribute(_labelID)->_name;
-            std::string var = _td->getAttribute(qtPair.varID)->_name;
+            std::string label = _db->getAttribute(_labelID)->_name;
+            std::string var = _db->getAttribute(qtPair.varID)->_name;
             
             returnString += offset(2)+"lhs = 0.0; rhs = 0.0; idx = 0;\n"+
                 offset(2)+"for (size_t v = 0; v < "+countViewStr+".size(); ++v)\n"+
@@ -1296,7 +1293,7 @@ std::string RegressionTree::genGiniComputation()
             
             numOfThresholds += " + V"+std::to_string(countViewID)+".size()";
 
-            Attribute* att = _td->getAttribute(qtPair.varID);
+            Attribute* att = _db->getAttribute(qtPair.varID);
             thresholdMap +=
                 offset(2)+"for ("+countViewStr+"_tuple& tuple : "+countViewStr+")\n"+
                 offset(3)+"thresholdMap[categIndex++].set("

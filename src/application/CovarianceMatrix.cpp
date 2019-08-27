@@ -29,8 +29,9 @@ using namespace boost::spirit;
 
 CovarianceMatrix::CovarianceMatrix(shared_ptr<Launcher> launcher)
 {
-    _compiler = launcher->getCompiler();
+    _db = launcher->getDatabase();
     _td = launcher->getTreeDecomposition();
+    _compiler = launcher->getCompiler();
 }
 
 CovarianceMatrix::~CovarianceMatrix()
@@ -74,16 +75,16 @@ void CovarianceMatrix::modelToQueries()
     }
 
     Aggregate* agg_count = new Aggregate();
-    agg_count->_agg.push_back(prod_bitset());
+    agg_count->_sum.push_back(prod_bitset());
             
     Query* count = new Query();
     count->_aggregates.push_back(agg_count);
-    count->_rootID = _td->_root->_id;
+    count->_root = _td->_root;
     _compiler->addQuery(count);
     listOfQueries.push_back(count);    
     
     size_t numberOfQueries = 0;
-    size_t cont_var_root = _td->_root->_id;
+    TDNode* cont_var_root = _td->_root;
 
     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
     {
@@ -99,11 +100,11 @@ void CovarianceMatrix::modelToQueries()
             prod_linear_v1.set(featureToFunction[var]);
  
             Aggregate* agg_linear = new Aggregate();
-            agg_linear->_agg.push_back(prod_linear_v1);
+            agg_linear->_sum.push_back(prod_linear_v1);
             
             Query* linear = new Query();
             linear->_aggregates.push_back(agg_linear);
-            linear->_rootID = cont_var_root;
+            linear->_root = cont_var_root;
 
             _compiler->addQuery(linear);
             
@@ -119,11 +120,11 @@ void CovarianceMatrix::modelToQueries()
             prod_quad_v1.set(quadFeatureToFunction[var]);
             
             Aggregate* agg_quad = new Aggregate();
-            agg_quad->_agg.push_back(prod_quad_v1);
+            agg_quad->_sum.push_back(prod_quad_v1);
             
             Query* quad = new Query();
             quad->_aggregates.push_back(agg_quad);
-            quad->_rootID = _td->_root->_id; // cont_var_root;
+            quad->_root = _td->_root; // cont_var_root;
 
             _compiler->addQuery(quad);
             
@@ -133,12 +134,12 @@ void CovarianceMatrix::modelToQueries()
         else
         {
             Aggregate* agg_linear = new Aggregate();
-            agg_linear->_agg.push_back(prod_linear_v1);
+            agg_linear->_sum.push_back(prod_linear_v1);
             
             Query* linear = new Query();
             linear->_aggregates.push_back(agg_linear);
             linear->_fVars.set(var);
-            linear->_rootID = _queryRootIndex[var];
+            linear->_root = _td->getTDNode(_queryRootIndex[var]);
             _compiler->addQuery(linear);
 
             listOfQueries.push_back(linear);
@@ -156,7 +157,7 @@ void CovarianceMatrix::modelToQueries()
                 Aggregate* agg_quad_v2 = new Aggregate();
                 
                 Query* quad_v2 = new Query();
-                quad_v2->_rootID = _td->_root->_id;
+                quad_v2->_root = _td->_root;
 
                 // if (_categoricalFeatures[var])
                 // {
@@ -189,7 +190,7 @@ void CovarianceMatrix::modelToQueries()
                 // }
                 if (_categoricalFeatures[var])
                 {
-                    quad_v2->_rootID = _queryRootIndex[var];
+                    quad_v2->_root = _td->getTDNode(_queryRootIndex[var]);
                     quad_v2->_fVars.set(var);                    
                 }
                 
@@ -198,7 +199,7 @@ void CovarianceMatrix::modelToQueries()
                     quad_v2->_fVars.set(var2);
                     // If both varaibles are categoricalVars - we choose the
                     // var2 as the root
-                    quad_v2->_rootID = _queryRootIndex[var2];
+                    quad_v2->_root = _td->getTDNode(_queryRootIndex[var2]);
                 }
                 else
                 {
@@ -206,7 +207,7 @@ void CovarianceMatrix::modelToQueries()
                     prod_quad_v2.set(featureToFunction[var2]);                    
                 }
                 
-                agg_quad_v2->_agg.push_back(prod_quad_v2);
+                agg_quad_v2->_sum.push_back(prod_quad_v2);
                 
                 quad_v2->_aggregates.push_back(agg_quad_v2);
                 _compiler->addQuery(quad_v2);
@@ -299,9 +300,9 @@ void CovarianceMatrix::loadFeatures()
         /* Extract the dimension of the current attribute. */
         getline(ssLine, rootName, ATTRIBUTE_NAME_CHAR);
 
-        int attributeID = _td->getAttributeIndex(attrName);
+        int attributeID = _db->getAttributeIndex(attrName);
         int categorical = stoi(typeOfFeature); 
-        int rootID = _td->getRelationIndex(rootName);
+        int rootID = _db->getRelationIndex(rootName);
 
         if (attributeID == -1)
         {
@@ -356,7 +357,7 @@ void CovarianceMatrix::generateCode()
 
     for (Query* query : listOfQueries)
     {
-        std::pair<size_t,size_t>& viewAggPair = query->_aggregates[0]->_incoming[0];
+        const std::pair<size_t,size_t>& viewAggPair = query->_incoming[0];
         
         dumpListOfQueries += std::to_string(viewAggPair.first)+","+
             std::to_string(viewAggPair.second)+"\\n";

@@ -48,6 +48,8 @@ private:
     
     std::shared_ptr<TreeDecomposition> _td;
 
+    std::shared_ptr<Database> _db;
+
     const size_t _k;
     size_t _dimensionK;
 
@@ -55,7 +57,7 @@ private:
     
     size_t* _queryRootIndex = nullptr;
     
-    std::bitset<multifaq::params::NUM_OF_VARIABLES> clusterVariables;
+    std::bitset<multifaq::params::NUM_OF_VARIABLES+1> clusterVariables;
     std::vector<std::pair<size_t,Query*>> categoricalQueries;
     std::vector<std::pair<size_t,Query*>> continuousQueries;
 

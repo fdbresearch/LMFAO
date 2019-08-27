@@ -34,6 +34,7 @@ DataCube::DataCube(shared_ptr<Launcher> launcher)
 {
     _compiler = launcher->getCompiler();
     _td = launcher->getTreeDecomposition();
+    _db = launcher->getDatabase();
 }
 
 DataCube::~DataCube()
@@ -92,19 +93,17 @@ void DataCube::modelToQueries()
 
     // _compiler->addQuery(query);
     
-    std::vector<var_bitset> pathNodes(_td->numberOfRelations());
-
-    for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
-    {
-        TDNode* node = _td->getRelation(rel);
-        pathNodes[rel].set(node->_id);
-
-        while (node->_parent != nullptr)
-        {
-            node = node->_parent;
-            pathNodes[rel].set(node->_id);
-        }
-    }
+    // std::vector<var_bitset> pathNodes(_db->numberOfRelations());
+    // for (size_t rel = 0; rel < _db->numberOfRelations(); ++rel)
+    // {
+    //     TDNode* node = _db->getRelation(rel);
+    //     pathNodes[rel].set(node->_id);
+    //     while (node->_parent != nullptr)
+    //     {
+    //         node = node->_parent;
+    //         pathNodes[rel].set(node->_id);
+    //     }
+    // }
     
     std::vector<size_t> listOfCatFeatures;
     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
@@ -121,18 +120,18 @@ void DataCube::modelToQueries()
     for(counter = 0; counter < pow_set_size; counter++) 
     {
         Query* query = new Query();
-        query->_rootID = _td->_root->_id;
+        query->_root = _td->_root;
 
         // We add the count aggregate to the query
         Aggregate* agg = new Aggregate();
-        agg->_agg.push_back(prod_bitset());
+        agg->_sum.push_back(prod_bitset());
         query->_aggregates.push_back(agg);
  
         // We add each measure aggregate to the query
         for (prod_bitset p : measureAggregates)
         {
             Aggregate* agg = new Aggregate();
-            agg->_agg.push_back(p);
+            agg->_sum.push_back(p);
             query->_aggregates.push_back(agg);
         }
         
@@ -224,9 +223,9 @@ void DataCube::loadFeatures()
         /* Extract the dimension of the current attribute. */
         getline(ssLine, rootName, ATTRIBUTE_NAME_CHAR);
 
-        int attributeID = _td->getAttributeIndex(attrName);
+        int attributeID = _db->getAttributeIndex(attrName);
         int categorical = stoi(typeOfFeature); 
-        int rootID = _td->getRelationIndex(rootName);
+        int rootID = _db->getRelationIndex(rootName);
 
         if (attributeID == -1)
         {

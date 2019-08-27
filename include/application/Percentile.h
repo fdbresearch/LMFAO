@@ -45,6 +45,8 @@ private:
     
     std::shared_ptr<TreeDecomposition> _td;
 
+    std::shared_ptr<Database> _db;
+
     size_t* _queryRootIndex = nullptr;
     Query** varToQuery = nullptr;
     

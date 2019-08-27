@@ -47,28 +47,29 @@ KMeans::KMeans(shared_ptr<Launcher> launcher, const int k) :
 {
     _compiler = launcher->getCompiler();
     _td = launcher->getTreeDecomposition();
-
+    _db = launcher->getDatabase();
+    
     // TODO: this should be modified in case you want to a different k for each dimension
     _dimensionK = _k;
     
     loadFeatures();
 
-    numberOfOriginalVariables = _td->numberOfAttributes();
+    numberOfOriginalVariables = _db->numberOfAttributes();
 
     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
     {
         if (!_isFeature[var])
             continue;
 
-        Attribute* att = _td->getAttribute(var);
-        TDNode* node = _td->getRelation(_queryRootIndex[var]);
+        Attribute* att = _db->getAttribute(var);
+        TDNode* node = _td->getTDNode(_queryRootIndex[var]);
 
         if (_isCategoricalFeature[var]) 
             _td->addAttribute("cluster_"+att->_name,Type::Integer,{true,0.0},node->_id);
         else
             _td->addAttribute("cluster_"+att->_name,Type::Double,{true,0.0},node->_id);
             
-        size_t clusterID = _td->numberOfAttributes()-1;
+        size_t clusterID = _db->numberOfAttributes()-1;
         
         clusterVariables.set(clusterID);
 
@@ -95,14 +96,14 @@ void KMeans::modelToQueries()
 {
     // Count aggregate
     Aggregate* agg = new Aggregate();
-    agg->_agg.push_back(prod_bitset());
+    agg->_sum.push_back(prod_bitset());
 
     // Create count query
     Query* query = new Query();
     query->_aggregates.push_back(agg);
-    query->_rootID = _td->_root->_id;
+    query->_root = _td->_root;
     query->_fVars = clusterVariables;
-
+    
     _compiler->addQuery(query);        
     countQuery = query;
 
@@ -113,12 +114,12 @@ void KMeans::modelToQueries()
 
         // Categorical variable
         Aggregate* agg = new Aggregate();
-        agg->_agg.push_back(prod_bitset());
+        agg->_sum.push_back(prod_bitset());
 
         // Create a query & Aggregate
         Query* query = new Query();
         query->_aggregates.push_back(agg);
-        query->_rootID = _queryRootIndex[var];
+        query->_root = _td->getTDNode(_queryRootIndex[var]);
         query->_fVars.set(var);
 
         _compiler->addQuery(query);
@@ -208,9 +209,9 @@ void KMeans::loadFeatures()
         /* Extract the dimension of the current attribute. */
         getline(ssLine, rootName, ATTRIBUTE_NAME_CHAR);
 
-        int attributeID = _td->getAttributeIndex(attrName);
+        int attributeID = _db->getAttributeIndex(attrName);
         int categorical = stoi(typeOfFeature); 
-        int rootID = _td->getRelationIndex(rootName);
+        int rootID = _db->getRelationIndex(rootName);
 
         if (attributeID == -1)
         {
@@ -239,8 +240,7 @@ void KMeans::loadFeatures()
 void KMeans::generateCode()
 {
     // Get view for grid query -- equivalent to count query
-    std::string gridViewName = "V"+
-        std::to_string(countQuery->_aggregates[0]->_incoming[0].first);
+    std::string gridViewName = "V"+std::to_string(countQuery->_incoming[0].first);
 
     std::string runFunction = offset(1)+"void runApplication()\n"+offset(1)+"{\n"+
         offset(2)+"int64_t startProcess = duration_cast<milliseconds>("+
@@ -294,10 +294,10 @@ void KMeans::generateCode()
             << "namespace qi = boost::spirit::qi;\n"
             << "namespace phoenix = boost::phoenix;\n\n";
 
-    std::shared_ptr<CppGenerator> cppGenerator =
-        std::dynamic_pointer_cast<CppGenerator> (_launcher->getCodeGenerator());
+    // std::shared_ptr<CppGenerator> cppGenerator =
+    //     std::dynamic_pointer_cast<CppGenerator> (_launcher->getCodeGenerator());
 
-    for (size_t group = 0; group < cppGenerator->numberOfGroups(); ++group)
+    for (size_t group = 0; group < _compiler->numberOfViewGroups(); ++group)
         ofs << "#include \"ComputeGroup"+std::to_string(group)+".h\"\n";
 
     ofs << "\nnamespace lmfao\n{\n\n"
@@ -315,7 +315,7 @@ void KMeans::generateCode()
 std::string KMeans::genKMeansFunction()
 {
     // Get view for grid query -- equivalent to count query
-    const size_t& gridViewID = countQuery->_aggregates[0]->_incoming[0].first;
+    const size_t& gridViewID = countQuery->_incoming[0].first;
     std::string gridViewName = "V"+std::to_string(gridViewID);
     View* gridView = _compiler->getView(gridViewID);
 
@@ -487,14 +487,13 @@ std::string KMeans::genKMeansFunction()
     {
         if (gridView->_fVars[var])
         {
-            Attribute* att = _td->getAttribute(var);
+            Attribute* att = _db->getAttribute(var);
             const std::string& attName = att->_name;
 
             if (_isCategoricalFeature[var])
             {
                 const size_t& origVar = clusterToVariableMap[var];                
-                const size_t origViewID =
-                    varToQuery[origVar]->_aggregates[0]->_incoming[0].first;
+                const size_t origViewID = varToQuery[origVar]->_incoming[0].first;
                 const std::string origView = "V"+std::to_string(origViewID);
                 
                 categUpdates +=
@@ -543,7 +542,7 @@ std::string KMeans::genModelEvaluationFunction()
     
     for (size_t var = 0; var < numberOfOriginalVariables; ++var)
     {
-        Attribute* att = _td->getAttribute(var);
+        Attribute* att = _db->getAttribute(var);
         attrConstruct += "\n"+offset(5)+"qi::"+typeToStr(att->_type)+
             "_[phoenix::ref("+att->_name+") = qi::_1]>>";
         attributeString += offset(2)+typeToStr(att->_type) + " "+
@@ -577,13 +576,13 @@ std::string KMeans::genModelEvaluationFunction()
         if (!_features[var])
             continue;
 
-        Attribute* att = _td->getAttribute(var);
+        Attribute* att = _db->getAttribute(var);
         std::string& varName = att->_name;
         
         if (_isCategoricalFeature[var])
         {
             const std::string& viewName = "V"+std::to_string(
-                varToQuery[var]->_aggregates[0]->_incoming[0].first);
+                varToQuery[var]->_incoming[0].first);
             
             distance += "-2*means[cluster].cluster_"+varName+"["+
                 varName+"_clusterIndex[tuple."+varName+"]]";
@@ -611,9 +610,9 @@ std::string KMeans::genModelEvaluationFunction()
 
         size_t origVar = clusterToVariableMap[var];
         const std::string& origView = "V"+std::to_string(
-            varToQuery[origVar]->_aggregates[0]->_incoming[0].first);
+            varToQuery[origVar]->_incoming[0].first);
 
-        const std::string& attName = _td->getAttribute(var)->_name;
+        const std::string& attName = _db->getAttribute(var)->_name;
 
         // precompMeanSum += offset(2)+"for (size_t cluster = 0; cluster < k; ++cluster)\n"+
         //     Offset(2)+"{\N"+offset(3)+"for (size_t i = 0; i < "+origView+".size(); ++i)\n"+
@@ -653,7 +652,7 @@ std::string KMeans::genModelEvaluationFunction()
 std::string KMeans::genClusterTuple()
 {
     // Get view for grid query -- equivalent to count query
-    const size_t& gridViewID = countQuery->_aggregates[0]->_incoming[0].first;
+    const size_t& gridViewID = countQuery->_incoming[0].first;
     std::string gridViewName = "V"+std::to_string(gridViewID);
     View* gridView = _compiler->getView(gridViewID);
 
@@ -669,16 +668,16 @@ std::string KMeans::genClusterTuple()
     {
         if (gridView->_fVars[var])
         {
-            Attribute* att = _td->getAttribute(var);
+            Attribute* att = _db->getAttribute(var);
             const std::string& attName = att->_name;
             
             if (_isCategoricalFeature[var])
             {
                 const size_t& origVar = clusterToVariableMap[var];
                 const size_t origViewID =
-                    varToQuery[origVar]->_aggregates[0]->_incoming[0].first;
+                    varToQuery[origVar]->_incoming[0].first;
                 const std::string origView = "V"+std::to_string(origViewID);
-                const std::string& origAtt = _td->getAttribute(origVar)->_name;
+                const std::string& origAtt = _db->getAttribute(origVar)->_name;
                 
                 varList += offset(2)+"double* "+attName+" = nullptr;\n";
                 initList += offset(3)+attName+" = new double["+origView+".size()]();\n";
@@ -797,8 +796,7 @@ std::string KMeans::genComputeGridPointsFunction()
     std::string kString = std::to_string(_dimensionK);
     
     // Get view for count query
-    const std::pair<size_t,size_t>& countViewAggPair =
-        countQuery->_aggregates[0]->_incoming[0];
+    const std::pair<size_t,size_t>& countViewAggPair = countQuery->_incoming[0];
     const View* countView = _compiler->getView(countViewAggPair.first);
     std::string countViewName = "V"+std::to_string(countViewAggPair.first);
 
@@ -880,10 +878,10 @@ std::string KMeans::genComputeGridPointsFunction()
     {        
         // Get view for this query
         std::pair<size_t,size_t>& viewAggPair =
-            varQueryPair.second->_aggregates[0]->_incoming[0];
+            varQueryPair.second->_incoming[0];
 
         std::string viewName = "V"+std::to_string(viewAggPair.first);
-        Attribute* att = _td->getAttribute(varQueryPair.first);
+        Attribute* att = _db->getAttribute(varQueryPair.first);
         std::string& varName = att->_name;
 
         returnString += "\n"+offset(2)+"// For categorical variable "+varName+"\n";
@@ -910,13 +908,13 @@ std::string KMeans::genComputeGridPointsFunction()
     {
         // Get view for this query
         const std::pair<size_t,size_t>& viewAggPair =
-            varQueryPair.second->_aggregates[0]->_incoming[0];
+            varQueryPair.second->_incoming[0];
         
         maxString +=  "V"+std::to_string(viewAggPair.first)+".size(),";
         offsetArrays +=
-            _td->getAttribute(varQueryPair.first)->_name+"_offsets["+
+            _db->getAttribute(varQueryPair.first)->_name+"_offsets["+
             kString+"] = {},";
-        meanArrays += _td->getAttribute(varQueryPair.first)->_name+"_means["+
+        meanArrays += _db->getAttribute(varQueryPair.first)->_name+"_means["+
             kString+"] = {},";    }
 
     if (!continuousQueries.empty())
@@ -946,10 +944,10 @@ std::string KMeans::genComputeGridPointsFunction()
     {
         // Get view for this query
         const std::pair<size_t,size_t>& viewAggPair =
-            varQueryPair.second->_aggregates[0]->_incoming[0];
+            varQueryPair.second->_incoming[0];
 
         std::string viewName = "V"+std::to_string(viewAggPair.first);
-        Attribute* att = _td->getAttribute(varQueryPair.first);
+        Attribute* att = _db->getAttribute(varQueryPair.first);
         std::string& varName = att->_name;
 
         returnString += "\n"+offset(2)+"if("+viewName+".size() <= "+
@@ -995,9 +993,9 @@ std::string KMeans::genComputeGridPointsFunction()
     returnString += "\n"+offset(2)+
         "// Update the cluster variables for each tuple\n";
 
-    for (size_t rel = 0; rel < _td->numberOfRelations(); ++rel)
+    for (size_t rel = 0; rel < _db->numberOfRelations(); ++rel)
     {
-        TDNode* relation = _td->getRelation(rel);
+        Relation* relation = _db->getRelation(rel);
         
         returnString += offset(2)+"for ("+relation->_name+"_tuple& tup : "+
             relation->_name+")\n"+offset(2)+"{\n";
@@ -1011,11 +1009,11 @@ std::string KMeans::genComputeGridPointsFunction()
 
             if (_queryRootIndex[origVar] == rel)
             {
-                Attribute* clusterAtt = _td->getAttribute(var);
-                Attribute* origAtt = _td->getAttribute(origVar);
+                Attribute* clusterAtt = _db->getAttribute(var);
+                Attribute* origAtt = _db->getAttribute(origVar);
 
                 const size_t origViewID =
-                    varToQuery[origVar]->_aggregates[0]->_incoming[0].first;
+                    varToQuery[origVar]->_incoming[0].first;
                 
                 if (_isCategoricalFeature[var])
                 {
@@ -1080,17 +1078,17 @@ std::string KMeans::genComputeGridPointsFunction()
     
     bool containsView = true;
 
-    std::shared_ptr<CppGenerator> cppGenerator =
-        std::dynamic_pointer_cast<CppGenerator> (_launcher->getCodeGenerator());
+    // std::shared_ptr<CppGenerator> cppGenerator =
+    //     std::dynamic_pointer_cast<CppGenerator> (_launcher->getCodeGenerator());
             
-    boost::dynamic_bitset<> recomputedGroups(cppGenerator->numberOfGroups());   
+    boost::dynamic_bitset<> recomputedGroups(_compiler->numberOfViewGroups());   
     boost::dynamic_bitset<> intermediateViews(_compiler->numberOfViews());
     boost::dynamic_bitset<> recomputedViews(_compiler->numberOfViews());
     
-    for (size_t group = 0; group < cppGenerator->numberOfGroups(); ++group)
+    for (size_t group = 0; group < _compiler->numberOfViewGroups(); ++group)
     {
         containsView = false;
-        for (const size_t& view : cppGenerator->getGroup(group))
+        for (const size_t& view : _compiler->getViewGroup(group)._views)
         {
             if (view <= countViewAggPair.first)
             {
@@ -1132,11 +1130,11 @@ std::string KMeans::genComputeGridPointsFunction()
     
         
     // clear views and re-compute the groups that are need to compute grid 
-    for (size_t group = 0; group < cppGenerator->numberOfGroups(); ++group)
+    for (size_t group = 0; group < _compiler->numberOfViewGroups(); ++group)
     {
         if (recomputedGroups[group])
         {
-            for  (const size_t& view : cppGenerator->getGroup(group))
+            for  (const size_t& view : _compiler->getViewGroup(group)._views)
                 returnString += offset(2)+"V"+std::to_string(view)+".clear();\n";
 
             returnString += offset(2)+"computeGroup"+std::to_string(group)+"();\n";
@@ -1153,15 +1151,13 @@ std::string KMeans::genComputeGridPointsFunction()
         {
             if (countView->_fVars[var] && _isCategoricalFeature[var])
             {
-                Attribute* att = _td->getAttribute(var);
+                Attribute* att = _db->getAttribute(var);
                 const std::string& attName = att->_name;
 
                 const size_t& origVar = clusterToVariableMap[var];
-                const size_t origViewID =
-                    varToQuery[origVar]->_aggregates[0]->_incoming[0].first;
+                const size_t origViewID = varToQuery[origVar]->_incoming[0].first;
                 const std::string origView = "V"+std::to_string(origViewID);
-                const std::string& origAttName = _td->getAttribute(origVar)->_name;
-
+                const std::string& origAttName = _db->getAttribute(origVar)->_name;
 
                 returnString += "\n"+offset(2)+
                     "// For categorical variable "+origAttName+"\n";

@@ -7,18 +7,18 @@
 //
 //--------------------------------------------------------------------
 
-// #include <Count.h>
-// #include <CovarianceMatrix.h>
+#include <Count.h>
+#include <CovarianceMatrix.h>
 #include <CppGenerator.h>
 #include <Database.h>
-// #include <DataCube.h>
+#include <DataCube.h>
 // #include <KMeans.h>
 #include <Launcher.h>
 #include <LinearRegression.h>
-// #include <MutualInformation.h>
-// #include <RegressionTree.h>
-// #include <Percentile.h>
-// #include <SqlGenerator.h>
+#include <MutualInformation.h>
+#include <RegressionTree.h>
+#include <Percentile.h>
+#include <SqlGenerator.h>
 
 #include <bitset>
 #include <fstream>
@@ -154,59 +154,59 @@ int Launcher::launch(boost::program_options::variables_map& vm)
             new LinearRegression(shared_from_this()));
         hasApplicationHandler = true;
     }
-    // else if (model.compare("rtree") == 0)
-    // {
-    //     _application.reset(
-    //         new RegressionTree(shared_from_this(), false));
-    //     hasApplicationHandler = true;
-    //     hasDynamicFunctions = true;
-    // }
-    // else if (model.compare("ctree") == 0)
-    // {
-    //     _application.reset(
-    //         new RegressionTree(shared_from_this(), true));
-    //     hasApplicationHandler = true;
-    //     hasDynamicFunctions = true;
-    // }
-    // else if (model.compare("covar") == 0)
-    // {
-    //     _application.reset(
-    //         new CovarianceMatrix(shared_from_this()));
-    //     hasApplicationHandler = true;
-    // }
-    // else if (model.compare("count") == 0)
-    // {
-    //     _application.reset(
-    //         new Count(shared_from_this()));
-    //     hasApplicationHandler = true;
-    // }
-    // else if (model.compare("cube") == 0)
-    // {
-    //     _application.reset(
-    //         new DataCube(shared_from_this()));
-    // }
-    // else if (model.compare("mi") == 0)
-    // {
-    //     _application.reset(
-    //         new MutualInformation(shared_from_this()));
-    // }
-    // else if (model.compare("perc") == 0)
-    // {
-    //     _application.reset(
-    //         new Percentile(shared_from_this()));
-    //     hasApplicationHandler = true;
-    // }
+    else if (model.compare("rtree") == 0)
+    {
+        _application.reset(
+            new RegressionTree(shared_from_this(), false));
+        hasApplicationHandler = true;
+        hasDynamicFunctions = true;
+    }
+    else if (model.compare("ctree") == 0)
+    {
+        _application.reset(
+            new RegressionTree(shared_from_this(), true));
+        hasApplicationHandler = true;
+        hasDynamicFunctions = true;
+    }
+    else if (model.compare("covar") == 0)
+    {
+        _application.reset(
+            new CovarianceMatrix(shared_from_this()));
+        hasApplicationHandler = true;
+    }
+    else if (model.compare("count") == 0)
+    {
+        _application.reset(
+            new Count(shared_from_this()));
+        hasApplicationHandler = true;
+    }
+    else if (model.compare("cube") == 0)
+    {
+        _application.reset(
+            new DataCube(shared_from_this()));
+    }
+    else if (model.compare("mi") == 0)
+    {
+        _application.reset(
+            new MutualInformation(shared_from_this()));
+    }
+    else if (model.compare("perc") == 0)
+    {
+        _application.reset(
+            new Percentile(shared_from_this()));
+        hasApplicationHandler = true;
+    }
     // else if (model.compare("kmeans") == 0)
     // {
     //     _application.reset(
     //         new KMeans(shared_from_this(), vm["clusters"].as<int>()));
     //     hasApplicationHandler = true;
     // }
-    // else
-    // {
-    //     ERROR("The model "+model+" is not supported. \n");
-    //     exit(1);
-    // }
+    else
+    {
+        ERROR("The model "+model+" is not supported. \n");
+        exit(1);
+    }
 
     // TODO: construct model first!! --> we can call model to query later!
 

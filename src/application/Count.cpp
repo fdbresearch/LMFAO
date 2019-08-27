@@ -32,7 +32,7 @@ void Count::run()
 
 void Count::generateCode()
 {
-    std::string viewID = std::to_string(countQuery->_aggregates[0]->_incoming[0].first);
+    std::string viewID = std::to_string(countQuery->_incoming[0].first);
 
     std::string runFunction = offset(1)+"void runApplication()\n"+
         offset(1)+"{\n"+offset(2)+"std::cout << std::fixed << \"The count is: \" << "+
@@ -61,12 +61,12 @@ void Count::modelToQueries()
 {
     // Create a query & Aggregate
     countQuery = new Query();
-    countQuery->_rootID = _td->_root->_id;
+    countQuery->_root = _td->_root;
     
     Aggregate* agg = new Aggregate();
 
     prod_bitset product;
-    agg->_agg.push_back(product);
+    agg->_sum.push_back(product);
     
     countQuery->_aggregates.push_back(agg);
     _compiler->addQuery(countQuery);

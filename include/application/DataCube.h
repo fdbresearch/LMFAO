@@ -45,7 +45,9 @@ private:
     std::shared_ptr<QueryCompiler> _compiler;
     
     std::shared_ptr<TreeDecomposition> _td;
-
+    
+    std::shared_ptr<Database> _db;
+    
     size_t* _queryRootIndex = nullptr;
 
     size_t _labelID;

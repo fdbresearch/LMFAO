@@ -34,6 +34,7 @@ MutualInformation::MutualInformation(shared_ptr<Launcher> launcher)
 {
     _compiler = launcher->getCompiler();
     _td = launcher->getTreeDecomposition();
+    _db = launcher->getDatabase();
 }
 
 MutualInformation::~MutualInformation()
@@ -54,11 +55,11 @@ void MutualInformation::generateCode()
 void MutualInformation::modelToQueries()
 {
     Aggregate* countAgg = new Aggregate();
-    countAgg->_agg.push_back(prod_bitset());
+    countAgg->_sum.push_back(prod_bitset());
 
     Query* countQuery = new Query();
     countQuery->_aggregates.push_back(countAgg);
-    countQuery->_rootID = _td->_root->_id;
+    countQuery->_root = _td->_root;
 
     _compiler->addQuery(countQuery);
 
@@ -72,7 +73,7 @@ void MutualInformation::modelToQueries()
                 if (_isCategoricalFeature[var2])
                 {
                     Aggregate* agg = new Aggregate();
-                    agg->_agg.push_back(prod_bitset());
+                    agg->_sum.push_back(prod_bitset());
 
                     // Create a query & Aggregate
                     Query* query = new Query();
@@ -84,17 +85,17 @@ void MutualInformation::modelToQueries()
                     // if (_queryRootIndex[var] <= _queryRootIndex[var2])
                     //     query->_rootID = _queryRootIndex[var];
                     // else
-                    query->_rootID = _queryRootIndex[var2];                        
+                    query->_root = _td->getTDNode(_queryRootIndex[var2]);
                 }
             }
 
             Aggregate* agg = new Aggregate();
-            agg->_agg.push_back(prod_bitset());
+            agg->_sum.push_back(prod_bitset());
 
             // Create a query & Aggregate
             Query* query = new Query();
             query->_aggregates.push_back(agg);
-            query->_rootID = _queryRootIndex[var];
+            query->_root = _td-getTDNode(_queryRootIndex[var]);
             query->_fVars.set(var);
 
             _compiler->addQuery(query);
@@ -173,9 +174,9 @@ void MutualInformation::loadFeatures()
         /* Extract the dimension of the current attribute. */
         getline(ssLine, rootName, ATTRIBUTE_NAME_CHAR);
 
-        int attributeID = _td->getAttributeIndex(attrName);
+        int attributeID = _db->getAttributeIndex(attrName);
         int categorical = stoi(typeOfFeature); 
-        int rootID = _td->getRelationIndex(rootName);
+        int rootID = _db->getRelationIndex(rootName);
 
         if (attributeID == -1)
         {

@@ -63,6 +63,9 @@ private:
     //! TreeDecomposition of the the underlying join query.
     std::shared_ptr<TreeDecomposition> _td;
     
+    //! TreeDecomposition of the the underlying join query.
+    std::shared_ptr<Database> _db;    
+
     //! Array containing the features of the model.
     var_bitset _features;
 

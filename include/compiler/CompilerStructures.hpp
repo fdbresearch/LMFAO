@@ -96,7 +96,12 @@ struct Product
     {          
         return this->_prod == other._prod &&
             this->_incoming == other._incoming;
-    }  
+    }
+
+    void set(size_t idx)
+    {
+        _prod.set(idx);
+    }
 };
 
 

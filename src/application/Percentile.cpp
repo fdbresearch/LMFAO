@@ -33,6 +33,7 @@ Percentile::Percentile(shared_ptr<Launcher> launcher)
 {
     _compiler = launcher->getCompiler();
     _td = launcher->getTreeDecomposition();
+    _db = launcher->getDatabase();
 }
 
 Percentile::~Percentile()
@@ -52,10 +53,10 @@ void Percentile::modelToQueries()
     varToQuery = new Query*[NUM_OF_VARIABLES+1];
 
     Aggregate* agg = new Aggregate();
-    agg->_agg.push_back(prod_bitset());
+    agg->_sum.push_back(prod_bitset());
 
     Query* count = new Query();
-    count->_rootID = _td->_root->_id;
+    count->_root = _td->_root;
     count->_aggregates.push_back(agg);            
     _compiler->addQuery(count);
 
@@ -67,10 +68,10 @@ void Percentile::modelToQueries()
         if (_isFeature[var] && !_isCategoricalFeature[var])
         {
             Aggregate* agg = new Aggregate();
-            agg->_agg.push_back(prod_bitset());
+            agg->_sum.push_back(prod_bitset());
 
             Query* query = new Query();
-            query->_rootID = _queryRootIndex[var];
+            query->_root = _td->getTDNode(_queryRootIndex[var]);
             query->_fVars.set(var);
             query->_aggregates.push_back(agg);
             
@@ -151,9 +152,9 @@ void Percentile::loadFeatures()
         /* Extract the dimension of the current attribute. */
         getline(ssLine, rootName, ATTRIBUTE_NAME_CHAR);
 
-        int attributeID = _td->getAttributeIndex(attrName);
+        int attributeID = _db->getAttributeIndex(attrName);
         int categorical = stoi(typeOfFeature); 
-        int rootID = _td->getRelationIndex(rootName);
+        int rootID = _db->getRelationIndex(rootName);
 
         if (attributeID == -1)
         {
@@ -188,8 +189,8 @@ void Percentile::loadFeatures()
 void Percentile::generateCode()
 {
     Query* countQuery = varToQuery[NUM_OF_VARIABLES];
-    size_t& countViewID = countQuery->_aggregates[0]->_incoming[0].first;
-    size_t& countAggID = countQuery->_aggregates[0]->_incoming[0].second;
+    size_t& countViewID = countQuery->_incoming[0].first;
+    size_t& countAggID = countQuery->_incoming[0].second;
 
     std::string numPercStr = to_string(numberOfPercentiles);
 
@@ -205,18 +206,18 @@ void Percentile::generateCode()
     std::string printPerc = "", printPercTensorFlow = "";
     
     // Create a query & Aggregate
-    for (size_t var = 0; var < _td->numberOfAttributes(); ++var)
+    for (size_t var = 0; var < _db->numberOfAttributes(); ++var)
     {
-        std::string& attName =  _td->getAttribute(var)->_name;
+        std::string& attName =  _db->getAttribute(var)->_name;
 
         if (_isFeature[var] && !_isCategoricalFeature[var])
         {
             Query* query = varToQuery[var];
-            const size_t& viewID = query->_aggregates[0]->_incoming[0].first;
-            const size_t& aggID = query->_aggregates[0]->_incoming[0].second;
+            const size_t& viewID = query->_incoming[0].first;
+            const size_t& aggID = query->_incoming[0].second;
 
             std::string viewStr = "V"+to_string(viewID);
-            std::string typeStr = typeToStr(_td->getAttribute(var)->_type);
+            std::string typeStr = typeToStr(_db->getAttribute(var)->_type);
             
             percentileComp += offset(2)+"offset = 0; pIndex = 0;\n"+
                 offset(2)+typeStr+" percentiles"+attName+"["+
