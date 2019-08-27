@@ -634,20 +634,23 @@ void AggregateRegister::registerAggregates(
 
         // Check if this product has already been computed, if not we add it
         if (localFunctions.any() || !viewReg.empty() || multiplyByCount)
-        {
+        {        
             // Register this product to the Attribute Order Node 
             localComputation[prodID] = orderNode.registerProduct(
-                localFunctions, viewReg, localAggReg[prodID], multiplyByCount);
+                localFunctions, viewReg,
+                /* previous aggregate added only when depth < outputlevel */
+                (depth <= outputLevel ? localAggReg[prodID] : nullptr),
+                multiplyByCount);
 
-            // Update the local Aggregate Pointer
+            /* Update the localAggregatePointer */
             localAggReg[prodID] = localComputation[prodID];
 
-            if (group_id == 4)
-            {
-                std::cout << "WE REGISTERED A LOCAL PRODUCT " << depth << "  "
-                          << prodID << " Func: " << localFunctions.count() <<
-                    " ViewReg: " << viewReg.size() <<  " ID: " << localComputation[prodID] << std::endl;
-            }
+            // if (group_id == 4)
+            // {
+            //     std::cout << "WE REGISTERED A LOCAL PRODUCT " << depth << "  "
+            //               << prodID << " Func: " << localFunctions.count() <<
+            //         " ViewReg: " << viewReg.size() <<  " ID: " << localComputation[prodID] << std::endl;
+            // }
         }
         else if (depth == outputLevel)
         {
@@ -673,21 +676,21 @@ void AggregateRegister::registerAggregates(
                 RunningSumAggregate* postTuple =
                     new RunningSumAggregate(localComputation[prodID], runSumReg[prodID]);
 
-                // auto postit = orderNode._registeredRunningSumMap.find(*postTuple);
-                // if (postit !=  orderNode._registeredRunningSumMap.end())
-                // {
-                //     runSumReg[prodID] = orderNode._registeredRunningSum[postit->second];
-                //     delete postTuple;
-                // }
-                // else
-                // {
+                auto postit = orderNode._registeredRunningSumMap.find(*postTuple); // 
+                if (postit !=  orderNode._registeredRunningSumMap.end())
+                {
+                    runSumReg[prodID] = orderNode._registeredRunningSum[postit->second];
+                    delete postTuple;
+                }
+                else
+                {
                     size_t postProdID = orderNode._registeredRunningSum.size();
 
                     orderNode._registeredRunningSumMap[*postTuple] = postProdID;
                     orderNode._registeredRunningSum.push_back(postTuple);
 
                     runSumReg[prodID] = orderNode._registeredRunningSum[postProdID];
-                // }
+                }
 
                 if (group_id == 2)
                     std::cout << " ************************************ " <<

@@ -163,8 +163,14 @@ void TreeDecomposition::buildTreeDecompositionFromFile()
     //     std::cout << "\n";
     // }
 
+
     DINFO("... Built the TreeDecomposition.\n");
 
+    DINFO("Join Key Order: ");
+    for (const size_t& joinKey : _joinKeyOrder)
+        DINFO(" "<< joinKey);
+    DINFO("\n");
+    
 //     /* Number of attributes and tables. */
 //     size_t n, m, e;
 //     /* String to receive the attributes from the relation. */
