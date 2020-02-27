@@ -27,7 +27,7 @@ You can also run the tool manually using the following commands:
 
    This command will generate C++ code in the runtime/cpp directory. 
 
-2) cp runtime/cpp/
+2) cd runtime/cpp/
 
 3) make -j 
 

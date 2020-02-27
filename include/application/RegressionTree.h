@@ -40,15 +40,14 @@ class RegressionTree: public Application
 {
 public:
 
-    RegressionTree(const std::string& pathToFiles,
-                   std::shared_ptr<Launcher> launcher,
+    RegressionTree(std::shared_ptr<Launcher> launcher,
                    bool classification);
 
     ~RegressionTree();
 
     void run();
 
-    void generateCode(const std::string& outputDirectory);
+    void generateCode();
 
     
 private:
@@ -98,7 +97,7 @@ private:
 
     void classificationTreeQueries();
     
-    void genDynamicFunctions(const std::string& outDirectory);
+    void genDynamicFunctions();
 
     std::string genVarianceComputation();
 

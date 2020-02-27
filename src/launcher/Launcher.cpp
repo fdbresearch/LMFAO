@@ -22,19 +22,26 @@
 #include <bitset>
 #include <fstream>
 
-// static const std::string TREEDECOMP_CONF = "/treedecomposition.conf";
-std::string multifaq::params::FEATURE_CONF = "/";
-std::string multifaq::params::TREEDECOMP_CONF = "/";
+std::string multifaq::config::FEATURE_CONF = "";
+std::string multifaq::config::TREEDECOMP_CONF = "";
+std::string multifaq::config::SCHEMA_CONF = "";
+
+bool multifaq::cppgen::MULTI_OUTPUT;
+bool multifaq::cppgen::RESORT_RELATIONS;
+bool multifaq::cppgen::MICRO_BENCH;
+bool multifaq::cppgen::COMPRESS_AGGREGATES;
+bool multifaq::cppgen::BENCH_INDIVIDUAL;
+
+multifaq::cppgen::PARALLELIZATION_TYPE multifaq::cppgen::PARALLEL_TYPE;
+
 
 using namespace multifaq::params;
+using namespace multifaq::config;
 using namespace std;
 using namespace std::chrono;
 
-Launcher::Launcher(const string& pathToFiles) :
-    _pathToFiles(pathToFiles)
+Launcher::Launcher() 
 {
-    if (_pathToFiles.back() == '/')
-        _pathToFiles.pop_back();
 }
 
 Launcher::~Launcher()
@@ -65,22 +72,59 @@ shared_ptr<CodeGenerator> Launcher::getCodeGenerator()
 //     return _model;
 // }
 
-int Launcher::launch(const string& model, const string& codeGenerator,
-                     const string& parallel, const string& featureFile,
-                     const string& tdFile, const string& outDirectory,
-                     const bool multioutput_flag, const bool resort_flag,
-                     const bool microbench_flag, const bool compression_flag,
-                     const int k
-    )
+// int Launcher::launch(const string& model, const string& codeGenerator,
+//                      const string& featureFile,
+//                      const string& tdFile, const string& outDirectory,
+//                      const bool multioutput_flag, const bool resort_flag,
+//                      const bool microbench_flag, const bool compression_flag,
+//                      const int k
+//     )
+int Launcher::launch(boost::program_options::variables_map& vm)
 {
     /* Define the Feature Conf File */
-    FEATURE_CONF += featureFile;
+    FEATURE_CONF = multifaq::dir::PATH_TO_FILES+"/"+vm["feat"].as<std::string>(); 
 
     /* Define the TreeDecomposition Conf File */
-    TREEDECOMP_CONF += tdFile;
+    TREEDECOMP_CONF = multifaq::dir::PATH_TO_FILES+"/"+vm["td"].as<std::string>();
+
+    const string model = vm["model"].as<std::string>();
+    
+    const string codeGenerator = vm["codegen"].as<std::string>();
+    
+    multifaq::cppgen::PARALLELIZATION_TYPE parallelization_type =
+        multifaq::cppgen::NO_PARALLELIZATION;
+
+    std::string parallel = vm["parallel"].as<std::string>();
+   
+    if (parallel.compare("task") == 0)
+        parallelization_type =  multifaq::cppgen::TASK_PARALLELIZATION;
+    else if (parallel.compare("domain") == 0)
+        parallelization_type =  multifaq::cppgen::DOMAIN_PARALLELIZATION;
+    else if (parallel.compare("both") == 0)
+        parallelization_type = multifaq::cppgen::BOTH_PARALLELIZATION;
+    else if (parallel.compare("none") != 0)
+        ERROR("ERROR - We only support task and/or domain parallelism. "<<
+              "We continue single threaded.\n\n");
+
+    multifaq::cppgen::RESORT_RELATIONS = vm.count("resort");
+
+    multifaq::cppgen::MULTI_OUTPUT = (vm["mo"].as<bool>())
+        && !multifaq::cppgen::RESORT_RELATIONS;
+
+    multifaq::cppgen::MICRO_BENCH = vm.count("microbench");
+
+    multifaq::cppgen::COMPRESS_AGGREGATES = vm["compress"].as<bool>();
+    
+    multifaq::cppgen::BENCH_INDIVIDUAL = vm.count("bench_individual");
+
+    multifaq::cppgen::PARALLEL_TYPE = parallelization_type;
+
+    /* TODO: when this gets fixed, degree needs to be passed to relevant models. */
+    if (vm["degree"].as<int>() > 1)
+        ERROR("A degree > 1 is currenlty not supported.\n");
 
     /* Build tree decompostion. */
-    _treeDecomposition.reset(new TreeDecomposition(_pathToFiles + TREEDECOMP_CONF));
+    _treeDecomposition.reset(new TreeDecomposition());
 
     DINFO("INFO: Built the TreeDecomposition.\n");
     
@@ -89,61 +133,66 @@ int Launcher::launch(const string& model, const string& codeGenerator,
 
     _compiler.reset(new QueryCompiler(_treeDecomposition));
     
-
     bool hasApplicationHandler = false;
     bool hasDynamicFunctions = false;
     
     if (model.compare("reg") == 0)
     {
         _application.reset(
-            new LinearRegression(_pathToFiles, shared_from_this()));
+            new LinearRegression(shared_from_this()));
         hasApplicationHandler = true;
     }
     else if (model.compare("rtree") == 0)
     {
         _application.reset(
-            new RegressionTree(_pathToFiles, shared_from_this(), false));
+            new RegressionTree(shared_from_this(), false));
         hasApplicationHandler = true;
         hasDynamicFunctions = true;
     }
     else if (model.compare("ctree") == 0)
     {
         _application.reset(
-            new RegressionTree(_pathToFiles, shared_from_this(), true));
+            new RegressionTree(shared_from_this(), true));
         hasApplicationHandler = true;
         hasDynamicFunctions = true;
     }
     else if (model.compare("covar") == 0)
     {
         _application.reset(
-            new CovarianceMatrix(_pathToFiles, shared_from_this()));
+            new CovarianceMatrix(shared_from_this()));
         hasApplicationHandler = true;
     }
     else if (model.compare("count") == 0)
     {
         _application.reset(
-            new Count(_pathToFiles, shared_from_this()));
+            new Count(shared_from_this()));
+        hasApplicationHandler = true;
     }
     else if (model.compare("cube") == 0)
     {
         _application.reset(
-            new DataCube(_pathToFiles, shared_from_this()));
+            new DataCube(shared_from_this()));
     }
     else if (model.compare("mi") == 0)
     {
         _application.reset(
-            new MutualInformation(_pathToFiles, shared_from_this()));
+            new MutualInformation(shared_from_this()));
     }
     else if (model.compare("perc") == 0)
     {
         _application.reset(
-            new Percentile(_pathToFiles, shared_from_this()));
+            new Percentile(shared_from_this()));
         hasApplicationHandler = true;
     }
     else if (model.compare("kmeans") == 0)
     {
+            
+        size_t kappa = vm["clusters"].as<size_t>();
+        if (vm.count("kappa"))
+            kappa = vm["kappa"].as<size_t>();
+
         _application.reset(
-            new KMeans(_pathToFiles, shared_from_this(), k));
+            new KMeans(shared_from_this(), vm["clusters"].as<int>(), kappa));
         hasApplicationHandler = true;
     }
     else
@@ -153,39 +202,24 @@ int Launcher::launch(const string& model, const string& codeGenerator,
     }
     
     _application->run();
-
-    ParallelizationType parallelization_type = NO_PARALLELIZATION;
-    if (parallel.compare("task") == 0)
-        parallelization_type = TASK_PARALLELIZATION;
-    else if (parallel.compare("domain") == 0)
-        parallelization_type = DOMAIN_PARALLELIZATION;
-    else if (parallel.compare("both") == 0)
-        parallelization_type = BOTH_PARALLELIZATION;
-    else if (parallel.compare("none") != 0)
-        ERROR("ERROR - We only support task and/or domain parallelism. "<<
-              "We continue single threaded.\n\n");
     
     if (codeGenerator.compare("cpp") == 0)
         _codeGenerator.reset(
-            new CppGenerator(
-                _pathToFiles, outDirectory, multioutput_flag,resort_flag,
-                microbench_flag, compression_flag,shared_from_this())
+            new CppGenerator(shared_from_this())
             );
     else if (codeGenerator.compare("sql") == 0)
         _codeGenerator.reset(
-            new SqlGenerator(_pathToFiles, outDirectory, shared_from_this()));
+            new SqlGenerator(shared_from_this()));
     else
     {
         ERROR("The code generator "+codeGenerator+" is not supported. \n");
         exit(1);
     }
     
-    _codeGenerator->generateCode(
-        parallelization_type, hasApplicationHandler, hasDynamicFunctions);
+    _codeGenerator->generateCode(hasApplicationHandler, hasDynamicFunctions);
 
-    if (hasApplicationHandler)
-        _application->generateCode(outDirectory);
-
+    if (hasApplicationHandler && codeGenerator.compare("sql") != 0)
+        _application->generateCode();
     
     int64_t processingTime = duration_cast<milliseconds>(
         system_clock::now().time_since_epoch()).count() - start;

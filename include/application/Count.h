@@ -28,16 +28,17 @@ class Count: public Application
 {
 public:
 
-    Count(const std::string& pathToFiles,
-          std::shared_ptr<Launcher> launcher);
+    Count(std::shared_ptr<Launcher> launcher);
 
     ~Count();
 
     void run();
     
-    void generateCode(const std::string& outputString);
+    void generateCode();
 
 private:
+
+    Query* countQuery = nullptr;
     
     //! Physical path to the schema and table files.
     std::string _pathToFiles;

@@ -19,15 +19,17 @@ static const char NUMBER_SEPARATOR_CHAR = ',';
 static const char ATTRIBUTE_NAME_CHAR = ':';
 
 using namespace std;
+
 using namespace multifaq::params;
+using namespace multifaq::dir;
+using namespace multifaq::config;
+
 namespace phoenix = boost::phoenix;
 using namespace boost::spirit;
 
 const size_t numberOfPercentiles = 20;
 
-Percentile::Percentile(
-    const string& pathToFiles, shared_ptr<Launcher> launcher) :
-    _pathToFiles(pathToFiles)
+Percentile::Percentile(shared_ptr<Launcher> launcher)
 {
     _compiler = launcher->getCompiler();
     _td = launcher->getTreeDecomposition();
@@ -85,11 +87,11 @@ void Percentile::loadFeatures()
     _queryRootIndex = new size_t[NUM_OF_VARIABLES]();
     
     /* Load the two-pass variables config file into an input stream. */
-    ifstream input(_pathToFiles + FEATURE_CONF);
+    ifstream input(FEATURE_CONF);
 
     if (!input)
     {
-        ERROR(_pathToFiles + FEATURE_CONF+" does not exist. \n");
+        ERROR(FEATURE_CONF+" does not exist. \n");
         exit(1);
     }
 
@@ -183,7 +185,7 @@ void Percentile::loadFeatures()
 }
 
 
-void Percentile::generateCode(const std::string& outputDirectory)
+void Percentile::generateCode()
 {
     Query* countQuery = varToQuery[NUM_OF_VARIABLES];
     size_t& countViewID = countQuery->_aggregates[0]->_incoming[0].first;
@@ -203,14 +205,11 @@ void Percentile::generateCode(const std::string& outputDirectory)
     std::string printPerc = "", printPercTensorFlow = "";
     
     // Create a query & Aggregate
-    for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
+    for (size_t var = 0; var < _td->numberOfAttributes(); ++var)
     {
-        if (!_isFeature[var])
-            continue; 
-
         std::string& attName =  _td->getAttribute(var)->_name;
 
-        if (!_isCategoricalFeature[var])
+        if (_isFeature[var] && !_isCategoricalFeature[var])
         {
             Query* query = varToQuery[var];
             const size_t& viewID = query->_aggregates[0]->_incoming[0].first;
@@ -272,7 +271,7 @@ void Percentile::generateCode(const std::string& outputDirectory)
         offset(2)+"std::cout << \"};\\n\";"+
         offset(1)+"}\n";
         
-    std::ofstream ofs(outputDirectory+"ApplicationHandler.h", std::ofstream::out);
+    std::ofstream ofs(multifaq::dir::OUTPUT_DIRECTORY+"ApplicationHandler.h", std::ofstream::out);
     ofs << "#ifndef INCLUDE_APPLICATIONHANDLER_HPP_\n"<<
         "#define INCLUDE_APPLICATIONHANDLER_HPP_\n\n"<<
         "#include \"DataHandler.h\"\n\n"<<
@@ -281,7 +280,7 @@ void Percentile::generateCode(const std::string& outputDirectory)
         "}\n\n#endif /* INCLUDE_APPLICATIONHANDLER_HPP_*/\n";    
     ofs.close();
 
-    ofs.open(outputDirectory+"ApplicationHandler.cpp", std::ofstream::out);
+    ofs.open(multifaq::dir::OUTPUT_DIRECTORY+"ApplicationHandler.cpp", std::ofstream::out);
     ofs << "#include \"ApplicationHandler.h\"\n"
         << "namespace lmfao\n{\n";
     ofs << runFunction << std::endl;
