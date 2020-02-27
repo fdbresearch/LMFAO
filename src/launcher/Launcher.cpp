@@ -192,7 +192,7 @@ int Launcher::launch(boost::program_options::variables_map& vm)
             kappa = vm["kappa"].as<size_t>();
 
         _application.reset(
-            new KMeans(shared_from_this(), vm["clusters"].as<int>(), kappa));
+            new KMeans(shared_from_this(), vm["clusters"].as<size_t>(), kappa));
         hasApplicationHandler = true;
     }
     else

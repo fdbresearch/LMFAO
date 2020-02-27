@@ -656,7 +656,7 @@ std::string KMeans::genModelEvaluationFunction()
         offset(2)+"ofs.close();\n\n"+
         offset(2)+
         "std::cout << \"Within Cluster l2-distance: \" << error << std::endl;\n"+
-        offset(2)+"std::ofstream ofs(\"output/assignments.csv\");\n"+
+        offset(2)+"ofs.open(\"output/assignments.csv\");\n"+
         offset(2)+"for (const size_t& a : assignments)\n"+
         offset(3)+"ofs << a << \"\\n\";\n"+
         offset(2)+"ofs.close();\n"+
