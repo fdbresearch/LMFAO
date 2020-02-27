@@ -633,14 +633,30 @@ std::string KMeans::genModelEvaluationFunction()
         precompMeanSum+offset(2)+"}\n"+
         offset(2)+"double distance, error = 0.0, "+
         "min_distance;\n"+
-        offset(2)+"for (Test_tuple& tuple : TestDataset)\n"+offset(2)+"{\n"+
+        offset(2)+"std::vector<size_t> assignments(TestDataset.size());\n"+
+        offset(2)+"for (size_t t = 0; t < TestDataset.size(); ++t)\n"+offset(2)+"{\n"+
+        offset(3)+"Test_tuple& tuple = TestDataset[t];\n"+
         offset(3)+"min_distance = std::numeric_limits<double>::max();\n"+
         offset(3)+"for (size_t cluster = 0; cluster < k; ++cluster)\n"+offset(3)+"{\n"+
         offset(4)+"distance = "+numCategVar+"+sum_mean_squared[cluster]"+distance+";\n"+
+        offset(4)+"if(distance < min_distance) assignments[t] = cluster;\n"+
         offset(4)+"min_distance = std::min(distance, min_distance);\n"+
         offset(3)+"}\n"+offset(3)+"error += min_distance;\n"+
         offset(2)+"}\n"+offset(2)+
+        // offset(2)+"double distance, error = 0.0, "+
+        // "min_distance;\n"+
+        // offset(2)+"for (Test_tuple& tuple : TestDataset)\n"+offset(2)+"{\n"+
+        // offset(3)+"min_distance = std::numeric_limits<double>::max();\n"+
+        // offset(3)+"for (size_t cluster = 0; cluster < k; ++cluster)\n"+offset(3)+"{\n"+
+        // offset(4)+"distance = "+numCategVar+"+sum_mean_squared[cluster]"+distance+";\n"+
+        // offset(4)+"min_distance = std::min(distance, min_distance);\n"+
+        // offset(3)+"}\n"+offset(3)+"error += min_distance;\n"+
+        // offset(2)+"}\n"+offset(2)+
         "std::cout << \"Within Cluster l2-distance: \" << error << std::endl;\n"+
+        offset(2)+"std::ofstream ofs(\"output/assignments.csv\");\n"+
+        offset(2)+"for (const size_t& a : assignments)\n"+
+        offset(3)+"ofs << a << \"\\n\";\n"+
+        offset(2)+"ofs.close();\n"+
         offset(1)+"}\n";
 
     return testTuple + loadFunction + evalFunction;
