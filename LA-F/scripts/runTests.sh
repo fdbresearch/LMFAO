@@ -92,8 +92,9 @@ Mandatory arguments to long options are mandatory for short options too.
                                  e - factorizations implemented using eigen and C++
                                  m - factorizations implemented using MADlib
     -r, --root=<PATH>            set the root path to PATH of LMFAO project
-    -u, --user=<NAME>            connect to PSQL datatabase with the username NAME.
-    -p, --port=<NUMBER>          connect to PSQL database on the port NUMBER.
+    -u, --user=<NAME>            Username NAME used for connection to the PSQL datatabase.
+    -P, --port=<NUMBER>          Port NUMBER used for connection to the PSQL database .
+    -p, --password=<NAME>        Password NAME to connect to PSQL database. 
     -o, --operation=<NAME1>,...> Decompositons to be run in experiments factorization NAME1, NAME2,...
                                  Possible operations are qr and svd.
     -d, --data_sets=<NAME1>,...> run experiments for data sets NAME1, NAME2,...
@@ -112,7 +113,7 @@ Mandatory arguments to long options are mandatory for short options too.
                                  .txt files with comparisons. Note: dump files have to exist.
     -s, --sin_vals               Some algorithms from competitors run faster if only singular values
                                  are needed to be calculated. This flag, enables that option.
-    --clean                      WARNING: Removes all dumps/txts/xlsx produced by this script.
+    --clean                      WARNING: Removes all dumps/logs/txts/xlsx produced by this script.
     -h, --help                   show help.
 "
 }
