@@ -97,6 +97,8 @@ private:
     void printQueries();
 
     void printViews();
+
+    void printViewGraph();
     
 };
 

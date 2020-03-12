@@ -94,18 +94,29 @@ struct AggregateIndexes
             indexes[1] = loopReg->localProducts[loopAgg->functionProduct].aggregateIndex;
         }
             
-        if (loopAgg->viewProduct > -1)
+        if (loopAgg->viewProduct > -1) 
         {
-            // TODO: check if this loop aggregate can be inlined!!
-            // if (regTuple.singleViewAgg)
-            // {
-            //    returnString += "aggregates_"+viewName[regTuple.viewAgg.first]+"["+
-            //         std::to_string(regTuple.viewAgg.second)+"]*";
-            // }
-            present.set(2);
 
-            indexes[2] = loopReg->localViewAggregateProducts
-                [loopAgg->viewProduct].aggregateIndex;
+            if (loopReg->localViewAggregateProducts
+                [loopAgg->viewProduct].product.size() > 1)
+            {
+                present.set(2);
+
+                indexes[2] = loopReg->localViewAggregateProducts
+                    [loopAgg->viewProduct].aggregateIndex;
+            }
+            else
+            {
+                present.set(3);
+                present.set(4);
+
+
+                indexes[3] = loopReg->localViewAggregateProducts
+                    [loopAgg->viewProduct].product[0].first;
+
+                indexes[4] = loopReg->localViewAggregateProducts
+                    [loopAgg->viewProduct].product[0].second;
+            }
         }
 
         if (loopAgg->multiplyByCount)
@@ -1715,7 +1726,7 @@ std::string CppGenerator::genComputeGroupFunction(size_t group_id)
 
         for (size_t t = 0; t < viewGroup._threads; ++t)
             returnString += indent(2)+"thread"+std::to_string(t)+".join();\n";
-        
+        returnString += "\n";
 
         for (const size_t& viewID : viewGroup._views)
         {
@@ -2238,7 +2249,7 @@ std::string CppGenerator::genJoinAggregatesCode(
     else
     {
         returnString += indent(3+depth)+"memset(addTuple, true, sizeof(bool) * "+
-            std::to_string(varOrder.size())+");\n";
+            std::to_string(varOrder.size()-1)+");\n";
     }    
     
 
@@ -2465,12 +2476,12 @@ std::string CppGenerator::genAggLoopStringCompressed(
                 productString += "localRegister["+std::to_string(
                     localProducts[subProductID].aggregateIndex)+"]*";
 
-                subProductID = loop->getProduct(subProduct);
-                if (subProductID < localProducts.size() &&
-                    subProductID < prodID)
+                size_t remProductID = loop->getProduct(removedFunctions);
+                if (remProductID < localProducts.size() &&
+                    remProductID < prodID)
                 {
                     productString += "localRegister["+std::to_string(
-                        localProducts[subProductID].aggregateIndex)+"]";
+                        localProducts[remProductID].aggregateIndex)+"]";
                 }
                 else
                 {
@@ -2481,9 +2492,8 @@ std::string CppGenerator::genAggLoopStringCompressed(
                 decomposedProduct = true;
             }
         }
-        
-        // We turn the product into a string
 
+        // We turn the product into a string
 
         if (product.none())
             productString = "upperptr_"+relName+
@@ -2495,13 +2505,17 @@ std::string CppGenerator::genAggLoopStringCompressed(
             std::to_string(localProducts[prodID].aggregateIndex)+"] = "+
             productString + ";\n\n";
         
-        returnString += offset(2+depth+numOfLoops)+"localRegister["+
+        returnString += offset(3+depth+numOfLoops)+"localRegister["+
             std::to_string(localProducts[prodID].aggregateIndex)+"] = "+
             productString + ";\n";
     }
 
     for (size_t viewProd = 0; viewProd < viewAggregateProducts.size(); ++viewProd)
-    {   
+    {
+        // View Aggregate Products with only one view aggregate are inlined! 
+        if (viewAggregateProducts[viewProd].product.size() == 1)
+            continue;
+        
         std::string viewProduct = "";
         for (const ViewAggregateIndex& viewAgg :
                  viewAggregateProducts[viewProd].product)
@@ -2516,9 +2530,9 @@ std::string CppGenerator::genAggLoopStringCompressed(
             viewProduct +";\n";
     }
 
-       if (COMPRESS_AGGREGATES && !loop->loopAggregateList.empty())
+    if (COMPRESS_AGGREGATES && !loop->loopAggregateList.empty())
     {
-        // TODO: check if there are any aggregates at all 
+        // TODO: check if there are any aggregates at all
 
         AggregateIndexes bench, aggIdx;
         bench.setIndexes(loop, loop->loopAggregateList.front());

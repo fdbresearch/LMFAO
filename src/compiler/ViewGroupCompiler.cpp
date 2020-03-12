@@ -154,6 +154,7 @@ void ViewGroupCompiler::compile()
         prevOrigin = origin;
     }
 
+    /* Setting incoming views for last viewGroup */ 
     for (size_t incViewID = 0; incViewID < _qc->numberOfViews(); ++incViewID)
         if (incomingViews[incViewID])
             viewGroups[currentGroup]._incomingViews.push_back(incViewID);            

@@ -249,18 +249,18 @@ void AggregateRegister::createAttributeOrder(
             coveredVariables |= baseRelation->_schemaMask;
         }
         
-        for (const size_t& incViewID : viewGroup->_incomingViews) 
-        {
-            // Check if view is covered !
-            View* incView = _qc->getView(incViewID);
+        // for (const size_t& incViewID : viewGroup->_incomingViews) 
+        // {
+        //     // Check if view is covered !
+        //     View* incView = _qc->getView(incViewID);
                 
-            var_bitset viewJoinVars = incView->_fVars & attOrderMask;
-            if ((viewJoinVars & coveredVariableOrder) == viewJoinVars) 
-            {
-                coveredIncViews.set(incViewID);
-                coveredVariables |= incView->_fVars;
-            }
-        }
+        //     var_bitset viewJoinVars = incView->_fVars & attOrderMask;
+        //     if ((viewJoinVars & coveredVariableOrder) == viewJoinVars) 
+        //     {
+        //         coveredIncViews.set(incViewID);
+        //         coveredVariables |= incView->_fVars;
+        //     }
+        // }
         
         for (const size_t& incViewID : viewGroup->_incomingViews)
         {

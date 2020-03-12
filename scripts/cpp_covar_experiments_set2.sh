@@ -22,7 +22,7 @@ rm times.txt
 make -j precomp
 
 # make LMFAO 
-/usr/bin/time -f "%e " -o "time_to_compile.txt" make -j
+time make -j
 
 cat time_to_compile.txt >> ../"$LOG_FILE"
 
@@ -61,7 +61,7 @@ rm times.txt
 make -j precomp
 
 # make LMFAO 
-/usr/bin/time -f "%e " -o "time_to_compile.txt" make -j
+time make -j
 
 cat time_to_compile.txt >> ../"$LOG_FILE"
 
@@ -99,7 +99,7 @@ rm times.txt
 make -j precomp
 
 # make LMFAO 
-/usr/bin/time -f "%e " -o "time_to_compile.txt" make -j
+time make -j
 
 cat time_to_compile.txt >> ../"$LOG_FILE"
 
@@ -135,7 +135,7 @@ rm times.txt
 make -j precomp
 
 # make LMFAO 
-/usr/bin/time -f "%e " -o "time_to_compile.txt" make -j
+time make -j
 
 cat time_to_compile.txt >> ../"$LOG_FILE"
 

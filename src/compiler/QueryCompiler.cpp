@@ -70,6 +70,10 @@ void QueryCompiler::compile()
 
 #ifdef PRINT_OUT_COMPILER  /* Printout */
     printViews();
+    printViewGraph();
+
+    exit(0);
+    
 #endif /* Printout */
 
     _viewGroupLayer->compile();
@@ -262,16 +266,16 @@ pair<size_t,size_t> QueryCompiler::compileViews(TDNode* node, size_t targetID,
         
         prod_bitset localAggregate = aggregate[prod]._prod & localMask;
         
-        // add this product to localAggregates
+        //****
+        // add this product to localAggMap
+        // which for each local aggregate keeps a list of produts that require
+        // the same local aggregate, this is need for merging
+        //*** 
         auto it = localAggMap.find(localAggregate);
         if (it != localAggMap.end())
-        {
             it->second.set(prod);
-        }
         else
-        {
             localAggMap[localAggregate] = agg_bitset().set(prod);
-        }
     }
     
   
@@ -302,9 +306,6 @@ pair<size_t,size_t> QueryCompiler::compileViews(TDNode* node, size_t targetID,
         {
             if (localAgg.second[prod])
             {
-                if (print)
-                    std::cout << prod << std::endl;
-                
                 // Push local aggregate on aggregate
                 agg->_sum.push_back(localAgg.first);
                 Product& p = agg->_sum.back();
@@ -375,8 +376,7 @@ pair<size_t,size_t> QueryCompiler::compileViews(TDNode* node, size_t targetID,
                         TDNode* neighbor = _td->getTDNode(node->_neighbors[n]);
 
                         var_bitset neighborFreeVars =
-                            ((freeVars | pushDownFreeVars[prod]) &
-                             node->_neighborSchema[n]) |
+                            ((freeVars | pushDownFreeVars[prod]) & node->_neighborSchema[n]) |
                             (neighbor->_relation->_schemaMask & rel->_schemaMask);
 
                         p._incoming.push_back(
@@ -500,6 +500,7 @@ void QueryCompiler::printQueries()
     }
 }
 
+
 void QueryCompiler::printViews()
 {
     printf("List of views to be computed: \n");
@@ -542,6 +543,83 @@ void QueryCompiler::printViews()
     }   
 }
 
+
+
+void QueryCompiler::printViewGraph()
+{
+    printf("List of views to be computed: \n");
+    int viewID = 0;
+    for (View* v : _viewList)
+    {
+        printf("V%d_{%s, %s}( ", viewID++, _db->getRelation(v->_origin)->_name.c_str(),
+               _db->getRelation(v->_destination)->_name.c_str());
+        for (size_t i = 0; i < NUM_OF_VARIABLES; i++)
+            if (v->_fVars.test(i)) printf(" %s, ", _db->getAttribute(i)->_name.c_str());
+
+        std::string aggString = "";
+        for (size_t aggNum = 0; aggNum < v->_aggregates.size(); ++aggNum)
+        {
+            // aggString += "("+to_string(aggNum)+") : ";
+            Aggregate* agg = v->_aggregates[aggNum];
+            size_t aggIdx = 0;
+
+            aggString += "SUM(";
+            for (size_t i = 0; i < agg->_sum.size(); i++)
+            {
+                const auto &prod = agg->_sum[aggIdx];
+                
+                for (size_t f = 0; f < NUM_OF_FUNCTIONS; f++)
+                {
+                    if (prod._prod.test(f))
+                    {
+                        Function* func = getFunction(f);
+                        for (size_t i = 0; i < NUM_OF_VARIABLES; i++)
+                            if (func->_fVars.test(i))
+                                aggString += _db->getAttribute(i)->_name;
+                        aggString += "*";
+                    }
+                }
+
+                if (prod._prod.none())
+                    aggString += "1*";
+
+
+                for (const std::pair<size_t,size_t>& p : prod._incoming)
+                {
+                    aggString += "V"+std::to_string(p.first)+".agg["+
+                        std::to_string(p.second)+"]*";
+                }
+                
+                
+                aggString.pop_back();
+                aggString += ")+";
+                ++aggIdx;
+            }
+            aggString.pop_back();
+            aggString += ",";
+        }
+        aggString.pop_back();
+        printf("%s ) #Aggs: %lu \n\n", aggString.c_str(),v->_aggregates.size());
+    }
+
+    viewID = 0;
+
+    std::cout << "graph { " << std::endl;
+    
+    for (View* v : _viewList)
+    {
+        std::cout << "\t" << _db->getRelation(v->_origin)->_name << " -> "
+                  << "V" << viewID << ";" <<  std::endl;
+        
+        for (const auto incoming : v->_incomingViews)
+            std::cout << "\t" << "V" << incoming << " -> "
+                      << "V" << viewID  << ";" <<  std::endl;
+        ++viewID;
+    }
+
+    std::cout << "}" << std::endl;
+    
+}
 
 
 void QueryCompiler::test()

@@ -55,3 +55,6 @@ compiler-data.out
 
 # ignore script files 
 scripts/*
+
+*_before_refactoring.h*
+*_before_refactoring.cpp

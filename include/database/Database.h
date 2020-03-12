@@ -70,14 +70,40 @@ struct Relation
     //! Vector of attributes in this relation 
     var_bitset _schemaMask;
 
-    //! Number of threads for this relations 
-    size_t _threads = 1;
-    
-    
+
     Relation(std::string n, size_t i) :
         _name(n), _id(i)
     {
     }
+
+    size_t getThreads() const 
+    {
+        return _threads;
+    }
+
+    size_t getSize() const 
+    {
+        return _size;
+    }
+
+    void setThreads(size_t t)
+    {
+        _threads = t;
+    }
+
+    void setSize(size_t t)
+    {
+        _size = t;
+    } 
+
+private:
+
+    //! Number of threads for this relations 
+    size_t _threads = 1;
+
+    //! Size of this relations 
+    size_t _size = 0;
+
 };
 
 

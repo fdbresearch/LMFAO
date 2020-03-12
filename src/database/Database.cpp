@@ -32,6 +32,7 @@ void Database::initializeDatabaseFromFile()
 {
     loadSchema();
     loadCatalog();
+    // exit(1);
 }
 
 
@@ -186,7 +187,6 @@ void Database::loadSchema()
         std::string attributeName, type;
         getline(ssLine, attributeName, PARAMETER_SEPARATOR_CHAR);
         getline(ssLine, type, PARAMETER_SEPARATOR_CHAR);
-
         
         Type t = Type::Integer;        
         if (type.compare("double")==0) t = Type::Double;
@@ -231,56 +231,125 @@ void Database::loadCatalog()
     /* String and associated stream to receive lines from the file. */
     std::string line;
     std::stringstream ssLine;
+
     
+    Attribute* attribute = nullptr;
+    Relation* relation = nullptr;
+
     /* Scan through the input stream line by line. */
     while (getline(input, line))
     {        
         if (line[0] == COMMENT_CHAR || line.empty())
             continue;
-        
+
         ssLine << line;
-
-        std::string relationName;
-        size_t relationID = _relations.size();
         
-        getline(ssLine, relationName, TABLE_SEPARATOR_CHAR);
-
-        _relations.push_back(new Relation(relationName, relationID));
-        _relationsMap[relationName] = relationID;
-
-        std::string attributes, attrName;
-        getline(ssLine, attributes, PARAMETER_SEPARATOR_CHAR);
-
-        /* Clear string stream. */
-        ssLine.clear();
-
-        ssLine << attributes;
-
-        while (getline(ssLine, attrName, ATTRIBUTE_SEPARATOR_CHAR))
+        std::string fieldName;
+ 
+        if (line.front() != '-')
         {
-            Attribute* attribute = nullptr;
+            // Load relation or attribute name
+            getline(ssLine, fieldName, ' ');
 
-            auto it = _attributeMap.find(attrName);
-            if (it != _attributeMap.end())
+            auto rel_it =  _relationsMap.find(fieldName);
+            auto att_it = _attributeMap.find(fieldName);
+
+            if (rel_it != _relationsMap.end()) 
             {
-                attribute = _attributes[it->second];
+                relation = _relations[rel_it->second];
+                attribute = nullptr;
+            }
+            else if (att_it != _attributeMap.end())
+            {
+                attribute = _attributes[att_it->second];
+                relation = nullptr;
             }
             else
             {
-                size_t attrID = _attributes.size();
-                attribute = new Attribute(attrName, attrID);
-
-                _attributes.push_back(attribute);
-                _attributeMap[attrName] = attrID;           
-            }
-            
-            _relations[relationID]->_schema.push_back(attribute);
-            _relations[relationID]->_schemaMask.set(attribute->_id);
+                // TODO: throw error 
+            }   
         }
-        
+        else
+        {
+            getline(ssLine, fieldName, '=');
+            
+            std::string value;
+            getline(ssLine, value, ' ');
+
+            if (relation != nullptr)
+            {
+                // Check for each field and set it accordingly
+                // std::cout << fieldName << "   ---   " << value << std::endl;
+
+                if (fieldName.find("thread") != std::string::npos)
+                {
+                    relation->setThreads( std::stoi(value) );
+                    // std::cout << " - threads : " << relation->getThreads() << std::endl;
+                }
+                
+                if (fieldName.find("size") != std::string::npos)
+                {
+                    // std::cout << " SIZE : " << value << std::endl;
+                }
+            }
+            else if (attribute != nullptr)
+            {
+                // check for each field and set it accordingly 
+            }
+            else
+            {
+                 // TODO: throw error 
+            }
+        }
+
         /* Clear string stream. */
         ssLine.clear();
     }
+    
+        
+    //     ssLine << line;
+
+    //     std::string relationName;
+    //     size_t relationID = _relations.size();
+        
+    //     getline(ssLine, relationName, TABLE_SEPARATOR_CHAR);
+
+    //     _relations.push_back(new Relation(relationName, relationID));
+    //     _relationsMap[relationName] = relationID;
+
+    //     std::string attributes, attrName;
+    //     getline(ssLine, attributes, PARAMETER_SEPARATOR_CHAR);
+
+    //     /* Clear string stream. */
+    //     ssLine.clear();
+
+    //     ssLine << attributes;
+
+    //     while (getline(ssLine, attrName, ATTRIBUTE_SEPARATOR_CHAR))
+    //     {
+    //         Attribute* attribute = nullptr;
+
+    //         auto it = _attributeMap.find(attrName);
+    //         if (it != _attributeMap.end())
+    //         {
+    //             attribute = _attributes[it->second];
+    //         }
+    //         else
+    //         {
+    //             size_t attrID = _attributes.size();
+    //             attribute = new Attribute(attrName, attrID);
+
+    //             _attributes.push_back(attribute);
+    //             _attributeMap[attrName] = attrID;           
+    //         }
+            
+    //         _relations[relationID]->_schema.push_back(attribute);
+    //         _relations[relationID]->_schemaMask.set(attribute->_id);
+    //     }
+        
+    //     /* Clear string stream. */
+    //     ssLine.clear();
+    // }
 
     DINFO("... DONE: Catalog loaded.\n");
 }

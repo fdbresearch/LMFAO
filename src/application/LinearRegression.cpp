@@ -189,9 +189,7 @@ void LinearRegression::modelToQueries()
 
             parameterQueries[var] = linear;
 
-            // THIS ONE WOULD NEED TO BE MULTIPLIED BY THE PARAM FOR INTERCEPT
-            
-            //TODO: THIS ONE WOULD NEED TO BE MULTIPLIED BY THE PARAM FOR INTERCEPT
+            // THIS ONE WOULD NEED TO BE MULTIPLIED BY THE PARAM FOR INTERCEPT            
             PartialGradient linGradient;
             linGradient.query = linear;
             linGradient.inputVariables =

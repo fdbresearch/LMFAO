@@ -9,6 +9,8 @@
 
 #include <boost/dynamic_bitset.hpp>
 
+#include <thread>
+
 #include <DataStructureLayer.h>
 #include <Logging.hpp>
 #include <ViewGroupCompiler.h>
@@ -45,6 +47,7 @@ void DataStructureLayer::compile()
     }
 
     requireHashing();
+    parallelize();
 }
 
 bool DataStructureLayer::requireHashing(size_t view_id)
@@ -60,8 +63,8 @@ void DataStructureLayer::setLoopAggregateIndexes(LoopRegister* loopRegister)
     {
         // TODO: check if this function is composite function! 
         p.aggregateIndex = localAggregateIndex;
-
-        std::cout << "\tlocal: " << localAggregateIndex << std::endl;
+        
+        // std::cout << "\tlocal: " << localAggregateIndex << std::endl;
 
         ++localAggregateIndex;
     }
@@ -70,10 +73,13 @@ void DataStructureLayer::setLoopAggregateIndexes(LoopRegister* loopRegister)
     for (LocalViewAggregateProduct& p :
              loopRegister->localViewAggregateProducts)
     {
+        // View Aggregate Products with only one view aggregate are inlined! 
+        if (p.product.size() == 1) continue;
+        
         // TODO: check if we can inline this product
         p.aggregateIndex = localAggregateIndex;
 
-        std::cout << "\tview: " << localAggregateIndex << std::endl;
+        // std::cout << "\tview: " << localAggregateIndex << std::endl;
 
         ++localAggregateIndex;
     }
@@ -86,7 +92,7 @@ void DataStructureLayer::setLoopAggregateIndexes(LoopRegister* loopRegister)
         
         p->aggregateIndex = loopAggregateIndex;
 
-        std::cout << "\tloopAgg: " << loopAggregateIndex << std::endl;
+        // std::cout << "\tloopAgg: " << loopAggregateIndex << std::endl;
 
         ++loopAggregateIndex;
     }
@@ -101,7 +107,7 @@ void DataStructureLayer::setLoopAggregateIndexes(LoopRegister* loopRegister)
         // composite functions?!
         p->aggregateIndex = loopAggregateIndex;
 
-        std::cout << "\tloopRunSum: " << loopAggregateIndex << std::endl;
+        // std::cout << "\tloopRunSum: " << loopAggregateIndex << std::endl;
 
         ++loopAggregateIndex;
     }
@@ -114,7 +120,7 @@ void DataStructureLayer::setLoopAggregateIndexes(LoopRegister* loopRegister)
         // composite functions?!
         p->aggregateIndex = loopAggregateIndex;
 
-        std::cout << "\tfinalLoopAgg: " << loopAggregateIndex << std::endl;
+        // std::cout << "\tfinalLoopAgg: " << loopAggregateIndex << std::endl;
 
         ++loopAggregateIndex;
     }
@@ -131,7 +137,8 @@ void DataStructureLayer::setOutputLoopAggregateIndexes(LoopRegister* loopRegiste
         // TODO: check if this function is composite function!
         
         p.aggregateIndex = localAggregateIndex;
-        std::cout << "-- local: " << localAggregateIndex << std::endl;
+        
+        // std::cout << "-- local: " << localAggregateIndex << std::endl;
         
         ++localAggregateIndex;
     }
@@ -143,8 +150,7 @@ void DataStructureLayer::setOutputLoopAggregateIndexes(LoopRegister* loopRegiste
         // TODO: check if we can inline this product
         p.aggregateIndex = localAggregateIndex;
 
-        std::cout << "-- view: " << localAggregateIndex << std::endl;
-
+        // std::cout << "-- view: " << localAggregateIndex << std::endl;
         ++localAggregateIndex;
     }
 
@@ -154,8 +160,7 @@ void DataStructureLayer::setOutputLoopAggregateIndexes(LoopRegister* loopRegiste
         // TODO: check if this product, or previous products contain
         // composite functions?!
 
-        std::cout << "-- loopAgg: " << loopAggregateIndex << std::endl;
-
+        // std::cout << "-- loopAgg: " << loopAggregateIndex << std::endl;
 
         p->aggregateIndex = loopAggregateIndex;
         ++loopAggregateIndex;
@@ -173,7 +178,7 @@ void DataStructureLayer::setOutputLoopAggregateIndexes(LoopRegister* loopRegiste
         // composite functions?!
         p->aggregateIndex = loopAggregateIndex;
 
-        std::cout << "\tloopRunSum: " << loopAggregateIndex << std::endl;
+        // std::cout << "\tloopRunSum: " << loopAggregateIndex << std::endl;
 
         ++loopAggregateIndex;
     }
@@ -186,7 +191,7 @@ void DataStructureLayer::setOutputLoopAggregateIndexes(LoopRegister* loopRegiste
         // composite functions?!
         p->aggregateIndex = loopAggregateIndex;
 
-        std::cout << "\tfinalLoopAgg: " << loopAggregateIndex << std::endl;
+        // std::cout << "\tfinalLoopAgg: " << loopAggregateIndex << std::endl;
 
         ++loopAggregateIndex;
     }
@@ -278,7 +283,18 @@ void DataStructureLayer::requireHashing()
 
 
 void DataStructureLayer::parallelize()
-{
-    // TODO: this should decide which groups to parallelize
+{   
+    for (size_t gid = 0; gid < _qc->numberOfViewGroups(); ++gid)
+    {
+        ViewGroup& group = _qc->getViewGroup(gid);
+        Relation* node = group._tdNode->_relation;
+
+        if (node->getThreads() > 1)
+        {
+            group._parallelize = true;            
+            group._threads =
+                std::min(node->getThreads(), (size_t)std::thread::hardware_concurrency());
+        }
+    }
 }
 

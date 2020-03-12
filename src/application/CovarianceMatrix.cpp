@@ -84,7 +84,7 @@ void CovarianceMatrix::modelToQueries()
     listOfQueries.push_back(count);    
     
     size_t numberOfQueries = 0;
-    TDNode* cont_var_root = _td->_root;
+    // TDNode* cont_var_root = _td->_root;
 
     for (size_t var = 0; var < NUM_OF_VARIABLES; ++var)
     {
@@ -104,7 +104,7 @@ void CovarianceMatrix::modelToQueries()
             
             Query* linear = new Query();
             linear->_aggregates.push_back(agg_linear);
-            linear->_root = cont_var_root;
+            linear->_root = _td->getTDNode(_queryRootIndex[var]); // _td->_root;
 
             _compiler->addQuery(linear);
             
@@ -124,7 +124,7 @@ void CovarianceMatrix::modelToQueries()
             
             Query* quad = new Query();
             quad->_aggregates.push_back(agg_quad);
-            quad->_root = _td->_root; // cont_var_root;
+            quad->_root = _td->getTDNode(_queryRootIndex[var]); // _td->_root;
 
             _compiler->addQuery(quad);
             
@@ -206,6 +206,9 @@ void CovarianceMatrix::modelToQueries()
                     // create prod_quad_v2 of both var and var2
                     prod_quad_v2.set(featureToFunction[var2]);                    
                 }
+
+                if (!_categoricalFeatures[var] && !_categoricalFeatures[var] && _queryRootIndex[var] == _queryRootIndex[var2]) 
+                    quad_v2->_root = _td->getTDNode(_queryRootIndex[var]);
                 
                 agg_quad_v2->_sum.push_back(prod_quad_v2);
                 
@@ -337,7 +340,7 @@ void CovarianceMatrix::loadFeatures()
         }
         else
         {
-            _queryRootIndex[attributeID] = _td->_root->_id;
+            _queryRootIndex[attributeID] = rootID; // _td->_root->_id;
             ++f.body[attributeID];
         }
 
