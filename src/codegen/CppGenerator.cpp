@@ -629,6 +629,14 @@ void CppGenerator::createGroupVariableOrder()
             if (joinVars[var])
                 groupVariableOrder[group].push_back(var);
 
+        if(viewGroups.size() == 1) {
+            DINFO("There is only a single relation! \n"); 
+            assert(groupVariableOrder[group].size() == 0);
+            assert(destRelation->_bag[0]);
+            groupVariableOrder[group].push_back(0);
+        }
+
+
         groupVariableOrderBitset[group] |= joinVars;
         
         groupViewsPerVarInfo[group].resize(groupVariableOrder[group].size() *

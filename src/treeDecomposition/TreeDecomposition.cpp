@@ -274,7 +274,7 @@ void TreeDecomposition::buildFromFile()
         _relations[i]->_numOfNeighbors = _relations[i]->_neighbors.size();
         _relations[i]->_neighborSchema = new var_bitset[_relations[i]->_numOfNeighbors];
         
-        if (_relations[i]->_numOfNeighbors == 1)
+        if (_relations[i]->_numOfNeighbors == 1 || _numOfRelations == 1)
             _leafNodes.push_back(_relations[i]->_id);
 
 
