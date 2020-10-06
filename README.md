@@ -1,9 +1,6 @@
-# LMFAO
+# LMFAO - Layered Multiple Functional Ag- gregate Optimization
 
-The provided package can be used to compute the covariance matrix needed to compute a linear regression model. 
-It does not compute the parameters. The code to compute the final model is currenlty under construction, but will
-be added once completed. The convergence step, however, does not take a lot of time, and therefore the provided code 
-is a good indicator of the over all runtime.
+This package provides the code for the LMFAO engine. Please refer to our [SIGMOD 2019 paper](https://arxiv.org/abs/1906.08687) for details on the engine. 
 
 ## Installation
 
@@ -15,33 +12,25 @@ cmake .
 make
 ```
 
-## Scripts To Run:
+## Configuration Files 
 
-The following script runs LMFAO 5 times and reports the performance in the runtime directory.
+In order to run LMFAO, you need to provide the following configuration files. 
 
-./scripts/cpp_covar_script.sh PATH_TO_DATASET
+* `treedecomposition.conf` defines the tree decomposition used to compute the aggregates in LMFAO 
+* `features.conf` enumerates the features of the desired machine learning model and defines the type of each feature (continuous or categorical)
 
-You can also run the tool manually using the following commands: 
+By default, LMFAO assumes that the configuration files are provided in the directory that contains the data, but you can specify a different directory with the `--output` flag in the `multifaq` command (see below). 
 
-1) ./multifaq --path PATH_TO_DATASET --model covar --parallel {both,none}
+## Running LMFAO: 
 
-   This command will generate C++ code in the runtime/cpp directory. 
+LMFAO is run in two stages. First, you need to run `./multifaq` to generate the C++ code for a specific applkcation and dataset. Then, you need to compile and run the generated code. The commands to run LMFAO end-to-end are: 
 
-2) cd runtime/cpp/
+1) `./multifaq --path PATH_TO_DATASET --model covar --parallel both`
 
-3) make -j 
+   By default, this command generates C++ code in the runtime/cpp directory. You can change the output directory with the `--output` flag. 
 
-4) ./lmfao 
+2) `cd runtime/cpp/`
+3) `make -j`
+4) `./lmfao`
 
-
-LMFAO can also generate the SQL queries for the required aggregates by running the following command: 
-
-./multifaq --path PATH_TO_DATASET --model covar --codegen sql 
-
-The SQL queries can be found in runtime/sql/
-
-
-##XCode (good for profiling):
-
-cmake -G Xcode -H. -B_build
-
+Please refer to `./multifaq -h` for additional information on the command line options. 
