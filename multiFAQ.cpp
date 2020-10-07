@@ -55,14 +55,14 @@ int main(int argc, char *argv[])
        ("model,m", boost::program_options::value<std::string>()->default_value("covar"),
         "model to be computed: reg, covar (default), ctree, rtree, cube, mi, or perc")
        /* Option for code generator. */
-       ("codegen,g", boost::program_options::value<std::string>()->default_value("cpp"),
-        "open for code generation: cpp (default), or sql")
+       // ("codegen,g", boost::program_options::value<std::string>()->default_value("cpp"),
+       //  "open for code generation: cpp (default), or sql")
        /* Option for directory of generated code. */
        ("out,o",boost::program_options::value<std::string>(),
-        "output directory for the generated code, default: runtime/{codegen}/")
+        "output directory for the generated code, default: runtime/cpp/")
        /* Option for parallellization. */
-       ("parallel", boost::program_options::value<std::string>()->default_value("none"),
-        "options for parallelization: none (default), task, domain, or both")
+       ("parallel", boost::program_options::value<std::string>()->default_value("both"),
+        "options for parallelization: none, task, domain, or both (default)")
        /* Option to turn off mutlti output operator. */
        ("mo", boost::program_options::value<bool>()->default_value("1"),
         "turn multioutput operator on (default)/off")
@@ -70,18 +70,18 @@ int main(int argc, char *argv[])
        ("compress", boost::program_options::value<bool>()->default_value("1"),
         "turn compression of aggregates on (default)/off")
        /* Option to turn off mutlti output operator. */
-       ("resort", "enables resorting of views / relations, requires multiout off.")
+       // ("resort", "enables resorting of views / relations, requires multiout off.")
        /* Option to turn off mutlti output operator. */
        ("microbench", "enables micro benchmarking.")
        /* Option to turn off mutlti output operator. */
        ("bench_individual", "enables benchmarking for each group individually.")
-       ("clusters,k", boost::program_options::value<size_t>()->default_value(3),
-        "k for k-means algorithm. (Default = 3).")
+       ("clusters,k", boost::program_options::value<size_t>()->default_value(5),
+        "k for k-means algorithm. (Default = 5).")
        ("kappa", boost::program_options::value<size_t>(),
-        "kappa for k-means algorithm. (Default = k).")
+        "kappa for k-means algorithm. (Default = k).");
        /* Option for parallellization. */
-       ("degree", boost::program_options::value<int>()->default_value(1),
-        "Degree of interactions for regression models and FMs. (Default = 1).");
+       // ("degree", boost::program_options::value<int>()->default_value(1),
+       //  "Degree of interactions for regression models and FMs. (Default = 1).");
 
 
    /* Register previous options and do command line parsing. */
@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
    }   
 
    /* Check the code generator is supported */
-   std::string codeGenerator = vm["codegen"].as<std::string>();
+   std::string codeGenerator =  "cpp"; // vm["codegen"].as<std::string>();
 
    if (codeGenerator.compare("cpp") != 0 && codeGenerator.compare("sql") != 0)
    {

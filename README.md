@@ -49,3 +49,4 @@ make -j
 ./lmfao
 ```
 
+If you want to inspect the views that are computed by LMFAO, you need to compile the generated code with `make -j dump`, which will output the code to the `output\` directory. Make sure that this directory exists before you run LMFAO.

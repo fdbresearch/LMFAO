@@ -89,7 +89,7 @@ int Launcher::launch(boost::program_options::variables_map& vm)
 
     const string model = vm["model"].as<std::string>();
     
-    const string codeGenerator = vm["codegen"].as<std::string>();
+    const string codeGenerator = "cpp"; // vm["codegen"].as<std::string>();
     
     multifaq::cppgen::PARALLELIZATION_TYPE parallelization_type =
         multifaq::cppgen::NO_PARALLELIZATION;
@@ -106,7 +106,7 @@ int Launcher::launch(boost::program_options::variables_map& vm)
         ERROR("ERROR - We only support task and/or domain parallelism. "<<
               "We continue single threaded.\n\n");
 
-    multifaq::cppgen::RESORT_RELATIONS = vm.count("resort");
+    multifaq::cppgen::RESORT_RELATIONS = false; // vm.count("resort");
 
     multifaq::cppgen::MULTI_OUTPUT = (vm["mo"].as<bool>())
         && !multifaq::cppgen::RESORT_RELATIONS;
@@ -120,8 +120,8 @@ int Launcher::launch(boost::program_options::variables_map& vm)
     multifaq::cppgen::PARALLEL_TYPE = parallelization_type;
 
     /* TODO: when this gets fixed, degree needs to be passed to relevant models. */
-    if (vm["degree"].as<int>() > 1)
-        ERROR("A degree > 1 is currenlty not supported.\n");
+    // if (vm["degree"].as<int>() > 1)
+    //     ERROR("A degree > 1 is currenlty not supported.\n");
 
     /* Build tree decompostion. */
     _treeDecomposition.reset(new TreeDecomposition());
