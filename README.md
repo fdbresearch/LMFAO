@@ -14,7 +14,7 @@ make
 
 ## Configuration Files 
 
-In order to run LMFAO, you need to provide the following configuration files. 
+In order to run LMFAO, you need to provide the following configuration files. The `data/` directory provides examples for these configuration files.
 
 * `treedecomposition.conf` defines the tree decomposition used to compute the aggregates in LMFAO 
 * `features.conf` enumerates the features of the desired machine learning model and defines the type of each feature (continuous or categorical)
@@ -41,6 +41,8 @@ LMFAO is run in two stages: Then, you need to compile and run the generated code
    Please refer to `./multifaq -h` for additional information on the command line options. 
    
    By default, this command generates C++ code in the `runtime/cpp/` directory. You can change the output directory with the `--out (-o)` flag. 
+
+   This command also generates the `compiler-data.out` file which provides information on the number aggregates, queries, views, and groups that are required for the given application. 
 
 2) Then, run the following commands to execute the generated code: 
 ``` 
