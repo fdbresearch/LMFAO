@@ -1,4 +1,4 @@
-# LMFAO - Layered Multiple Functional Ag- gregate Optimization
+# LMFAO: Layered Multiple Functional Aggregate Optimization
 
 This package provides the code for the LMFAO engine. Please refer to our [SIGMOD 2019 paper](https://arxiv.org/abs/1906.08687) for details on the engine. 
 
