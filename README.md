@@ -4,7 +4,7 @@ This package provides the code for the LMFAO engine. Please refer to our [SIGMOD
 
 ## Installation
 
-In order to compile the LMFAO project, you need to have `cmake` installed.
+In order to compile the LMFAO project, you need to have `cmake` and `boost` installed.
 Then, you need to run the following commands:
 
 ```
@@ -27,8 +27,8 @@ LMFAO is run in two stages: Then, you need to compile and run the generated code
 
 1) First, the following command generates the C++ code for a specific application and dataset.
 
-   ```./multifaq --path PATH_TO_DATASET --model DESIRED_MODEL --parallel both```
-
+   ```./multifaq --path PATH_TO_DATASET --model DESIRED_MODEL```
+   
    where
    * `--path` denotes the path to multi-relational dataset 
    * `--model` specifies the model to be computed, the current options include: 
@@ -36,7 +36,6 @@ LMFAO is run in two stages: Then, you need to compile and run the generated code
      2) `reg` computes a linear regression model
      3) `kmeans` computes the KMeans clusters with the Rk-means algorithm (see the AISTATS 2020 paper for details)
      4) `mi` computes all pairwise mutual information 
-   * `--parallel both` enables both task and domain parallelism 
    
    Please refer to `./multifaq -h` for additional information on the command line options. 
    
