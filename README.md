@@ -14,7 +14,7 @@ make
 
 ## Configuration Files 
 
-In order to run LMFAO, you need to provide the following configuration files. 
+In order to run LMFAO, you need to provide the following configuration files. The `data/` directory provides examples for these configuration files.
 
 * `treedecomposition.conf` defines the tree decomposition used to compute the aggregates in LMFAO 
 * `features.conf` enumerates the features of the desired machine learning model and defines the type of each feature (continuous or categorical)
