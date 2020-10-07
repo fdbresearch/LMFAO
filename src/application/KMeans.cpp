@@ -518,19 +518,19 @@ std::string KMeans::genKMeansFunction()
     // "//TODO:TODO:check dispersion of the clusters and if clusters have converged\n";
 
     returnString += offset(3)+"++iteration;\n"+
-        offset(2)+"} while(clustersChanged && iteration < 1000);\n\n"+
-        offset(2)+"int64_t endProcess = duration_cast<milliseconds>("+
-        "system_clock::now().time_since_epoch()).count()-startProcess;\n"+
-        offset(2)+"std::ofstream ofs(\"times.txt\",std::ofstream::out | "+
-        "std::ofstream::app);\n"+
-        offset(2)+"ofs << \"\\t\" << endInit << \"\\t\" << endProcess << \"\\t\" << iteration;\n"+
-        offset(2)+"ofs.close();\n\n"+
-        offset(2)+"std::cout << \"Kmeans Init: \"+"+
-        "std::to_string(endInit)+\"ms.\\n\";\n"+
-        offset(2)+"std::cout << \"Run kMeans: \"+"+
-        "std::to_string(endProcess)+\"ms.\\n\";\n"+
-        offset(2)+"std::cout << \"Number of Iterations: \"+"+
-        "std::to_string(iteration)+\"\\n\";\n\n";
+      offset(2)+"} while(clustersChanged && iteration < 1000);\n\n"+
+      offset(2)+"int64_t endProcess = duration_cast<milliseconds>("+
+      "system_clock::now().time_since_epoch()).count()-startProcess;\n"+
+      offset(2)+"std::ofstream ofs(\"times.txt\",std::ofstream::out | "+
+      "std::ofstream::app);\n"+
+      offset(2)+"ofs << \"\\t\" << endInit << \"\\t\" << endProcess << \"\\t\" << iteration;\n"+
+      offset(2)+"ofs.close();\n\n"+
+      offset(2)+"std::cout << \"Kmeans Init: \"+"+
+      "std::to_string(endInit)+\"ms.\\n\";\n"+
+      offset(2)+"std::cout << \"Run kMeans: \"+"+
+      "std::to_string(endProcess)+\"ms.\\n\";\n\n";// +
+        // offset(2)+"std::cout << \"Number of Iterations: \"+"+
+        // "std::to_string(iteration)+\"\\n\";\n\n";
     
     if (INCLUDE_EVALUATION)
         returnString += offset(2)+"evaluateModel(means);\n";
@@ -566,7 +566,7 @@ std::string KMeans::genModelEvaluationFunction()
         offset(2)+"std::ifstream input;\n"+offset(2)+"std::string line;\n"+
         offset(2)+"input.open(PATH_TO_DATA + \"/joinresult.tbl\");\n"+
         offset(2)+"if (!input)\n"+offset(2)+"{\n"+
-        offset(3)+"std::cerr << \"TestDataset.tbl does is not exist.\\n\";\n"+
+        offset(3)+"std::cerr << \"joinresult.tbl does is not exist.\\n\";\n"+
         offset(3)+"exit(1);\n"+offset(2)+"}\n"+
         offset(2)+"while(getline(input, line))\n"+
         offset(3)+"TestDataset.push_back(Test_tuple(line));\n"+
@@ -656,7 +656,7 @@ std::string KMeans::genModelEvaluationFunction()
         offset(2)+"ofs.close();\n\n"+
         offset(2)+
         "std::cout << \"Within Cluster l2-distance: \" << error << std::endl;\n"+
-        offset(2)+"ofs.open(\"output/assignments.csv\");\n"+
+        offset(2)+"ofs.open(\"assignments.csv\");\n"+
         offset(2)+"for (const size_t& a : assignments)\n"+
         offset(3)+"ofs << a << \"\\n\";\n"+
         offset(2)+"ofs.close();\n"+
@@ -1236,15 +1236,14 @@ std::string KMeans::genClusterInitialization(const std::string& gridName)
 {
     std::vector<std::string> initList;
 
-
     /* Load the cluster initialization file into an input stream. */
-    ifstream input(multifaq::dir::PATH_TO_FILES + "/cluster_init_"+DATASET_NAME+".conf");
+    ifstream input(multifaq::dir::PATH_TO_FILES + "/cluster_init.conf");
 
-    std::cout << multifaq::dir::PATH_TO_FILES + "/cluster_init_"+DATASET_NAME+".conf" << std::endl;
+    std::cout << "INFO: Looking for cluster initialization file: " << multifaq::dir::PATH_TO_FILES + "/cluster_init.conf" << std::endl;
 
     if (!input)
     {
-        std::cout << "INFO: no cluster initialization file provided. \n";
+        std::cout << "INFO: No cluster initialization file provided. \n";
         std::cout << "INFO: We will use Kmeans++ Initialization instead. \n";
         
         return offset(2)+"// Initialize the means\n\n"+

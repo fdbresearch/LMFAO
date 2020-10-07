@@ -15,7 +15,7 @@
 using namespace std;
 using namespace multifaq::params;
 
-#define PRINT_OUT_COMPILER
+// #define PRINT_OUT_COMPILER
 // #define PRINT_OUT_COMPILER_EXTENDED
 
 QueryCompiler::QueryCompiler(shared_ptr<TreeDecomposition> td) : _td(td)

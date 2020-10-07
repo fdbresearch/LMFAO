@@ -127,7 +127,7 @@ int Launcher::launch(boost::program_options::variables_map& vm)
     _treeDecomposition.reset(new TreeDecomposition());
 
     DINFO("INFO: Built the TreeDecomposition.\n");
-    
+
     int64_t start = duration_cast<milliseconds>(
         system_clock::now().time_since_epoch()).count();
 
@@ -257,8 +257,8 @@ int Launcher::launch(boost::program_options::variables_map& vm)
     
     ofs.close();
     
-    BINFO(
-	"Time for Compiler: " + to_string(processingTime) + "ms.\n");
+    // BINFO(
+    // 	"Time for Compiler: " + to_string(processingTime) + "ms.\n");
     
     return EXIT_SUCCESS;
 }

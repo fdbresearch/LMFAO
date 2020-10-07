@@ -6774,13 +6774,14 @@ std::string CppGenerator::genRunFunction(bool parallelize)
         offset(2)+"ofs.open(\"times.txt\",std::ofstream::out | std::ofstream::app);\n"+
         offset(2)+"ofs << \"\\t\" << processTime;\n";
     
-    // if (BENCH_INDIVIDUAL)
+    // if (BENCH_INDIVIDUAL)    
+    returnString += offset(2)+"std::cout << \"Size of each computed View: \" << std::endl;\n";
     for (size_t view = 0; view < _qc->numberOfViews(); ++view)
     {
         returnString += offset(2)+"std::cout << \""+viewName[view]+": \" << "+
             viewName[view]+".size() << std::endl;\n";
     }
-
+    
     if (_hasApplicationHandler)
     {
         returnString += offset(2)+"ofs.close();\n\n"+

@@ -18,7 +18,6 @@
 #include <Launcher.h>
 #include <Logging.hpp>
 
-
 std::string multifaq::dir::PATH_TO_DATA;
 std::string multifaq::dir::PATH_TO_FILES;
 std::string multifaq::dir::DATASET_NAME;
@@ -208,8 +207,15 @@ int main(int argc, char *argv[])
        std::chrono::system_clock::now().time_since_epoch()).count() - start;
 #endif
 
-   BINFO("MAIN - overall time: " + std::to_string(end) + "ms.\n");
-   DINFO("Completed execution \n");
-
+   BINFO("BENCH - overall compilation time: " + std::to_string(end) + "ms.\n");
+   DINFO("INFO: Completed execution \n");
+   
+   std::cout << "----------------------------------------" << std::endl;
+   std::cout << "The generated code was output to: " << outputDirectory << std::endl;
+   std::cout << "Run the following commands to execute code: "  << std::endl;
+   std::cout << "   cd " << outputDirectory << std::endl;
+   std::cout << "   make -j " << std::endl;
+   std::cout << "   ./lmfao " << std::endl;
+   
    return result;
 };
