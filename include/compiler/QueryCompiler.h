@@ -5,6 +5,9 @@
 // Created on: 07/10/2017
 // Author: Max
 //
+// Header file for the QueryCompiler which decomposes a batch of aggregate
+// queries into directed views along the edges of a given tree decoposition.
+//
 //--------------------------------------------------------------------
 
 #ifndef INCLUDE_QUERYCOMPILER_H_
@@ -137,38 +140,9 @@ struct Function
 
     ~Function()
     {
-        // if (_parameter != nullptr)
-        //     delete[] _parameter;
     }    
 };
 
-
-#ifdef PREVIOUS
-struct Aggregate
-{
-    size_t _n;
-    size_t* _m;
-    size_t* _o;
-
-    // Each aggregate is a sum of products of functions
-    std::vector<prod_bitset> _agg;
-
-    // Each product can have potentially different incoming Views 
-    std::vector<size_t> _incoming;
-    
-    Aggregate(size_t n) : _n(n)
-    {
-        _m = new size_t[_n];
-        _o = new size_t[_n];
-    }
-
-    ~Aggregate()
-    {
-        delete[] _m;
-        delete[] _o;
-    }
-};
-#else
 struct Aggregate
 {
     // Each aggregate is a sum of products of functions
@@ -176,24 +150,9 @@ struct Aggregate
 
     // Each product can have potentially different incoming Views 
     std::vector<std::pair<size_t,size_t>> _incoming;
-
-    // void addAggregate(prod_bitset local, std::pair<size_t, size_t> child) 
-    // { 
-    //     _agg.push_back(local);
-    //     _incoming.push_back(child);
-    //     // ++_n;
-    // }
-
-    // void addAggregate(prod_bitset local) 
-    // { 
-    //     _agg.push_back(local);
-    //     // ++_n;
-    // }
     
     Aggregate() {}
 };
-#endif
-
 
 struct Query
 {    
@@ -217,11 +176,9 @@ struct View
 
     unsigned int _origin;
     unsigned int _destination;
-    unsigned int _usageCount; // TODO: DO WE ACTUALLY NEED THIS ?!?
+    unsigned int _usageCount; 
     var_bitset _fVars;
     std::vector<Aggregate*> _aggregates;
-
-    // std::vector<size_t> _incomingViews;
     
     View (int o, int d) : _origin(o) , _destination(d) {}
 };
@@ -237,9 +194,7 @@ public:
     ~QueryCompiler();
 
     void compile();
-
-    // void compileSQLQueryBitset();
-
+    
     void addFunction(Function* f);
 
     void addQuery(Query* q);
@@ -269,37 +224,13 @@ private:
     /*  List of all functions. The index indicates the ID of the function */
     std::vector<Function*> _functionList;
     
-    /* Method that turns Querys into messages. */
-    std::pair<size_t,size_t> compileViews(TDNode* node, size_t targetID,
-                                          std::vector<prod_bitset> aggregate,
-                                          var_bitset freeVars);
+    /* Method that turns aggregates into views. */
+    std::pair<size_t,size_t> compileViews(
+        TDNode* node, size_t targetID, std::vector<prod_bitset> aggregate, var_bitset freeVars);
     
     std::unordered_map<cache_tuple, std::pair<int,int>> _cache;
     
     std::unordered_map<view_tuple, int> _viewCache;
-
-    //  std::string getFunctionString(size_t fid);
-    
-    void test(); // TODO: this should be removed - but helpful for testing
 };
 
 #endif /* INCLUDE_QUERYCOMPILER_H_ */
-
-/*
- * View freeVars -> bitset  --> requires number of variables 
-
- * Aggregate: Functions freeVars -> bitset 
-
- * -> we need a total order on the functions and then we can define them by a
-      bitset as well 
-      ----> requires number of functions !!
- 
-      * but we need a mapping from function index to the free variabales of that
-      * function - free vars are used for push down - functions are used to
-      * decide upon merging
-
- * -> Product defined by a bitset for order on functions 
- * -> SUM is a list of these product bitsets
-
- * TODO: can I construct a dynamic bitset? - number of bits given at runtime ?!?!
- */
