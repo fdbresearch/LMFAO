@@ -51,3 +51,14 @@ make -j
 ```
 
 If you want to inspect the views that are computed by LMFAO, you need to compile the generated code with `make -j dump`, which will output the code to the `output\` directory. Make sure that this directory exists before you run LMFAO.
+
+## Example:
+
+We provide a fragment of the [Kaggle Favorita dataset](https://www.kaggle.com/c/favorita-grocery-sales-forecasting) as an example. To compute the covar matrix, you need to run the following commands: 
+
+```
+./multifaq --path data/favorita-small --model covar
+cd runtime/cpp/ 
+make -j
+./lmfao
+```
