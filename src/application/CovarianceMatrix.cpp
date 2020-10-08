@@ -108,12 +108,7 @@ void CovarianceMatrix::modelToQueries()
             _compiler->addQuery(linear);
             
             listOfQueries.push_back(linear);            
-            ++numberOfQueries;
-            
-            // TODO: What is the queryID ?
-            // TODO: what is the variable of the intercept? NUM_OF_VARS + 1?
-            // TODO: We should also add this to the NUM_OF_VARS + 1 gradient for
-            // the intercept multiplied by param for this var!
+            ++numberOfQueries;            
             
             // Quadratic function for each feature
             prod_quad_v1.set(quadFeatureToFunction[var]);
